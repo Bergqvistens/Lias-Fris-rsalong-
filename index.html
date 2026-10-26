@@ -135,6 +135,45 @@
     .lh-intro p { font: 16px/1.6 var(--font-body); color: var(--text); }
     .lh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+    /* ===== Steg 3: sidor, filter, produktnät, kurskort, dialog ===== */
+    .lh-page { max-width: 900px; margin: 0 auto; padding: 16px 16px 8px; }
+    .lh-page__intro { margin: 0 0 12px; font: 16px/1.5 var(--font-body); color: var(--on-page); }
+    .lh-page__note { margin: 12px 0 0; font: 15px/1.5 var(--font-body); color: var(--on-page); text-align: center; }
+    .lh-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 10px; margin: 0 -16px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .lh-chips::-webkit-scrollbar { display: none; }
+    .lh-chip { flex-shrink: 0; }
+    .lh-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 12px; }
+    .lh-pgrid > *, .lh-cgrid > * { min-width: 0; }
+    .lh-pcard { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .lh-pcard__open { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+    .lh-pcard__body { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; flex: 1; }
+    .lh-pcard__name { margin: 0; font: 600 16px/1.25 var(--font-heading); color: var(--forest); overflow-wrap: anywhere; }
+    .lh-pcard__price { font: 700 16px/1.3 var(--font-body); color: var(--text); }
+    .lh-pcard__actions { margin-top: auto; padding-top: 4px; }
+    .lh-pcard[data-out="true"] .lh-img img { opacity: .6; }
+    .lh-btn--sm { min-height: 44px; padding: 8px 12px; font-size: 15px; text-align: center; }
+    .lh-qty { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .lh-qty__n { min-width: 20px; text-align: center; font: 700 17px var(--font-body); color: var(--text); }
+    .lh-qtybtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--forest); background: #FFFFFF; color: var(--forest); cursor: pointer; }
+    .lh-qtybtn[disabled] { opacity: .4; cursor: not-allowed; }
+    .lh-cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 14px; }
+    .lh-ccard { display: flex; flex-direction: column; gap: 10px; }
+    .lh-ccard__name { margin: 0; font: 600 19px/1.25 var(--font-heading); color: var(--forest); overflow-wrap: anywhere; }
+    .lh-ccard__desc { margin: 0; font: 16px/1.5 var(--font-body); color: var(--text-muted); }
+    .lh-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 12px; margin: 0; padding: 12px; border-radius: 14px; background: var(--bg); }
+    .lh-fact { display: flex; gap: 8px; align-items: flex-start; min-width: 0; color: var(--forest); }
+    .lh-fact dt { font: 600 14px/1.3 var(--font-body); color: var(--text-muted); }
+    .lh-fact dd { margin: 2px 0 0; font: 16px/1.35 var(--font-body); color: var(--text); overflow-wrap: anywhere; }
+    .lh-next { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 16px/1.4 var(--font-body); color: var(--text); }
+    .lh-dialog-bg { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: flex-end; justify-content: center; background: rgba(23,48,38,0.55); }
+    .lh-dialog { position: relative; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; padding-bottom: calc(16px + var(--safe-bottom)); }
+    .lh-dialog__close { position: absolute; top: 10px; right: 10px; z-index: 1; background: var(--surface); color: var(--forest); border-radius: 50%; box-shadow: var(--shadow-card); }
+    .lh-dialog__body { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+    .lh-dialog__body h2 { margin: 0; font: 600 22px/1.25 var(--font-heading); color: var(--forest); }
+    .lh-dialog__body p { margin: 0; font: 16px/1.5 var(--font-body); color: var(--text); }
+    @media (min-width: 600px) { .lh-dialog-bg { align-items: center; padding: 24px; } .lh-dialog { border-radius: 22px; } }
+    .lh-thumb { width: 48px; flex-shrink: 0; }
+    .lh-pcard__body .lh-badge, .lh-dialog__body .lh-badge, .lh-next .lh-badge { align-self: flex-start; }
   </style>
 </head>
 <body>
@@ -586,10 +625,10 @@
     ];
 
     const COURSES_DATA = [
-      { id: 'c-begin', name: 'Keramik för nybörjare', desc: 'Lär dig grunderna i keramik. Vi börjar med handteknik och introducerar hjulteknik.', price: 1200, duration: '6 veckor', schedule: 'Tisdagar 18:00–20:00', capacity: 8, emoji: '🎨', kind: 'serie', dow: 2, from: [18, 0], to: [20, 0], weeks: 6 },
-      { id: 'c-adv', name: 'Avancerad keramik', desc: 'För dig som redan har grundkunskap. Vi fokuserar på både hjul och skulpturteknik.', price: 1500, duration: '8 veckor', schedule: 'Torsdagar 18:00–20:00', capacity: 6, emoji: '🖌️', kind: 'serie', dow: 4, from: [18, 0], to: [20, 0], weeks: 8 },
-      { id: 'c-drop', name: 'Keramikverkstad drop-in', desc: 'Kom när du vill och skapa under Lias övervakning. Eldning ingår.', price: 150, duration: '2 timmar', schedule: 'Fredagar 16:00–18:00 & Lördagar 10:00–12:00', capacity: 10, emoji: '✨', kind: 'dropin', slots: [{ dow: 5, from: [16, 0], to: [18, 0] }, { dow: 6, from: [10, 0], to: [12, 0] }] },
-      { id: 'c-kids', name: 'Keramik för barn', desc: 'Roliga och kreativa keramikprojekt för barn 6–12 år.', price: 400, duration: '4 veckor', schedule: 'Onsdagar 16:00–17:00', capacity: 12, emoji: '👶', kind: 'serie', dow: 3, from: [16, 0], to: [17, 0], weeks: 4 },
+      { id: 'c-begin', name: 'Keramik för nybörjare', desc: 'Lär dig grunderna i keramik. Vi börjar med handteknik och introducerar hjulteknik.', price: 1200, duration: '6 veckor', schedule: 'Tisdagar 18:00–20:00', capacity: 8, emoji: '🎨', cat: 'begin', kind: 'serie', dow: 2, from: [18, 0], to: [20, 0], weeks: 6 },
+      { id: 'c-adv', name: 'Avancerad keramik', desc: 'För dig som redan har grundkunskap. Vi fokuserar på både hjul och skulpturteknik.', price: 1500, duration: '8 veckor', schedule: 'Torsdagar 18:00–20:00', capacity: 6, emoji: '🖌️', cat: 'adv', kind: 'serie', dow: 4, from: [18, 0], to: [20, 0], weeks: 8 },
+      { id: 'c-drop', name: 'Keramikverkstad drop-in', desc: 'Kom när du vill och skapa under Lias övervakning. Eldning ingår.', price: 150, duration: '2 timmar', schedule: 'Fredagar 16:00–18:00 & Lördagar 10:00–12:00', capacity: 10, emoji: '✨', cat: 'drop', kind: 'dropin', slots: [{ dow: 5, from: [16, 0], to: [18, 0] }, { dow: 6, from: [10, 0], to: [12, 0] }] },
+      { id: 'c-kids', name: 'Keramik för barn', desc: 'Roliga och kreativa keramikprojekt för barn 6–12 år.', price: 400, duration: '4 veckor', schedule: 'Onsdagar 16:00–17:00', capacity: 12, emoji: '👶', cat: 'kids', kind: 'serie', dow: 3, from: [16, 0], to: [17, 0], weeks: 4 },
     ];
 
     // Kommande omgångar (kurser) eller tillfällen (drop-in), räknat från imorgon i svensk tid.
@@ -615,13 +654,16 @@
       return out;
     }
 
+    const COURSE_CATS = [['alla', 'Alla kurser'], ['begin', 'Nybörjare'], ['adv', 'Fortsättning'], ['kids', 'Barn'], ['drop', 'Drop-in']];
+    const SHOP_CATS = [['alla', 'Alla'], ['koppar', 'Koppar'], ['skalar', 'Skålar'], ['krukor', 'Krukor'], ['present', 'Present'], ['dekoration', 'Dekoration']];
+
     const SHOP_DATA = [
-      { id: 's-cup', name: 'Handgjord kaffekopp', desc: 'Vacker keramikkopp gjord på hjulet. Unik design.', price: 280, emoji: '☕' },
-      { id: 's-bowl', name: 'Keramikskål', desc: 'Perfekt för frukt, chips eller som dekorationsobjekt.', price: 350, emoji: '🥣' },
-      { id: 's-vase', name: 'Dekorativ vas', desc: 'Moderna former, perfekt för blombukett eller som dekoration.', price: 450, emoji: '🌸' },
-      { id: 's-plate', name: 'Handmålad tallrik', desc: 'Unik tallrik med handmålat mönster. Mat- och diskmaskinssäker.', price: 320, emoji: '🍽️' },
-      { id: 's-pot', name: 'Kruka för växter', desc: 'Elegant kruka för inomhusväxter. Med dräneringshål.', price: 220, emoji: '🌿' },
-      { id: 's-set', name: 'Servis set (4 st)', desc: 'Matchande kopp, tallrik och skål i samma design. Perfekt gåva!', price: 899, emoji: '🎁' },
+      { id: 's-cup', name: 'Handgjord kaffekopp', desc: 'Vacker keramikkopp gjord på hjulet. Unik design.', price: 280, emoji: '☕', cat: 'koppar' },
+      { id: 's-bowl', name: 'Keramikskål', desc: 'Perfekt för frukt, chips eller som dekorationsobjekt.', price: 350, emoji: '🥣', cat: 'skalar' },
+      { id: 's-vase', name: 'Dekorativ vas', desc: 'Moderna former, perfekt för blombukett eller som dekoration.', price: 450, emoji: '🌸', cat: 'dekoration' },
+      { id: 's-plate', name: 'Handmålad tallrik', desc: 'Unik tallrik med handmålat mönster. Mat- och diskmaskinssäker.', price: 320, emoji: '🍽️', cat: 'dekoration' },
+      { id: 's-pot', name: 'Kruka för växter', desc: 'Elegant kruka för inomhusväxter. Med dräneringshål.', price: 220, emoji: '🌿', cat: 'krukor' },
+      { id: 's-set', name: 'Presentlådan', desc: 'Handgjord mugg, kopp och skål med kökshandduk i presentlåda. Perfekt gåva!', price: 899, emoji: '🎁', cat: 'present' },
     ];
 
     // Öppettider per veckodag (0 = söndag … 6 = lördag), [öppnar, stänger] i svensk tid
@@ -716,8 +758,8 @@
     }
 
     const BOX = { backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '12px', padding: '16px' };
-    const H2 = { color: COLORS.sand1, fontSize: '20px', fontFamily: T.font.heading, margin: '0 0 6px 0' };
-    const SUB = { color: COLORS.sand1, opacity: 0.85, fontSize: '13px', margin: '0 0 18px 0' };
+    const H2 = { color: 'var(--flow-fg, #F4EDE0)', fontSize: '20px', fontFamily: T.font.heading, margin: '0 0 6px 0' };
+    const SUB = { color: 'var(--flow-fg, #F4EDE0)', opacity: 0.85, fontSize: '13px', margin: '0 0 18px 0' };
     const INPUT = { width: '100%', padding: '14px', border: `2px solid ${COLORS.earthBrown}`, borderRadius: '10px', fontSize: '16px', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: COLORS.dark };
 
     function GDPRModal({ onOk }) {
@@ -1092,7 +1134,7 @@
     function ActionBar({ label, enabled, onClick, color, textColor }) {
       const navH = useNavHeight();
       return (
-        <div style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: COLORS.primary }}>
+        <div style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: 'var(--bar-bg, #4B9FA6)' }}>
           <button disabled={!enabled} onClick={onClick} style={{ display: 'block', width: '100%', maxWidth: '568px', margin: '0 auto', padding: '15px', backgroundColor: enabled ? (color || COLORS.sandBrown) : 'rgba(244,237,224,0.35)', color: textColor || COLORS.sand1, border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '16px', cursor: enabled ? 'pointer' : 'not-allowed' }}>{label}</button>
         </div>
       );
@@ -1100,8 +1142,8 @@
     function StepTitle({ n, total, title, sub, onBack }) {
       return (
         <div style={{ marginBottom: '4px' }}>
-          {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', color: COLORS.sand1, fontSize: '14px', padding: '0 0 10px 0', cursor: 'pointer', fontWeight: '600' }}>← Tillbaka</button>}
-          {n && <div style={{ color: COLORS.sand1, opacity: 0.75, fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px' }}>STEG {n} AV {total}</div>}
+          {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', padding: '0 0 10px 0', cursor: 'pointer', fontWeight: '600' }}>← Tillbaka</button>}
+          {n && <div style={{ color: 'var(--flow-fg, #F4EDE0)', opacity: 0.85, fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px' }}>STEG {n} AV {total}</div>}
           <h2 style={H2}>{title}</h2>
           {sub && <p style={SUB}>{sub}</p>}
         </div>
@@ -1120,9 +1162,9 @@
       const v = contactCheck(form);
       const field = (key, label, props, msg) => (
         <div style={{ marginBottom: '14px' }}>
-          <label style={{ display: 'block', fontWeight: '700', color: COLORS.sand1, marginBottom: '6px', fontSize: '14px' }}>{label}</label>
+          <label style={{ display: 'block', fontWeight: '700', color: 'var(--flow-fg, #F4EDE0)', marginBottom: '6px', fontSize: '14px' }}>{label}</label>
           <input {...props} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} style={{ ...INPUT, borderColor: tried && !v[key] ? COLORS.error : COLORS.earthBrown }} />
-          {tried && !v[key] && <div style={{ color: '#FFE3DA', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>⚠️ {msg}</div>}
+          {tried && !v[key] && <div style={{ color: 'var(--flow-err, #FFE3DA)', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>⚠️ {msg}</div>}
         </div>
       );
       return (
@@ -1150,8 +1192,19 @@
     const plats = n => n === 1 ? '1 plats' : n + ' platser';
     function fmtDate(ms) { const t = new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, day: 'numeric', month: 'short' }).replace('.', ''); return t; }
 
+    // Status för kurskortet: första omgång/tillfälle med lediga platser. "Få platser kvar" = 1–2 lediga.
+    function courseStatus(c, taken) {
+      if (!DEMO) return { code: 'none', next: null, left: null };
+      if (!taken) return { code: 'loading', next: null, left: null };
+      const open = courseOccasions(c).map(o => ({ o, left: c.capacity - (taken[o.key] || 0) })).find(x => x.left > 0);
+      if (!open) return { code: 'full', next: null, left: null };
+      return { code: open.left <= 2 ? 'low' : 'ok', next: open.o, left: open.left };
+    }
+
     // ---------- KURSER ----------
     function Courses() {
+      const [cat, setCat] = useState('alla');
+      const [seatsAll, setSeatsAll] = useState(null);
       const [step, setStep] = useState(1);
       const [course, setCourse] = useState(null);
       const [taken, setTaken] = useState(null);
@@ -1164,6 +1217,15 @@
       const [error, setError] = useState(null);
       const [done, setDone] = useState(null);
       useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
+      useEffect(() => {
+        if (!DEMO || step !== 1 || done) return;
+        let live = true;
+        Promise.all(COURSES_DATA.map(c => sb.rpc('get_course_seats', { p_course_id: c.id }))).then(rs => {
+          if (!live) return;
+          const m = {}; rs.forEach((r, i) => { if (!r.error) m[COURSES_DATA[i].id] = r.data; }); setSeatsAll(m);
+        });
+        return () => { live = false; };
+      }, [step, done]);
 
       const occs = course ? courseOccasions(course) : [];
       const left = o => course.capacity - ((taken && taken[o.key]) || 0);
@@ -1208,33 +1270,42 @@
       }
 
       if (step === 1) {
+        const shown = COURSES_DATA.filter(c => cat === 'alla' || c.cat === cat);
         return (
-          <div style={pageWrap}>
-            <div style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.keramikDrejning} alt="Händer som drejar ett kärl i lera" ratio="16 / 9" position="50% 62%" eager /></div>
-            <div style={{ ...BOX, marginBottom: '20px' }}>
-              <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading }}>🎨 Keramikkurser</h2>
-              <p style={{ margin: 0, color: COLORS.dark, fontSize: '14px' }}>Lär dig keramik från grunden eller utveckla dina befintliga färdigheter</p>
-            </div>
+          <div className="lh-page">
+            <div style={{ marginBottom: '14px' }}><ResponsiveImage src={IMG.keramikDrejning} alt="Händer som drejar ett kärl i lera" ratio="16 / 9" position="50% 62%" eager /></div>
+            <p className="lh-page__intro">Lär dig keramik från grunden eller utveckla dina befintliga färdigheter.</p>
             {!DEMO && ONLINE_SOON}
-            <div style={{ display: 'grid', gap: '16px' }}>
-              {COURSES_DATA.map(c => (
-                <div key={c.id} data-course={c.id} style={{ ...BOX, padding: '20px' }}>
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '32px', lineHeight: '1' }}>{c.emoji}</div>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: '0 0 4px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600', fontFamily: T.font.heading }}>{c.name}</h3>
-                      <p style={{ margin: 0, color: COLORS.dark, fontSize: '13px', opacity: 0.8, lineHeight: '1.4' }}>{c.desc}</p>
+            <div className="lh-chips" role="group" aria-label="Filtrera kurser">
+              {COURSE_CATS.map(([id, label]) => <FilterChip key={id} selected={cat === id} data-chip={id} onClick={() => setCat(id)}>{label}</FilterChip>)}
+            </div>
+            <div className="lh-cgrid" aria-live="polite">
+              {shown.map(c => {
+                const st = courseStatus(c, seatsAll && seatsAll[c.id]);
+                const drop = c.kind === 'dropin';
+                return (
+                  <article key={c.id} data-course={c.id} data-status={st.code} className="lh-card lh-ccard">
+                    <h3 className="lh-ccard__name">{c.name}</h3>
+                    <p className="lh-ccard__desc">{c.desc}</p>
+                    <dl className="lh-facts">
+                      <div className="lh-fact"><Icon name="clock" size={20} /><div><dt>Längd</dt><dd>{c.duration}</dd></div></div>
+                      <div className="lh-fact"><Icon name="calendar" size={20} /><div><dt>Schema</dt><dd>{c.schedule}</dd></div></div>
+                      <div className="lh-fact"><Icon name="users" size={20} /><div><dt>Platser</dt><dd>{c.capacity} personer</dd></div></div>
+                      <div className="lh-fact"><Icon name="tag" size={20} /><div><dt>Pris</dt><dd>{formatPrice(c.price)}{drop ? ' / tillfälle' : ''}</dd></div></div>
+                    </dl>
+                    <div className="lh-next" data-next={c.id}>
+                      {st.code === 'loading' && <span>Hämtar lediga platser…</span>}
+                      {st.next && <span><strong>{drop ? 'Nästa tillfälle:' : 'Nästa start:'}</strong> {fmtDayLong(st.next.startMs)}{st.left !== null ? ` · ${plats(st.left)} lediga` : ''}</span>}
+                      {st.code === 'ok' && <StatusBadge tone="ok">Platser kvar</StatusBadge>}
+                      {st.code === 'low' && <StatusBadge tone="low">Få platser kvar</StatusBadge>}
+                      {st.code === 'full' && <><StatusBadge tone="out">Fullbokad</StatusBadge><span>Alla kommande {drop ? 'tillfällen' : 'omgångar'} är fullbokade.</span></>}
                     </div>
-                  </div>
-                  <div style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px', color: COLORS.dark, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div><strong style={{ color: COLORS.sandBrown }}>⏱️ Längd:</strong><br />{c.duration}</div>
-                    <div><strong style={{ color: COLORS.sandBrown }}>📅 Schema:</strong><br />{c.schedule}</div>
-                    <div><strong style={{ color: COLORS.sandBrown }}>👥 Platser:</strong><br />{c.capacity} personer</div>
-                    <div><strong style={{ color: COLORS.primary, fontSize: '15px' }}>💰 {formatPrice(c.price)}</strong>{c.kind === 'dropin' ? ' / tillfälle' : ''}</div>
-                  </div>
-                  {DEMO && <button onClick={() => choose(c)} style={{ width: '100%', padding: '13px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{c.kind === 'dropin' ? 'Välj tillfälle' : 'Välj kursomgång'}</button>}
-                </div>
-              ))}
+                    {DEMO && (st.code === 'full'
+                      ? <Button variant="primary" block disabled>Fullbokad</Button>
+                      : <Button variant="primary" block disabled={st.code === 'loading'} onClick={() => choose(c)}>{drop ? 'Välj tillfälle' : 'Välj kursomgång'}</Button>)}
+                  </article>
+                );
+              })}
             </div>
           </div>
         );
@@ -1309,6 +1380,24 @@
       const [paying, setPaying] = useState(false);
       const [error, setError] = useState(null);
       const [done, setDone] = useState(null);
+      const [cat, setCat] = useState('alla');
+      const [detail, setDetail] = useState(null);
+      const opener = useRef(null);
+      const openDetail = (id, el) => { opener.current = el; setDetail(id); };
+      const closeDetail = () => { setDetail(null); const el = opener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useEffect(() => {
+        if (!detail) return;
+        const b = document.querySelector('.lh-dialog__close button'); if (b) b.focus();
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+      }, [detail]);
+      const dialogKey = e => {
+        if (e.key === 'Escape') { closeDetail(); return; }
+        if (e.key !== 'Tab') return;
+        const fs = [...e.currentTarget.querySelectorAll('button:not([disabled])')]; if (!fs.length) return;
+        if (e.shiftKey && document.activeElement === fs[0]) { e.preventDefault(); fs[fs.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === fs[fs.length - 1]) { e.preventDefault(); fs[0].focus(); }
+      };
 
       useEffect(() => { try { sessionStorage.setItem('lias_cart', JSON.stringify(cart)); } catch (e) {} }, [cart]);
       useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
@@ -1329,12 +1418,16 @@
       const max = id => Math.min(10, stock ? (stock[id] || 0) : 0);
 
       const qtyControl = p => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button aria-label={'Färre ' + p.name} onClick={() => setQty(p.id, (cart[p.id] || 0) - 1)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '18px', fontWeight: '700', color: COLORS.earthBrown }}>−</button>
-          <strong style={{ minWidth: '16px', textAlign: 'center' }}>{cart[p.id] || 0}</strong>
-          <button aria-label={'Fler ' + p.name} disabled={(cart[p.id] || 0) >= max(p.id)} onClick={() => setQty(p.id, (cart[p.id] || 0) + 1)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '18px', fontWeight: '700', color: COLORS.earthBrown, opacity: (cart[p.id] || 0) >= max(p.id) ? 0.4 : 1 }}>+</button>
+        <div className="lh-qty" data-qty={p.id}>
+          <button type="button" className="lh-qtybtn" aria-label={'Färre ' + p.name} onClick={() => setQty(p.id, (cart[p.id] || 0) - 1)}><Icon name="minus" size={20} /></button>
+          <span className="lh-qty__n" aria-live="polite">{cart[p.id] || 0}</span>
+          <button type="button" className="lh-qtybtn" aria-label={'Fler ' + p.name} disabled={(cart[p.id] || 0) >= max(p.id)} onClick={() => setQty(p.id, (cart[p.id] || 0) + 1)}><Icon name="plus" size={20} /></button>
         </div>
       );
+      const stockBadge = n => n === 0 ? <StatusBadge tone="out">Slut i lager</StatusBadge> : n <= 2 ? <StatusBadge tone="low">Endast {n} kvar</StatusBadge> : <StatusBadge tone="ok">I lager</StatusBadge>;
+      const buyControl = (p, n) => cart[p.id]
+        ? qtyControl(p)
+        : <Button variant="primary" block className="lh-btn--sm" data-buy={p.id} disabled={n === null || n === 0} onClick={() => setQty(p.id, 1)}>{n === 0 ? 'Slut i lager' : 'Lägg i varukorg'}</Button>;
 
       const pay = async () => {
         setTried(true);
@@ -1389,7 +1482,7 @@
               {lines.length === 0 && <div style={{ fontSize: '14px' }}>Varukorgen är tom.</div>}
               {lines.map(l => (
                 <div key={l.id} data-line={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${COLORS.sand2}` }}>
-                  <div style={{ fontSize: '14px', color: COLORS.dark }}><span style={{ fontSize: '20px' }}>{l.emoji}</span> <strong>{l.name}</strong><div style={{ fontSize: '12px', opacity: 0.75 }}>{formatPrice(l.price)} / st</div></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}><div className="lh-thumb"><ResponsiveImage src={PRODUCT_IMG[l.id]} alt="" ratio="1 / 1" radius={8} fallbackLabel="" /></div><div style={{ fontSize: '15px', color: COLORS.dark, minWidth: 0 }}><strong>{l.name}</strong><div style={{ fontSize: '14px', opacity: 0.8 }}>{formatPrice(l.price)} / st</div></div></div>
                   {qtyControl(l)}
                 </div>
               ))}
@@ -1397,54 +1490,69 @@
             </div>
             <div style={{ ...BOX, marginBottom: '18px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.6' }}>📍 <strong>Hämtas i butiken</strong> hos Lias Hantverkeri i Karlskoga. Du får ett sms när beställningen är klar att hämta.</div>
             <ContactFields form={form} setForm={setForm} tried={tried} />
-            <div style={{ fontWeight: '700', color: COLORS.sand1, marginBottom: '6px', fontSize: '14px' }}>Betalsätt</div>
+            <div style={{ fontWeight: '700', color: 'var(--flow-fg, #F4EDE0)', marginBottom: '6px', fontSize: '14px' }}>Betalsätt</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '6px' }}>
               {[['swish', '📱 Swish'], ['kort', '💳 Kort']].map(([id, label]) => (
                 <button key={id} onClick={() => setPayment(id)} style={{ padding: '14px', backgroundColor: payment === id ? '#FFFFFF' : COLORS.sand1, color: payment === id ? COLORS.rosemary : COLORS.earthBrown, border: payment === id ? `3px solid ${COLORS.rosemary}` : `2px solid ${tried && !payment ? COLORS.error : COLORS.sand2}`, boxShadow: payment === id ? '0 0 0 3px rgba(255,255,255,0.6)' : 'none', borderRadius: '12px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}>{payment === id ? '✓ ' : ''}{label}</button>
               ))}
             </div>
-            {tried && !payment && <div style={{ color: '#FFE3DA', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>⚠️ Välj betalsätt.</div>}
+            {tried && !payment && <div style={{ color: 'var(--flow-err, #FFE3DA)', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>⚠️ Välj betalsätt.</div>}
             {DEMO && <p style={{ ...SUB, marginTop: '8px' }}>🧪 Demo: ingen riktig betalning görs.</p>}
             <ActionBar label={`Betala · ${formatPrice(total)}`} enabled={lines.length > 0} onClick={pay} color={COLORS.rosemary} textColor="#FFFFFF" />
           </div>
         );
       }
 
+      const shown = SHOP_DATA.filter(p => cat === 'alla' || p.cat === cat);
+      const det = detail && SHOP_DATA.find(p => p.id === detail);
       return (
-        <div style={{ ...pageWrap, maxWidth: '900px' }}>
-          <div style={{ ...BOX, marginBottom: '20px' }}>
-            <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading }}>🛍️ Keramikshop</h2>
-            <p style={{ margin: 0, color: COLORS.dark, fontSize: '14px' }}>Handgjorda keramikprodukter direkt från Lias verkstad</p>
-          </div>
+        <div className="lh-page">
+          <p className="lh-page__intro">Handgjorda keramikprodukter direkt från Lias verkstad.</p>
           {!DEMO && ONLINE_SOON}
-          <p style={{ ...SUB, textAlign: 'center' }}>Produktbilderna är illustrationer – varje föremål är handgjort och unikt.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-            {SHOP_DATA.map(p => {
+          <div className="lh-chips" role="group" aria-label="Filtrera produkter">
+            {SHOP_CATS.map(([id, label]) => <FilterChip key={id} selected={cat === id} data-chip={id} onClick={() => setCat(id)}>{label}</FilterChip>)}
+          </div>
+          <div className="lh-pgrid" aria-live="polite">
+            {shown.map(p => {
               const s = stock ? (stock[p.id] || 0) : null, out = s === 0;
               return (
-                <div key={p.id} data-product={p.id} style={{ ...BOX, padding: 0, overflow: 'hidden' }}>
-                  <div style={{ opacity: out ? 0.55 : 1 }}><ResponsiveImage src={PRODUCT_IMG[p.id]} alt={p.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" /></div>
-                  <div style={{ padding: '16px' }}>
-                    <h3 style={{ margin: '0 0 6px 0', color: COLORS.earthBrown, fontSize: '15px', fontWeight: '600', fontFamily: T.font.heading }}>{p.name}</h3>
-                    <p style={{ margin: '0 0 10px 0', color: COLORS.dark, fontSize: '13px', opacity: 0.8, lineHeight: '1.4' }}>{p.desc}</p>
-                    {DEMO && s !== null && <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '10px', color: out ? COLORS.error : s <= 2 ? '#B4561F' : COLORS.rosemary }}>{out ? 'Slut i lager' : s + ' i lager'}</div>}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: `1px solid ${COLORS.border}` }}>
-                      <span style={{ fontSize: '18px', fontWeight: '700', color: COLORS.primary }}>{formatPrice(p.price)}</span>
-                      {DEMO && (cart[p.id]
-                        ? qtyControl(p)
-                        : <button disabled={out || s === null} onClick={() => setQty(p.id, 1)} style={{ padding: '10px 16px', backgroundColor: out ? 'rgba(145,116,74,0.35)' : COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '8px', cursor: out ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '13px' }}>{out ? 'Slut' : 'Lägg i varukorg'}</button>)}
-                    </div>
+                <article key={p.id} data-product={p.id} data-stock={s === null ? '' : s} data-out={out ? 'true' : 'false'} className="lh-card lh-pcard">
+                  <button type="button" className="lh-pcard__open" aria-haspopup="dialog" aria-label={`${p.name} – visa mer`} onClick={e => openDetail(p.id, e.currentTarget)}>
+                    <ResponsiveImage src={PRODUCT_IMG[p.id]} alt="" ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" />
+                  </button>
+                  <div className="lh-pcard__body">
+                    <h3 className="lh-pcard__name">{p.name}</h3>
+                    <span className="lh-pcard__price">{formatPrice(p.price)}</span>
+                    {s !== null && stockBadge(s)}
+                    {DEMO && <div className="lh-pcard__actions">{buyControl(p, s)}</div>}
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
-          {DEMO && <p style={{ ...SUB, textAlign: 'center' }}>🧪 Lagersaldot är exempel i demon.</p>}
-          <div style={{ ...BOX, backgroundColor: COLORS.sand2, textAlign: 'center', fontSize: '13px', color: COLORS.dark, lineHeight: '1.6' }}>
-            <strong style={{ color: COLORS.earthBrown, fontSize: '14px', display: 'block', marginBottom: '8px' }}>💬 Är du intresserad av en specialbeställning?</strong>
-            Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>
-          </div>
-          {DEMO && count > 0 && <ActionBar label={`Till kassan · ${count} ${count === 1 ? 'vara' : 'varor'} · ${formatPrice(total)}`} enabled={true} onClick={() => { setStep(2); setError(null); }} />}
+          {shown.length === 0 && <EmptyState title="Inga produkter här just nu" text="Prova en annan kategori." />}
+          <p className="lh-page__note">Produktbilderna är illustrationer – varje föremål är handgjort och unikt.{DEMO ? ' Lagersaldot är exempel i demon.' : ''}</p>
+          <Card tone="sand" style={{ marginTop: '16px', textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 6px', font: `600 18px/1.3 ${T.font.heading}`, color: T.color.forest }}>Är du intresserad av en specialbeställning?</h3>
+            <p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong></p>
+          </Card>
+          {det && (
+            <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
+              <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="produkt-rubrik" data-dialog={det.id} onKeyDown={dialogKey}>
+                <span className="lh-dialog__close"><IconButton icon="x" label="Stäng" onClick={closeDetail} /></span>
+                <ResponsiveImage src={PRODUCT_IMG[det.id]} alt={det.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" eager />
+                <div className="lh-dialog__body">
+                  <h2 id="produkt-rubrik">{det.name}</h2>
+                  <span className="lh-pcard__price" style={{ fontSize: '18px' }}>{formatPrice(det.price)}</span>
+                  {stock && stockBadge(stock[det.id] || 0)}
+                  <p>{det.desc}</p>
+                  <p style={{ fontSize: '15px', color: T.color.textMuted }}>Bilden är en illustration – varje föremål är handgjort och unikt.</p>
+                  {DEMO && buyControl(det, stock ? (stock[det.id] || 0) : null)}
+                </div>
+              </div>
+            </div>
+          )}
+          {DEMO && count > 0 && !det && <ActionBar label={`Till kassan · ${count} ${count === 1 ? 'vara' : 'varor'} · ${formatPrice(total)}`} enabled={true} onClick={() => { setStep(2); setError(null); }} />}
         </div>
       );
     }
@@ -1839,14 +1947,14 @@
       }, [state]);
 
       if (!state.gdprOk) return <GDPRModal onOk={() => dispatch({ type: 'GDPR' })} />;
-      const REBUILT = ['home'];   // sidor med ny design (övriga byggs om i kommande steg)
+      const REBUILT = ['home', 'courses', 'shop'];   // sidor med ny design (övriga byggs om i kommande steg)
       const pageBg = REBUILT.includes(state.tab) ? T.color.page : COLORS.primary;
 
       return (
         <div style={{ backgroundColor: pageBg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Header state={state} dispatch={dispatch} />
           {DEMO && <DemoBanner />}
-          <main key={state.nav || 0} style={{ backgroundColor: pageBg, flex: 1, paddingBottom: '24px' }}>
+          <main key={state.nav || 0} style={{ backgroundColor: pageBg, flex: 1, paddingBottom: '24px', ...(REBUILT.includes(state.tab) ? { '--flow-fg': T.color.onPage, '--flow-err': '#5C1A08', '--bar-bg': T.color.brand } : {}) }}>
             {state.tab === 'home' && <Home dispatch={dispatch} />}
             {state.tab === 'booking' && <Booking dispatch={dispatch} />}
             {state.tab === 'courses' && <Courses />}
