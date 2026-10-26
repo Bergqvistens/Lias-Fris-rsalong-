@@ -1,0 +1,34 @@
+# Tester för Lias Hantverkeri
+
+Testerna kördes i Claudes testmiljö (Linux med Node 22, Playwright/Chromium, esbuild och PostgreSQL 16). De är sparade här så att de kan köras igen efter att miljön har nollställts. Sökvägarna i filerna förutsätter mappen `/tmp/t`.
+
+## Förberedelse
+1. Kopiera alla filer i den här mappen till `/tmp/t`.
+2. Bygg React-paketet för testerna (React 19 + react-dom/client):
+   `NODE_PATH=/opt/npm-tools/node_modules esbuild /tmp/t/shim.js --bundle --minify --define:process.env.NODE_ENV='"production"' --outfile=/tmp/t/react-shim.js`
+   (`NODE_PATH` ska peka på mappen där react och react-dom finns. Kontrollerat 26 okt: ger samma fil, 193 256 byte, som testerna kördes med.)
+3. Bygg testsidan från appen (måste göras efter varje ändring i index.html):
+   `node /tmp/t/test.js <sökväg till index.html>`
+   Den kontrollerar också syntax, bildskriptet och att alla bildfiler i `bilder/` finns.
+4. Bara för `scenario.js` och `sqltest.sh`: starta PostgreSQL 16 på port 5433 (socket `/tmp/pg`), skapa databasen `lias` och läs in `lokal-testdatabas.sql`. Filen skapar rollerna anon/authenticated, en enkel ersättning för Supabases `auth`-schema samt tabeller, regler och funktioner från `supabase-setup.sql`.
+
+Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändra sökvägen i filerna om mappen ligger någon annanstans.
+
+## Testsviter (resultat 26 okt 2026, alla gröna)
+| Fil | Vad | Resultat |
+|---|---|---|
+| `sqltest.sh` | Databasregler: bokningsregler, dubbelbokning, behörigheter | 27/27 |
+| `scenario.js` (+ `e2e.js`, `mock-supabase.js`) | Supabase-läge mot riktig PostgreSQL: kund bokar, Lia får larm, krock, avbokning | 31/31 |
+| `demo-scenario.js` | Demoläge: frisörbokning, sms-logg, krock, avbokning, nollställ | 20/20 |
+| `kurs-shop.js` | Demoläge: kursbokning, platser, köp, lager, kvitto, Lias admin | 44/44 |
+| `s1check.js` | Steg 1: tokens, komponenter, header, meny, 320–430 px, 130 % text | 51/51 |
+| `s2check.js` | Steg 2: startsidan | 16/16 |
+| `s3check.js` | Steg 3: shop och kurser (filter, lager, dialog, kontrast, bredder) | 88/88 |
+| `s4check.js` | Steg 4: boka, kontakt, galleri, kassa, kursflöde | 81/81 |
+| `s5check.js` | Steg 5: felstatus, laddning, rubriker, alt-texter, tangentbord, tryckytor, prestanda, Supabase-läge | 45/45 |
+| `nav-alla.js` | Menyetiketter klipps inte, med varje flik aktiv | 24/24 |
+| `b4check.js` | Bannerbilder och galleribilder laddas och visas hela | 21/21 |
+| `start-topp.js` | Appen startar på startsidan, varje flik börjar längst upp | 16/16 |
+| `b2check.js` | Produktbilder i shop och startsida | inga fel |
+
+Totalt 464 kontroller. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).

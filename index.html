@@ -1240,6 +1240,7 @@
     // Status för kurskortet: första omgång/tillfälle med lediga platser. "Få platser kvar" = 1–2 lediga.
     function courseStatus(c, taken) {
       if (!DEMO) return { code: 'none', next: null, left: null };
+      if (taken === 'error') return { code: 'error', next: null, left: null };
       if (!taken) return { code: 'loading', next: null, left: null };
       const open = courseOccasions(c).map(o => ({ o, left: c.capacity - (taken[o.key] || 0) })).find(x => x.left > 0);
       if (!open) return { code: 'full', next: null, left: null };
@@ -1250,6 +1251,7 @@
     function Courses() {
       const [cat, setCat] = useState('alla');
       const [seatsAll, setSeatsAll] = useState(null);
+      const [seatsTry, setSeatsTry] = useState(0);
       const [step, setStep] = useState(1);
       const [course, setCourse] = useState(null);
       const [taken, setTaken] = useState(null);
@@ -1267,10 +1269,10 @@
         let live = true;
         Promise.all(COURSES_DATA.map(c => sb.rpc('get_course_seats', { p_course_id: c.id }))).then(rs => {
           if (!live) return;
-          const m = {}; rs.forEach((r, i) => { if (!r.error) m[COURSES_DATA[i].id] = r.data; }); setSeatsAll(m);
-        });
+          const m = {}; rs.forEach((r, i) => { m[COURSES_DATA[i].id] = r.error ? 'error' : r.data; }); setSeatsAll(m);
+        }).catch(() => { if (live) setSeatsAll(Object.fromEntries(COURSES_DATA.map(c => [c.id, 'error']))); });
         return () => { live = false; };
-      }, [step, done]);
+      }, [step, done, seatsTry]);
 
       const occs = course ? courseOccasions(course) : [];
       const left = o => course.capacity - ((taken && taken[o.key]) || 0);
@@ -1324,13 +1326,14 @@
             <div className="lh-chips" role="group" aria-label="Filtrera kurser">
               {COURSE_CATS.map(([id, label]) => <FilterChip key={id} selected={cat === id} data-chip={id} onClick={() => setCat(id)}>{label}</FilterChip>)}
             </div>
+            {seatsAll && Object.values(seatsAll).includes('error') && <Card style={{ marginBottom: '14px' }}><ErrorState text="Lediga platser kunde inte hämtas just nu. Du kan ändå välja en kurs och försöka igen där." onRetry={() => { setSeatsAll(null); setSeatsTry(n => n + 1); }} /></Card>}
             <div className="lh-cgrid" aria-live="polite">
               {shown.map(c => {
                 const st = courseStatus(c, seatsAll && seatsAll[c.id]);
                 const drop = c.kind === 'dropin';
                 return (
                   <article key={c.id} data-course={c.id} data-status={st.code} className="lh-card lh-ccard">
-                    <h3 className="lh-ccard__name">{c.name}</h3>
+                    <h2 className="lh-ccard__name">{c.name}</h2>
                     <p className="lh-ccard__desc">{c.desc}</p>
                     <dl className="lh-facts">
                       <div className="lh-fact"><Icon name="clock" size={20} /><div><dt>Längd</dt><dd>{c.duration}</dd></div></div>
@@ -1340,6 +1343,7 @@
                     </dl>
                     <div className="lh-next" data-next={c.id}>
                       {st.code === 'loading' && <span>Hämtar lediga platser…</span>}
+                      {st.code === 'error' && <span>Lediga platser kunde inte hämtas.</span>}
                       {st.next && <span><strong>{drop ? 'Nästa tillfälle:' : 'Nästa start:'}</strong> {fmtDayLong(st.next.startMs)}{st.left !== null ? ` · ${plats(st.left)} lediga` : ''}</span>}
                       {st.code === 'ok' && <StatusBadge tone="ok">Platser kvar</StatusBadge>}
                       {st.code === 'low' && <StatusBadge tone="low">Få platser kvar</StatusBadge>}
@@ -1445,7 +1449,8 @@
 
       useEffect(() => { try { sessionStorage.setItem('lias_cart', JSON.stringify(cart)); } catch (e) {} }, [cart]);
       useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
-      const loadStock = async () => { if (!DEMO) return; const { data, error: err } = await sb.rpc('get_stock'); if (!err) setStock(data); };
+      const [stockErr, setStockErr] = useState(false);
+      const loadStock = async () => { if (!DEMO) return; setStockErr(false); const { data, error: err } = await sb.rpc('get_stock'); if (err) setStockErr(true); else setStock(data); };
       useEffect(() => { loadStock(); }, []);
       // Ta bort varor som inte längre finns i lager
       useEffect(() => {
@@ -1567,6 +1572,7 @@
           <div className="lh-chips" role="group" aria-label="Filtrera produkter">
             {SHOP_CATS.map(([id, label]) => <FilterChip key={id} selected={cat === id} data-chip={id} onClick={() => setCat(id)}>{label}</FilterChip>)}
           </div>
+          {stockErr && <Card style={{ marginBottom: '14px' }}><ErrorState text="Lagersaldot kunde inte hämtas, så varorna går inte att lägga i varukorgen just nu." onRetry={loadStock} /></Card>}
           <div className="lh-pgrid" aria-live="polite">
             {shown.map(p => {
               const s = stock ? (stock[p.id] || 0) : null, out = s === 0;
@@ -1576,7 +1582,7 @@
                     <ResponsiveImage src={PRODUCT_IMG[p.id]} alt="" ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" />
                   </button>
                   <div className="lh-pcard__body">
-                    <h3 className="lh-pcard__name">{p.name}</h3>
+                    <h2 className="lh-pcard__name">{p.name}</h2>
                     <span className="lh-pcard__price">{formatPrice(p.price)}</span>
                     {s !== null && stockBadge(s)}
                     {DEMO && <div className="lh-pcard__actions">{buyControl(p, s)}</div>}
@@ -1588,7 +1594,7 @@
           {shown.length === 0 && <EmptyState title="Inga produkter här just nu" text="Prova en annan kategori." />}
           <p className="lh-page__note">Produktbilderna är illustrationer – varje föremål är handgjort och unikt.{DEMO ? ' Lagersaldot är exempel i demon.' : ''}</p>
           <Card tone="sand" style={{ marginTop: '16px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 6px', font: `600 18px/1.3 ${T.font.heading}`, color: T.color.forest }}>Är du intresserad av en specialbeställning?</h3>
+            <h2 style={{ margin: '0 0 6px', font: `600 18px/1.3 ${T.font.heading}`, color: T.color.forest }}>Är du intresserad av en specialbeställning?</h2>
             <p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong></p>
           </Card>
           {det && (
@@ -2082,7 +2088,7 @@
           <footer style={{ backgroundColor: COLORS.earthBrown, color: COLORS.sand1, marginTop: '24px', padding: '24px 20px 100px', textAlign: 'center', fontSize: '12px' }}>
             <p style={{ margin: '0 0 8px 0' }}>Lias Hantverkeri © 2026</p>
             <p style={{ margin: '0', opacity: 0.8 }}>Karlskoga, Sverige</p>
-            <button onClick={() => { dispatch({ type: 'TAB', p: 'admin' }); window.scrollTo(0, 0); }} style={{ marginTop: '12px', background: 'none', border: 'none', color: COLORS.sand1, opacity: 0.45, fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>Admin</button>
+            <button onClick={() => { dispatch({ type: 'TAB', p: 'admin' }); window.scrollTo(0, 0); }} style={{ marginTop: '4px', minHeight: '44px', minWidth: '44px', padding: '12px 16px', background: 'none', border: 'none', color: COLORS.sand1, opacity: 0.45, fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>Admin</button>
           </footer>
         </div>
       );

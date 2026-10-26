@@ -15,6 +15,8 @@ Webbplats för Lias Hantverkeri – frisörsalong och keramikverkstad i Karlskog
 - `bilder/` – alla foton (WebP/JPG). Måste ligga i mappen `bilder` bredvid `index.html`. Ny bild: lägg filen i `bilder/` och ange sökvägen i `window.LH_IMG` överst i `index.html`.
 - `supabase-setup.sql` – databas, regler och bokningsfunktioner för Supabase.
 - `INSTALLATION.md` – checklista för att koppla in Supabase.
+- `REDOVISNING.md` – slutredovisning av ombyggnaden (26 okt 2026).
+- `tester/` – automatiska tester och instruktion (`tester/LASMIG.md`).
 
 ## Bokning
 Kunden bokar i tre steg. Bokningen sparas direkt i Supabase och är bokad; databasen stoppar dubbelbokningar. Lia ser nya bokningar direkt i admin-sidan med ljud och notis.

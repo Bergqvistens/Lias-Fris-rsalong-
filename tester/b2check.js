@@ -1,0 +1,18 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const fs = require('fs');
+const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync('/tmp/t/react-shim.js', 'utf8'), app = fs.readFileSync('/tmp/t/app.js', 'utf8');
+(async () => { const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 760 }, deviceScaleFactor: 2 });
+  await ctx.route('**/*', r => { const u = r.request().url(); if (u === 'https://lias.test/') return r.fulfill({ contentType: 'text/html; charset=utf-8', body: page }); if (u.endsWith('/react-shim.js')) return r.fulfill({ contentType: 'application/javascript', body: shim }); if (u.includes('/bilder/')) return r.fulfill({ path: '/mnt/user-data/outputs/github/bilder/' + decodeURIComponent(u.split('/bilder/')[1]) }); if (u.endsWith('/app.js')) return r.fulfill({ contentType: 'application/javascript', body: app }); return r.abort(); });
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('https://lias.test/'); await p.waitForTimeout(500);
+  await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(x => getComputedStyle(x).overflowY === 'auto'); d.scrollTop = 99999; d.dispatchEvent(new Event('scroll')); });
+  await p.waitForTimeout(150); await p.click('text=Jag förstår och accepterar'); await p.waitForTimeout(500);
+  const shopEntry = await p.evaluate(() => { const i = document.querySelector('[data-entry="shop"] img'); return i && i.naturalWidth; });
+  console.log('Startsidans shopingång: kopp', shopEntry, 'px');
+  await p.click('nav >> text=Kontakt'); await p.waitForTimeout(400);
+  const k = await p.evaluate(() => { const i = document.querySelector('main img'); return i && { alt: i.alt, w: i.naturalWidth }; });
+  console.log('Kontakt: ', JSON.stringify(k)); await p.screenshot({ path: '/tmp/t/b2-kontakt.png' });
+  await p.click('nav >> text=Shop'); await p.waitForTimeout(500);
+  const c = await p.evaluate(() => ['s-cup','s-bowl'].map(id => id + ' ' + (document.querySelector('[data-product="' + id + '"] img') || {}).naturalWidth).join(', '));
+  console.log('Shop: kaffekopp', c, 'px'); await p.screenshot({ path: '/tmp/t/b2-shop.png' });
+  console.log('Fel:', errs.length ? errs : 'inga'); await b.close(); })();
