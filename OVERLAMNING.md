@@ -15,7 +15,9 @@
 - **Bilder (26 okt):** 8 WebP i `window.LH_IMG` (eget <script> före Babel); kartläggs i `IMG` och `PRODUCT_IMG`. salong-miljo (hero), frisor-detalj (Boka-ingång), keramik-drejning (Kurser-ingång + kurssida), produkt-kopp/skal/kruka/presentset (shop), keramikverkstad-miljo (överst på Kontakt + galleri i steg 4). Kopp, skål, kruka, presentset (600 px) och verkstad (960 px) bytta till högupplösta bilder 26 okt. Tallrik och vas (produkt-tallrik, produkt-vas, 600 px) inlagda 26 okt; ny presentlådebild (blå olivmönster) 26 okt – alla sex produkter har bild. **Nya 26 okt:** banner-boka (överst i bokningens steg 1), banner-kontakt (överst på Kontakt, ersätter verkstadsbilden där), banner-galleri (överst i Galleri), galleri-herrklipp, galleri-barnklipp, galleri-styling (galleribild 3–5, märkta Inspirationsbild). Bannrarna har text i bilden – alt-texten innehåller samma text. Visas hela i 3:2. keramikverkstad-miljo används just nu inte. Tommys bild med text/knappar i bilden används inte (text i bild).
 - **Steg 3 klart (26 okt):** Shop: filter Alla/Koppar/Skålar/Krukor/Present/Dekoration (vas + tallrik = Dekoration), produktnät 1 kolumn ≤ ~330 px annars 2+, kort med bild/namn/pris/lagermärke (I lager / Endast N kvar vid ≤ 2 / Slut i lager), produktdialog (Escape, fokusfälla, fokus tillbaka), kassan visar bilder. Servis set → **Presentlådan** ("Handgjord mugg, kopp och skål med kökshandduk i presentlåda. Perfekt gåva!", 899 kr). Kurser: filter Alla kurser/Nybörjare/Fortsättning/Barn/Drop-in, kurskort med linjeikoner, nästa möjliga start, Platser kvar / Få platser kvar (≤ 2) / Fullbokad (knapp avstängd "Fullbokad"). Sidorna courses + shop i `REBUILT` (turkos). Flödestexter använder CSS-variablerna --flow-fg / --flow-err / --bar-bg.
 - Ej byggt i steg 3 (behöver beslut/backend): "Ställ dig i kö", "Meddela mig", status "Kommande" och "Anmälan stängd" (det finns ingen data för dem). Kassan och kursens bokningssteg har kvar gammal stil (bruna ramar, emojis i sammanfattningar) – tas i steg 4/5.
-- Kvar: steg 4 boka/kontakt/galleri, steg 5 slutprov.
+- **Steg 4 klart (26 okt):** Alla kundsidor i ny design (`REBUILT` = home, booking, courses, shop, contact, gallery). Boka: stegräknare + stapel, kategorier Herr/Dam/Barn med inspirationsbild (CAT_IMG), valbara kort (aria-pressed, bock, "Vald", tjockare ram), sammanfattning, dag/tid med aria-pressed. Kurs- och kassaflöden: samma byggstenar (StepTitle, InfoRow, DoneCard, ContactFields via FormField), inga emojis. Fortsätt-knapp champagne på mörk turkos; Betala-knappen behåller rosmaringrönt (Tommys val). Kontakt: kort med ikoner, `CONTACT`-konstant (tel: null tills riktigt nummer finns → ingen ring-länk), mailto, öppettider som tabell från `OPENING` med "(idag)", formulär med etiketter/fel/laddning/bekräftelse (demo simulerar; utan demo öppnas e-postprogrammet via mailto). Galleri: filter Alla/Frisör/Keramik/Workshop, "Från Lias salong" (egna) separat från "Inspirationsbilder" (AI), ljuslåda med pilar/Escape/fokusfälla, Boka tid-knapp.
+- Admin är **inte** omgjord (gammal stil). Planerat steg 6: bilduppladdning, ekonomiöversikt, kvittosök, export; Fortnox senare (kräver Supabase + server).
+- Kvar: steg 5 slutprov + rapport.
 - Bekräftat av Tommy: logga nr 6; Färgning dam 449 kr stämmer (ändras senare).
 
 ## Publicering
@@ -37,7 +39,7 @@
 ## Testat (allt grönt)
 - SQL: 27 regeltester + samtidig dubbelbokning i riktig PostgreSQL 16.
 - Supabase-läge mot simulerad Supabase → riktig PostgreSQL: 31/31.
-- Demoläge frisörbokning: 20/20. Kurser + shop: 44/44. Steg 3-design: 88/88 (s3check.js). Inga nätverksanrop.
+- Demoläge frisörbokning: 20/20. Kurser + shop: 44/44. Steg 3-design: 88/88 (s3check.js). Steg 4: 81/81 (s4check.js). Menyetiketter med varje flik aktiv: 24/24 (nav-alla.js). Inga nätverksanrop.
 - Ej testat: koppling till Supabases riktiga servrar (ingen internetåtkomst i testmiljön).
 
 ## Nästa steg
