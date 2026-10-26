@@ -166,7 +166,7 @@
     .lh-fact dd { margin: 2px 0 0; font: 16px/1.35 var(--font-body); color: var(--text); overflow-wrap: anywhere; }
     .lh-next { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 16px/1.4 var(--font-body); color: var(--text); }
     .lh-dialog-bg { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: flex-end; justify-content: center; background: rgba(23,48,38,0.55); }
-    .lh-dialog { position: relative; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; padding-bottom: calc(16px + var(--safe-bottom)); }
+    .lh-dialog { position: relative; width: 100%; max-width: 520px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; padding-bottom: calc(16px + var(--safe-bottom)); }
     .lh-dialog__close { position: absolute; top: 10px; right: 10px; z-index: 1; background: var(--surface); color: var(--forest); border-radius: 50%; box-shadow: var(--shadow-card); }
     .lh-dialog__body { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
     .lh-dialog__body h2 { margin: 0; font: 600 22px/1.25 var(--font-heading); color: var(--forest); }
@@ -279,6 +279,16 @@
     .lh-consent { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; margin: 4px 0 12px; font: 16px/1.4 var(--font-body); color: var(--text); cursor: pointer; }
     .lh-consent input { width: 24px; height: 24px; margin: 0; flex-shrink: 0; accent-color: var(--forest); }
     select.lh-input { appearance: auto; }
+    /* ===== Tillbaka i rutor (produkt, bild, kvitto) ===== */
+    .lh-dbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; background: var(--surface); border-bottom: 1px solid rgba(74,56,42,0.12); border-radius: 22px 22px 0 0; }
+    .lh-dbar__back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 6px 14px 6px 6px; border: 0; border-radius: 12px; background: none; color: var(--forest); font: 600 17px var(--font-body); cursor: pointer; }
+    .lh-dbar__back:active { background: rgba(31,61,50,0.08); }
+    .lh-dbar .lh-iconbtn { color: var(--forest); }
+    .lh-dialog__bottom { margin-top: 4px; }
+    .lh-lightbox { overflow-y: auto; }
+    .lh-lightbox__top { position: sticky; top: 0; z-index: 2; gap: 8px; background: rgba(12,24,19,0.96); }
+    .lh-lightbox__top .lh-dbar__back { color: #FFFFFF; }
+    .lh-lightbox__top .lh-dbar__back:active { background: rgba(255,255,255,0.12); }
   </style>
 </head>
 <body>
@@ -385,6 +395,21 @@
             : <div className="lh-img__fallback" {...(alt === '' ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': alt || fallbackLabel })}><Icon name="image" size={28} />{fallbackLabel && <span>{fallbackLabel}</span>}</div>}
         </div>
       );
+    }
+    // Öppen ruta (produkt, bild, kvitto): telefonens bakåtknapp/bakåtsvep stänger rutan i stället för att lämna appen
+    function useBackClose(isOpen, onClose) {
+      const pushed = useRef(false), cb = useRef(onClose);
+      cb.current = onClose;
+      useEffect(() => {
+        if (!isOpen) return;
+        try { history.pushState({ lhRuta: true }, ''); pushed.current = true; } catch (e) {}
+        const onPop = () => { pushed.current = false; cb.current(); };
+        window.addEventListener('popstate', onPop);
+        return () => { window.removeEventListener('popstate', onPop); if (pushed.current) { pushed.current = false; try { history.back(); } catch (e) {} } };
+      }, [isOpen]);
+    }
+    function DialogBar({ onBack }) {
+      return <div className="lh-dbar"><button type="button" className="lh-dbar__back" data-tillbaka="topp" onClick={onBack}><Icon name="chevronLeft" size={22} />Tillbaka</button><IconButton icon="x" label="Stäng" onClick={onBack} /></div>;
     }
     function EmptyState({ icon = 'info', title, text, action }) {
       return <div className="lh-state"><Icon name={icon} size={32} style={{ color: T.color.forest }} />{title && <h3>{title}</h3>}{text && <p>{text}</p>}{action}</div>;
@@ -1519,9 +1544,10 @@
       const opener = useRef(null);
       const openDetail = (id, el) => { opener.current = el; setDetail(id); };
       const closeDetail = () => { setDetail(null); const el = opener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useBackClose(!!detail, closeDetail);
       useEffect(() => {
         if (!detail) return;
-        const b = document.querySelector('.lh-dialog__close button'); if (b) b.focus();
+        const b = document.querySelector('.lh-dbar [aria-label="Stäng"]'); if (b) b.focus();
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
       }, [detail]);
@@ -1686,7 +1712,7 @@
           {det && (
             <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
               <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="produkt-rubrik" data-dialog={det.id} onKeyDown={dialogKey}>
-                <span className="lh-dialog__close"><IconButton icon="x" label="Stäng" onClick={closeDetail} /></span>
+                <DialogBar onBack={closeDetail} />
                 <ResponsiveImage src={PRODUCT_IMG[det.id]} alt={det.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" eager />
                 <div className="lh-dialog__body">
                   <h2 id="produkt-rubrik">{det.name}</h2>
@@ -1695,6 +1721,7 @@
                   <p>{det.desc}</p>
                   <p style={{ fontSize: '15px', color: T.color.textMuted }}>Bilden är en illustration – varje föremål är handgjort och unikt.</p>
                   {DEMO && buyControl(det, stock ? (stock[det.id] || 0) : null)}
+                  <Button variant="secondary" block icon="chevronLeft" className="lh-dialog__bottom" data-tillbaka="botten" onClick={closeDetail}>Tillbaka</Button>
                 </div>
               </div>
             </div>
@@ -1803,6 +1830,7 @@
       const ordered = [...own, ...insp];
       const cur = open !== null ? ordered[open] : null;
       const close = () => { setOpen(null); const el = opener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useBackClose(open !== null, close);
       const step = d => setOpen(i => (i + d + ordered.length) % ordered.length);
       useEffect(() => {
         if (open === null) return;
@@ -1856,7 +1884,7 @@
           {cur && (
             <div className="lh-lightbox-bg" onClick={e => { if (e.target === e.currentTarget) close(); }}>
               <div className="lh-lightbox" role="dialog" aria-modal="true" aria-labelledby="ljus-rubrik" data-lightbox={cur.id} onKeyDown={key}>
-                <div className="lh-lightbox__top"><span>{open + 1} av {ordered.length}</span><IconButton icon="x" label="Stäng" onClick={close} /></div>
+                <div className="lh-lightbox__top"><button type="button" className="lh-dbar__back" data-tillbaka="topp" onClick={close}><Icon name="chevronLeft" size={22} />Tillbaka</button><span>{open + 1} av {ordered.length}</span><IconButton icon="x" label="Stäng" onClick={close} /></div>
                 <img className="lh-lightbox__img" src={cur.src} alt={cur.alt} />
                 <div className="lh-lightbox__cap">
                   <h2 id="ljus-rubrik">{cur.title}</h2>
@@ -1932,11 +1960,12 @@
       useEffect(() => { load(); }, []);
       useEffect(() => {
         if (!sel) return;
-        const bt = document.querySelector('.lh-dialog__close button'); if (bt) bt.focus();
+        const bt = document.querySelector('.lh-dbar [aria-label="Stäng"]'); if (bt) bt.focus();
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
       }, [sel]);
       const closeSel = () => { setSel(null); const el = opener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useBackClose(!!sel, closeSel);
 
       if (state === 'loading') return <Card><LoadingState text="Hämtar betalningar…" /></Card>;
       if (state === 'error') return <Card><ErrorState text="Betalningarna kunde inte hämtas." onRetry={() => { setState('loading'); load(); }} /></Card>;
@@ -2073,14 +2102,15 @@
           {sel && (
             <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeSel(); }}>
               <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="kvitto-rubrik" data-receipt={sel.receipt} onKeyDown={e => { if (e.key === 'Escape') closeSel(); }}>
-                <span className="lh-dialog__close"><IconButton icon="x" label="Stäng" onClick={closeSel} /></span>
-                <div className="lh-dialog__body" style={{ paddingTop: '20px' }}>
+                <DialogBar onBack={closeSel} />
+                <div className="lh-dialog__body">
                   <h2 id="kvitto-rubrik">Kvitto {sel.receipt}</h2>
                   <InfoRow icon="calendar">{fmtDayLong(new Date(sel.at).getTime())} kl {fmtTime(new Date(sel.at).getTime())}</InfoRow>
                   <InfoRow icon={sel.kind === 'shop' ? 'bag' : sel.kind === 'kurs' ? 'palette' : 'scissors'}>{KIND_LABEL[sel.kind]}: {sel.items ? sel.items.map(i => `${i.qty} st ${i.name} (${kr(i.qty * i.price)})`).join(', ') : sel.text}</InfoRow>
                   <InfoRow icon="user">{sel.customer_name} · {sel.customer_phone}</InfoRow>
                   <InfoRow icon={sel.method === 'swish' ? 'smartphone' : sel.method === 'kort' ? 'creditCard' : 'tag'}><strong>{kr(sel.amount)}</strong> · {PAY_METHODS[sel.method]}</InfoRow>
                   <p style={{ fontSize: '15px', color: T.color.textMuted }}>Översikt – inte ett kassakvitto.</p>
+                  <Button variant="secondary" block icon="chevronLeft" data-tillbaka="botten" onClick={closeSel}>Tillbaka</Button>
                 </div>
               </div>
             </div>
