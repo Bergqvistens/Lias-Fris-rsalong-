@@ -676,7 +676,7 @@
         case 'GDPR': return { ...state, gdprOk: true };
         case 'TAB': return { ...state, tab: a.p, nav: (state.nav || 0) + 1 };
         case 'START_BOOK': return { ...state, tab: 'booking', nav: (state.nav || 0) + 1 };
-        case 'LOAD': return { ...initialState, gdprOk: !!(a.p && a.p.gdprOk), tab: (a.p && a.p.tab) || 'home' };
+        case 'LOAD': return { ...initialState, gdprOk: !!(a.p && a.p.gdprOk) };   // appen startar alltid på startsidan
         default: return state;
       }
     }
@@ -1943,8 +1943,12 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ gdprOk: state.gdprOk, tab: state.tab }));
-      }, [state]);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ gdprOk: state.gdprOk }));
+      }, [state.gdprOk]);
+
+      // Varje flik börjar längst upp (även efter omladdning)
+      useEffect(() => { try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} }, []);
+      useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
 
       if (!state.gdprOk) return <GDPRModal onOk={() => dispatch({ type: 'GDPR' })} />;
       const REBUILT = ['home', 'courses', 'shop'];   // sidor med ny design (övriga byggs om i kommande steg)
