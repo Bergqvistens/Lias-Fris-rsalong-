@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1F3D32">
+  <title>Lias Hantverkeri</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,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">
+  <link rel="icon" type="image/png" sizes="192x192" href="bilder/ikon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="data:image/jpeg;base64,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">
+  <meta name="apple-mobile-web-app-title" content="Lias Hantverkeri">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== Designtokens (Lias Hantverkeri – skogsgrön & champagne) ===== */
+    :root {
+      --forest: #1F3D32; --forest-dark: #173026; --teal: #5FA8A8;
+      --bg: #F6EED7; --sand: #EADFC8; --surface: #FBF8EF;
+      --text: #4A382A; --text-muted: #6E5B4A;
+      --champagne: #D4B98F; --champagne-light: #E8D8B5;
+      --terracotta: #C76B4F; --terracotta-text: #9C4B33;  /* mörkare terrakotta för text: 4,6–5,7:1 */
+      --brand: #2F6F70;     /* djup turkos för header och meny: beige text 5,0:1 */
+      --page: #5FA8A8;      /* turkos sidbakgrund */
+      --on-page: #173026;   /* text direkt på turkos: 5,2:1 */
+      --font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --space-xs: 4px; --space-sm: 8px; --space-md: 12px; --space-lg: 16px; --space-xl: 24px; --space-xxl: 32px;
+      --r-card: 18px; --r-btn: 14px; --r-input: 12px; --r-pill: 999px;
+      --shadow-card: 0 1px 2px rgba(31,61,50,0.06), 0 6px 16px rgba(31,61,50,0.06);
+      --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --z-actionbar: 900; --z-header: 950; --z-nav: 1000; --z-modal: 9999;
+      /* Brytpunkter (används i JS och media queries): 360 / 600 / 900 px */
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      font-family: var(--font-body);
+      background-color: #4B9FA6;
+      color: #2C2C2C;
+      -webkit-text-size-adjust: 100%;
+    }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+      outline: 3px solid var(--champagne); outline-offset: 2px; box-shadow: 0 0 0 5px var(--forest);
+    }
+
+    /* Knappar */
+    .lh-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 20px; border-radius: var(--r-btn); font: 600 16px/1.2 var(--font-body); border: 2px solid transparent; cursor: pointer; text-decoration: none; transition: transform .08s ease, background-color .15s ease, box-shadow .15s ease; }
+    .lh-btn:active { transform: scale(0.98); }
+    .lh-btn[disabled] { opacity: .5; cursor: not-allowed; transform: none; }
+    .lh-btn--primary { background: var(--forest); color: #FFFFFF; }
+    .lh-btn--primary:hover:not([disabled]) { background: var(--forest-dark); }
+    .lh-btn--champagne { background: var(--champagne); color: var(--forest); }
+    .lh-btn--champagne:hover:not([disabled]) { background: #C9AB7C; }
+    .lh-btn--secondary { background: transparent; color: var(--forest); border-color: var(--forest); }
+    .lh-btn--secondary:hover:not([disabled]) { background: rgba(31,61,50,0.06); }
+    .lh-btn--ghost { background: transparent; color: var(--forest); min-height: 44px; padding: 8px 10px; text-decoration: underline; }
+    .lh-btn--block { width: 100%; }
+    .lh-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: none; background: transparent; color: inherit; cursor: pointer; }
+    .lh-iconbtn:active { transform: scale(0.95); }
+
+    /* Filterchips */
+    .lh-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 16px; border-radius: var(--r-pill); border: 1.5px solid rgba(31,61,50,0.35); background: var(--surface); color: var(--forest); font: 500 15px var(--font-body); cursor: pointer; white-space: nowrap; }
+    .lh-chip[aria-pressed="true"] { background: var(--forest); color: #FFFFFF; border-color: var(--forest); }
+
+    /* Kort och statusmärken */
+    .lh-card { background: var(--surface); color: var(--text); border-radius: var(--r-card); padding: 16px; border: 1px solid rgba(74,56,42,0.08); box-shadow: var(--shadow-card); }
+    .lh-card--sand { background: var(--sand); }
+    .lh-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--r-pill); font: 600 14px var(--font-body); }
+    .lh-badge--ok { color: var(--forest); background: rgba(31,61,50,0.08); }
+    .lh-badge--low { color: var(--terracotta-text); background: rgba(199,107,79,0.12); }
+    .lh-badge--out { color: #5B4A3C; background: rgba(74,56,42,0.10); }
+    .lh-badge--info { color: var(--forest); background: rgba(95,168,168,0.18); }
+
+    /* Formulär */
+    .lh-field { margin-bottom: 16px; }
+    .lh-field label { display: block; margin-bottom: 6px; font: 600 15px var(--font-body); color: var(--text); }
+    .lh-field .lh-req { color: var(--terracotta-text); }
+    .lh-input { width: 100%; min-height: 48px; padding: 12px 14px; font: 16px var(--font-body); color: var(--text); background: #FFFFFF; border: 1.5px solid rgba(74,56,42,0.35); border-radius: var(--r-input); }
+    .lh-input[aria-invalid="true"] { border-color: var(--terracotta); border-width: 2px; }
+    .lh-field .lh-err { display: flex; align-items: center; gap: 6px; margin-top: 6px; font: 500 14px var(--font-body); color: var(--terracotta-text); }
+    .lh-field .lh-hint { margin-top: 4px; font: 14px var(--font-body); color: var(--text-muted); }
+
+    /* Bild med reservyta */
+    .lh-img { position: relative; overflow: hidden; width: 100%; background: linear-gradient(135deg, var(--sand), var(--bg)); }
+    .lh-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lh-img__fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px; text-align: center; color: var(--text-muted); font: 500 13px var(--font-body); }
+
+    /* Tom-, laddnings- och felläge */
+    .lh-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 16px; text-align: center; }
+    .lh-state h3 { font: 600 18px var(--font-heading); color: var(--text); }
+    .lh-state p { font: 16px/1.5 var(--font-body); color: var(--text-muted); }
+    .lh-spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(31,61,50,0.2); border-top-color: var(--forest); animation: lh-spin .8s linear infinite; }
+    @keyframes lh-spin { to { transform: rotate(360deg); } }
+
+    /* App-header */
+    .lh-header { position: sticky; top: 0; z-index: var(--z-header); display: flex; align-items: center; gap: 10px; min-height: 60px; padding: calc(8px + var(--safe-top)) 12px 8px; background: var(--brand); color: var(--bg); }
+    .lh-header__logo { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: block; }
+    .lh-header__text { flex: 1; min-width: 0; }
+    .lh-header__title { margin: 0; font: 600 20px/1.2 var(--font-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lh-header__sub { display: block; font: 500 12px/1.3 var(--font-body); color: var(--bg); letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Nedre navigering */
+    .lh-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-nav); display: flex; gap: 0; padding: 6px 2px calc(6px + var(--safe-bottom)); background: var(--brand); border-top: 1px solid rgba(246,238,215,0.25); }
+    .lh-nav__item { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 0; border: none; border-radius: 12px; background: transparent; color: var(--bg); font: 500 12px var(--font-body); letter-spacing: -0.1px; cursor: pointer; }
+    .lh-nav__item[aria-current="page"] { background: var(--champagne); color: var(--forest); font-weight: 700; }
+    .lh-nav__item span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 340px) { .lh-nav__item { font-size: 11px; letter-spacing: -0.2px; } }
+    @media (max-width: 280px) { .lh-nav__item { font-size: 10px; } .lh-nav__item svg { width: 20px; height: 20px; } }
+
+    /* Demoläge */
+    .lh-demo { padding: 6px 12px; background: #F3E3BE; color: var(--text); border-bottom: 1px solid rgba(74,56,42,0.15); font: 500 13px/1.45 var(--font-body); text-align: center; }
+    .lh-demo svg { vertical-align: -3px; margin-right: 4px; }
+    .lh-demo strong { font-weight: 700; }
+    .lh-demo button { padding: 12px 4px; margin: -12px 0; background: none; border: none; color: var(--forest); text-decoration: underline; font: 600 13px var(--font-body); cursor: pointer; }
+
+    /* Startsida */
+    .lh-home { max-width: 600px; margin: 0 auto; padding: 16px 16px 8px; }
+    .lh-hero { position: relative; overflow: hidden; border-radius: var(--r-card); box-shadow: var(--shadow-card); margin-bottom: 20px; }
+    .lh-hero__text { position: absolute; left: 0; right: 0; bottom: 0; padding: 56px 18px 16px; color: var(--bg); background: linear-gradient(to top, rgba(23,48,38,0.94) 0%, rgba(23,48,38,0.80) 55%, rgba(23,48,38,0) 100%); }
+    .lh-hero h2 { margin: 0 0 6px; font: 600 26px/1.15 var(--font-heading); }
+    .lh-hero__sub { margin: 0; font: 500 15px/1.4 var(--font-body); }
+    .lh-hero__msg { margin: 6px 0 0; font: italic 500 17px/1.3 var(--font-heading); color: var(--champagne); }
+    .lh-home__h { margin: 0 0 10px; font: 600 20px/1.2 var(--font-heading); color: var(--on-page); }
+    .lh-entries { display: grid; gap: 12px; margin-bottom: 16px; }
+    .lh-entries > * { min-width: 0; }
+    .lh-entry__title, .lh-entry__text { overflow-wrap: anywhere; }
+    @media (max-width: 340px) { .lh-entry__img { width: 72px; } .lh-entry { gap: 10px; } }
+    .lh-entry { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 112px; padding: 12px; text-align: left; border: 1px solid rgba(74,56,42,0.08); border-radius: var(--r-card); background: var(--surface); color: var(--text); box-shadow: var(--shadow-card); cursor: pointer; transition: transform .08s ease; }
+    .lh-entry:active { transform: scale(0.99); }
+    .lh-entry__img { width: 88px; flex-shrink: 0; }
+    .lh-entry__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .lh-entry__title { display: flex; align-items: center; gap: 8px; font: 600 18px/1.25 var(--font-heading); color: var(--forest); }
+    .lh-entry__text { font: 16px/1.45 var(--font-body); color: var(--text-muted); }
+    .lh-entry__cta { display: inline-flex; align-items: center; gap: 2px; margin-top: 2px; font: 600 15px var(--font-body); color: var(--forest); }
+    .lh-intro p { font: 16px/1.6 var(--font-body); color: var(--text); }
+    .lh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+  <!-- Bilder (WebP). Byt mot riktiga filer genom att ändra IMG-objektet i koden, t.ex. 'images/salong-miljo.webp'. -->
+  <script>
+  // Bildfiler i mappen bilder/ bredvid index.html
+  window.LH_IMG = {
+    'salong-miljo': 'bilder/salong-miljo.webp',
+    'frisor-detalj': 'bilder/frisor-detalj.webp',
+    'keramik-drejning': 'bilder/keramik-drejning.webp',
+    'keramikverkstad-miljo': 'bilder/keramikverkstad-miljo.webp',
+    'produkt-kopp': 'bilder/produkt-kopp.webp',
+    'produkt-skal': 'bilder/produkt-skal.webp',
+    'produkt-kruka': 'bilder/produkt-kruka.webp',
+    'produkt-presentset': 'bilder/produkt-presentset.webp',
+    'banner-galleri': 'bilder/banner-galleri.webp',
+    'banner-kontakt': 'bilder/banner-kontakt.webp',
+    'banner-boka': 'bilder/banner-boka.webp',
+    'galleri-herrklipp': 'bilder/galleri-herrklipp.webp',
+    'galleri-barnklipp': 'bilder/galleri-barnklipp.webp',
+    'galleri-styling': 'bilder/galleri-styling.webp',
+    'produkt-tallrik': 'bilder/produkt-tallrik.webp',
+    'produkt-vas': 'bilder/produkt-vas.webp',
+  };
+  </script>
+
+  <script type="text/babel">
+    const { useState, useReducer, useEffect, useRef } = React;
+
+    // ===== DESIGNTOKENS (samma värden som CSS-variablerna i <head>) =====
+    const T = {
+      color: { forest: '#1F3D32', forestDark: '#173026', teal: '#5FA8A8', bg: '#F6EED7', sand: '#EADFC8', surface: '#FBF8EF', text: '#4A382A', textMuted: '#6E5B4A', champagne: '#D4B98F', champagneLight: '#E8D8B5', terracotta: '#C76B4F', terracottaText: '#9C4B33', brand: '#2F6F70', page: '#5FA8A8', onPage: '#173026' },
+      font: { heading: "'Fraunces', Georgia, 'Times New Roman', serif", body: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+      size: { small: 14, body: 16, h3: 19, h2: 24, h1: 30 },
+      space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+      radius: { card: 18, button: 14, input: 12, pill: 999 },
+      shadow: { card: '0 1px 2px rgba(31,61,50,0.06), 0 6px 16px rgba(31,61,50,0.06)' },
+      bp: { sm: 360, md: 600, lg: 900 },
+      z: { actionBar: 900, header: 950, nav: 1000, modal: 9999 },
+    };
+
+    // ===== IKONER – Lucide (ISC-licens, lucide.dev), kopierade från react-icons 5.7.0 =====
+    const ICONS = {"home":"<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"></path><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"></path>","calendar":"<path d=\"M8 2v4\"></path><path d=\"M16 2v4\"></path><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"></rect><path d=\"M3 10h18\"></path><path d=\"M8 14h.01\"></path><path d=\"M12 14h.01\"></path><path d=\"M16 14h.01\"></path><path d=\"M8 18h.01\"></path><path d=\"M12 18h.01\"></path><path d=\"M16 18h.01\"></path>","palette":"<circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\"></circle><path d=\"M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z\"></path>","bag":"<path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z\"></path><path d=\"M3 6h18\"></path><path d=\"M16 10a4 4 0 0 1-8 0\"></path>","phone":"<path d=\"M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z\"></path>","image":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"></rect><circle cx=\"9\" cy=\"9\" r=\"2\"></circle><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"></path>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16 14\"></polyline>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"></path><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"></path>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"></rect><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"></path>","pin":"<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"></path><circle cx=\"12\" cy=\"10\" r=\"3\"></circle>","check":"<path d=\"M20 6 9 17l-5-5\"></path>","back":"<path d=\"m15 18-6-6 6-6\"></path>","scissors":"<circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M8.12 8.12 12 12\"></path><path d=\"M20 4 8.12 15.88\"></path><circle cx=\"6\" cy=\"18\" r=\"3\"></circle><path d=\"M14.8 14.8 20 20\"></path>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"></circle><circle cx=\"19\" cy=\"21\" r=\"1\"></circle><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"></path>","tag":"<path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle>","calendarRange":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"></rect><path d=\"M16 2v4\"></path><path d=\"M3 10h18\"></path><path d=\"M8 2v4\"></path><path d=\"M17 14h-6\"></path><path d=\"M13 18H7\"></path><path d=\"M7 14h.01\"></path><path d=\"M17 18h.01\"></path>","alert":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"></path><path d=\"M12 9v4\"></path><path d=\"M12 17h.01\"></path>","info":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path>","x":"<path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path>","plus":"<path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path>","minus":"<path d=\"M5 12h14\"></path>","bell":"<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path>","logout":"<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"></path><polyline points=\"16 17 21 12 16 7\"></polyline><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"></line>","user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"></path><circle cx=\"12\" cy=\"7\" r=\"4\"></circle>","settings":"<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>","refresh":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path>","chevronRight":"<path d=\"m9 18 6-6-6-6\"></path>","hourglass":"<path d=\"M5 22h14\"></path><path d=\"M5 2h14\"></path><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\"></path><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\"></path>"};
+    function Icon({ name, size = 22, label, strokeWidth = 2, style }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+          strokeLinecap="round" strokeLinejoin="round" focusable="false"
+          role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : 'true'}
+          style={{ flexShrink: 0, ...style }} dangerouslySetInnerHTML={{ __html: ICONS[name] || '' }} />
+      );
+    }
+
+    // LH-symbolen (logga nr 6) för headern
+    const LOGO_SMALL = 'data:image/png;base64,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';
+
+    // ===== GEMENSAMMA KOMPONENTER =====
+    function Button({ variant = 'primary', block, icon, children, className = '', ...rest }) {
+      return (
+        <button type="button" className={`lh-btn lh-btn--${variant}${block ? ' lh-btn--block' : ''} ${className}`} {...rest}>
+          {icon && <Icon name={icon} size={20} />}{children}
+        </button>
+      );
+    }
+    function IconButton({ icon, label, size = 22, ...rest }) {
+      return <button type="button" className="lh-iconbtn" aria-label={label} title={label} {...rest}><Icon name={icon} size={size} /></button>;
+    }
+    function FilterChip({ selected, children, ...rest }) {
+      return <button type="button" className="lh-chip" aria-pressed={selected ? 'true' : 'false'} {...rest}>{selected && <Icon name="check" size={16} />}{children}</button>;
+    }
+    function Card({ tone, className = '', children, ...rest }) {
+      return <div className={`lh-card${tone === 'sand' ? ' lh-card--sand' : ''} ${className}`} {...rest}>{children}</div>;
+    }
+    const BADGE_ICON = { ok: 'check', low: 'alert', out: 'x', info: 'info' };
+    function StatusBadge({ tone = 'ok', children }) {
+      return <span className={`lh-badge lh-badge--${tone}`}><Icon name={BADGE_ICON[tone] || 'info'} size={16} />{children}</span>;
+    }
+    function FormField({ id, label, required, error, hint, multiline, ...inputProps }) {
+      const errId = id + '-fel', hintId = id + '-tips';
+      const described = [error ? errId : null, hint ? hintId : null].filter(Boolean).join(' ') || undefined;
+      const Tag = multiline ? 'textarea' : 'input';
+      return (
+        <div className="lh-field">
+          <label htmlFor={id}>{label}{required && <span className="lh-req" aria-hidden="true"> *</span>}{required && <span className="lh-sr"> (obligatoriskt)</span>}</label>
+          <Tag id={id} className="lh-input" aria-required={required ? 'true' : undefined} aria-invalid={error ? 'true' : 'false'} aria-describedby={described} {...inputProps} />
+          {hint && <div id={hintId} className="lh-hint">{hint}</div>}
+          {error && <div id={errId} className="lh-err" role="alert"><Icon name="alert" size={16} />{error}</div>}
+        </div>
+      );
+    }
+    function ResponsiveImage({ src, alt, ratio = '4 / 3', radius = T.radius.card, eager, fallbackLabel = 'Bild kommer snart', position, style }) {
+      const [failed, setFailed] = useState(false);
+      const show = src && !failed;
+      return (
+        <div className="lh-img" style={{ aspectRatio: ratio, borderRadius: radius, ...style }}>
+          {show
+            ? <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} style={position ? { objectPosition: position } : undefined} />
+            : <div className="lh-img__fallback" {...(alt === '' ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': alt || fallbackLabel })}><Icon name="image" size={28} />{fallbackLabel && <span>{fallbackLabel}</span>}</div>}
+        </div>
+      );
+    }
+    function EmptyState({ icon = 'info', title, text, action }) {
+      return <div className="lh-state"><Icon name={icon} size={32} style={{ color: T.color.forest }} />{title && <h3>{title}</h3>}{text && <p>{text}</p>}{action}</div>;
+    }
+    function LoadingState({ text = 'Laddar…' }) {
+      return <div className="lh-state" role="status" aria-live="polite"><div className="lh-spinner" aria-hidden="true" /><p>{text}</p></div>;
+    }
+    function ErrorState({ text = 'Något gick fel.', onRetry }) {
+      return <div className="lh-state" role="alert"><Icon name="alert" size={32} style={{ color: T.color.terracottaText }} /><p>{text}</p>{onRetry && <Button variant="secondary" icon="refresh" onClick={onRetry}>Försök igen</Button>}</div>;
+    }
+    function AppHeader({ title, subtitle, onBack, right }) {
+      return (
+        <header className="lh-header">
+          {onBack ? <IconButton icon="back" label="Tillbaka" onClick={onBack} /> : <img className="lh-header__logo" src={LOGO_SMALL} alt="" width="38" height="38" />}
+          <div className="lh-header__text">
+            <h1 className="lh-header__title">{title}</h1>
+            {subtitle && <span className="lh-header__sub">{subtitle}</span>}
+          </div>
+          {right}
+        </header>
+      );
+    }
+    const NAV_ITEMS = [
+      { id: 'home', label: 'Start', icon: 'home' }, { id: 'booking', label: 'Boka', icon: 'calendar' },
+      { id: 'courses', label: 'Kurser', icon: 'palette' }, { id: 'shop', label: 'Shop', icon: 'bag' },
+      { id: 'contact', label: 'Kontakt', icon: 'phone' }, { id: 'gallery', label: 'Galleri', icon: 'image' },
+    ];
+    function BottomNavigation({ active, onSelect }) {
+      return (
+        <nav className="lh-nav" aria-label="Huvudmeny">
+          {NAV_ITEMS.map(i => (
+            <button key={i.id} type="button" className="lh-nav__item" aria-current={active === i.id ? 'page' : undefined} onClick={() => onSelect(i.id)}>
+              <Icon name={i.icon} size={22} /><span>{i.label}</span>
+            </button>
+          ))}
+        </nav>
+      );
+    }
+    const PAGE_TITLES = { home: 'Lias Hantverkeri', booking: 'Boka tid', courses: 'Keramikkurser', shop: 'Keramikshop', contact: 'Kontakt', gallery: 'Galleri', admin: 'Admin' };
+
+
+    // CONSTANTS
+    const STORAGE_KEY = 'lias_v1';
+    // ===== SUPABASE – klistra in dina två värden här (Supabase → Settings → API) =====
+    const SUPABASE_URL = 'KLISTRA_IN_PROJECT_URL';
+    const SUPABASE_ANON_KEY = 'KLISTRA_IN_ANON_PUBLIC_KEY';
+    // ===================================================================================
+    let sb = null;
+    try {
+      if (/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 30 && window.supabase) {
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) { console.error('Supabase kunde inte startas', e); sb = null; }
+
+    // ===== DEMOLÄGE =====
+    // På när Supabase inte är inkopplat, eller med ?demo=1 i adressen.
+    // Allt sparas bara i den här webbläsaren. Inga bokningar, köp eller sms skickas någonstans.
+    const DEMO = !sb || /[?&]demo=1\b/.test(window.location.search);
+    const DEMO_KEY = 'lias_demo_db';
+    const DEMO_SESSION_KEY = 'lias_demo_session';
+    const DEMO_LOGIN = { email: 'lia@demo.se', password: 'demo1234' };
+    const demoBus = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('lias-demo') : null;
+    // Exempelvärden för demon: lagersaldo och redan bokade kursplatser per omgång (1:a, 2:a, 3:e …)
+    const DEMO_STOCK = { 's-cup': 5, 's-bowl': 3, 's-vase': 1, 's-plate': 4, 's-pot': 6, 's-set': 0 };
+    const DEMO_SEED_TAKEN = { 'c-begin': [6, 2], 'c-adv': [3], 'c-kids': [12, 4], 'c-drop': [4, 10, 2] };
+
+    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000 });
+    function demoLoad() {
+      try { const d = JSON.parse(localStorage.getItem(DEMO_KEY)); if (d && Array.isArray(d.bookings)) return { ...demoEmpty(), ...d }; } catch (e) {}
+      return demoEmpty();
+    }
+    function demoSave(db) { localStorage.setItem(DEMO_KEY, JSON.stringify(db)); }
+    function demoReset() { localStorage.removeItem(DEMO_KEY); try { sessionStorage.removeItem('lias_cart'); } catch (e) {} if (demoBus) demoBus.postMessage({ type: 'reset' }); }
+    function demoId() {
+      try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+      return 'demo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    }
+    function demoWhen(ms) { return new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + ' kl ' + fmtTime(ms); }
+    function demoAddSms(db, to, kind, refId, text) {
+      db.sms.unshift({ id: demoId(), bookingId: refId, at: new Date().toISOString(), from: 'LiasSalong', to, kind, text });
+      db.sms = db.sms.slice(0, 60);
+    }
+    const demoListeners = new Set();
+    function demoEmit(table, row) {
+      if (demoBus) demoBus.postMessage({ type: 'insert', table, row });
+      demoListeners.forEach(cb => cb(table, row));
+    }
+    if (demoBus) demoBus.onmessage = e => { if (e.data && e.data.type === 'insert') demoListeners.forEach(cb => cb(e.data.table || 'bookings', e.data.row)); };
+    function demoSession() { try { return JSON.parse(localStorage.getItem(DEMO_SESSION_KEY)); } catch (e) { return null; } }
+
+    function demoCheckContact(p) {
+      const name = String(p.p_name || '').trim(), phone = String(p.p_phone || '').replace(/\D/g, ''), email = String(p.p_email || '').trim();
+      if (name.length < 2 || name.length > 100) return { err: 'OGILTIGT_NAMN' };
+      if (!/^0\d{9}$/.test(phone)) return { err: 'OGILTIGT_TELEFON' };
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) return { err: 'OGILTIG_EPOST' };
+      return { name, phone, email };
+    }
+    const fail = code => ({ data: null, error: { message: code } });
+
+    // --- Frisörbokning: samma kontroller som create_booking i supabase-setup.sql ---
+    function demoCreateBooking(p) {
+      const c = demoCheckContact(p); if (c.err) return fail(c.err);
+      const ids = [...new Set(p.p_service_ids || [])];
+      if (!ids.length || ids.length > 6) return fail('OGILTIGA_TJANSTER');
+      const svcs = SERVICES.filter(s => ids.includes(s.id));
+      if (svcs.length !== ids.length) return fail('OGILTIGA_TJANSTER');
+      const dur = svcs.reduce((a, s) => a + s.dur, 0), price = svcs.reduce((a, s) => a + s.price, 0);
+      const names = svcs.map(s => s.name).sort((a, b) => a.localeCompare(b, 'sv')).join(', ');
+      const start = new Date(p.p_starts_at).getTime();
+      if (!isFinite(start)) return fail('OGILTIG_TID');
+      const end = start + dur * 60000;
+      if (start < Date.now() + 30 * 60000 || start > Date.now() + 60 * 86400000) return fail('OGILTIG_TID');
+      if (start % 60000 !== 0 || new Date(start).getUTCMinutes() % 15 !== 0) return fail('OGILTIG_TID');
+      const a = tzParts(start), z = tzParts(end);
+      const hours = OPENING[new Date(Date.UTC(a.year, a.month - 1, a.day)).getUTCDay()];
+      if (!hours || a.hour * 60 + a.minute < hours[0] * 60 || z.day !== a.day || z.hour * 60 + z.minute > hours[1] * 60) return fail('UTANFOR_OPPETTID');
+      const db = demoLoad();
+      if (db.bookings.some(b => b.status === 'bokad' && start < new Date(b.ends_at).getTime() && end > new Date(b.starts_at).getTime())) return fail('TIDEN_UPPTAGEN');
+      const row = { id: demoId(), created_at: new Date().toISOString(), service_ids: ids, service_names: names, price,
+        starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(),
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad' };
+      db.bookings.push(row);
+      demoAddSms(db, c.phone, 'bekraftelse', row.id, `Hej ${c.name.split(' ')[0]}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${names}). Avboka/ändra: ring 070-XXX XX XX. Välkommen!`);
+      demoAddSms(db, 'Lias mobil', 'till-lia', row.id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${names}, ${price} kr. Tel ${c.phone}`);
+      demoSave(db); demoEmit('bookings', row);
+      return { data: { id: row.id, starts_at: row.starts_at, ends_at: row.ends_at, service_names: names, price, duration: dur }, error: null };
+    }
+
+    // --- Kurser ---
+    function demoTaken(db, course, occ) {
+      const seed = (DEMO_SEED_TAKEN[course.id] || [])[occ.idx] || 0;
+      return seed + db.courseBookings.filter(b => b.status === 'bokad' && b.occasion_key === occ.key).reduce((a, b) => a + b.seats, 0);
+    }
+    function demoBookCourse(p) {
+      const c = demoCheckContact(p); if (c.err) return fail(c.err);
+      const course = COURSES_DATA.find(x => x.id === p.p_course_id);
+      if (!course) return fail('OGILTIG_OMGANG');
+      const occ = courseOccasions(course).find(o => o.key === p.p_occasion_key);
+      if (!occ || occ.startMs < Date.now() + 60 * 60000) return fail('OGILTIG_OMGANG');
+      const seats = Number(p.p_seats);
+      if (!Number.isInteger(seats) || seats < 1 || seats > 4) return fail('OGILTIGT_ANTAL');
+      const db = demoLoad();
+      if (demoTaken(db, course, occ) + seats > course.capacity) return fail('FOR_FA_PLATSER');
+      const price = course.price * seats;
+      const row = { id: demoId(), created_at: new Date().toISOString(), course_id: course.id, course_name: course.name, occasion_key: occ.key,
+        starts_at: new Date(occ.startMs).toISOString(), ends_at: new Date(occ.endMs).toISOString(), last_date: occ.lastMs ? new Date(occ.lastMs).toISOString() : null,
+        seats, price, customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad' };
+      db.courseBookings.push(row);
+      const pl = seats === 1 ? '1 plats' : seats + ' platser';
+      demoAddSms(db, c.phone, 'kurs-bekraftelse', row.id, `Hej ${c.name.split(' ')[0]}! Du är anmäld till ${course.name} hos Lias Hantverkeri, ${course.kind === 'dropin' ? '' : 'start '}${demoWhen(occ.startMs)} (${pl}). Frågor: ring 070-XXX XX XX. Välkommen!`);
+      demoAddSms(db, 'Lias mobil', 'kurs-till-lia', row.id, `Ny kursbokning: ${c.name}, ${course.name} ${demoWhen(occ.startMs)}, ${pl}, ${price} kr. Tel ${c.phone}`);
+      demoSave(db); demoEmit('course_bookings', row);
+      return { data: row, error: null };
+    }
+
+    // --- Shop ---
+    function demoStock(db) { const s = {}; SHOP_DATA.forEach(p => { s[p.id] = Math.max(0, (DEMO_STOCK[p.id] || 0) - (db.sold[p.id] || 0)); }); return s; }
+    function demoPlaceOrder(p) {
+      const c = demoCheckContact(p); if (c.err) return fail(c.err);
+      if (!['swish', 'kort'].includes(p.p_payment)) return fail('OGILTIG_BETALNING');
+      const merged = {};
+      (p.p_items || []).forEach(i => { merged[i.id] = (merged[i.id] || 0) + Number(i.qty); });
+      const ids = Object.keys(merged);
+      if (!ids.length) return fail('OGILTIG_VARUKORG');
+      const db = demoLoad(), stock = demoStock(db);
+      const items = [];
+      for (const id of ids) {
+        const prod = SHOP_DATA.find(x => x.id === id), qty = merged[id];
+        if (!prod || !Number.isInteger(qty) || qty < 1 || qty > 10) return fail('OGILTIG_VARUKORG');
+        if (qty > stock[id]) return fail('SLUT_I_LAGER:' + id);
+        items.push({ id, name: prod.name, qty, price: prod.price });
+      }
+      const total = items.reduce((a, i) => a + i.qty * i.price, 0);
+      items.forEach(i => { db.sold[i.id] = (db.sold[i.id] || 0) + i.qty; });
+      db.orderSeq += 1;
+      const row = { id: demoId(), number: 'LH-' + db.orderSeq, created_at: new Date().toISOString(), items, total, payment: p.p_payment,
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'betald' };
+      db.orders.push(row);
+      demoAddSms(db, c.phone, 'order-bekraftelse', row.id, `Tack ${c.name.split(' ')[0]}! Din beställning ${row.number} hos Lias Hantverkeri är betald (${total} kr). Vi sms:ar när den kan hämtas. Frågor: 070-XXX XX XX.`);
+      demoAddSms(db, 'Lias mobil', 'order-till-lia', row.id, `Ny beställning ${row.number}: ${c.name}, ${items.map(i => i.qty + ' st ' + i.name).join(', ')}, ${total} kr (${p.p_payment === 'swish' ? 'Swish' : 'kort'}). Tel ${c.phone}`);
+      demoSave(db); demoEmit('orders', row);
+      return { data: row, error: null };
+    }
+
+    function createDemoClient() {
+      const wait = v => new Promise(r => setTimeout(() => r(v), 250));   // känns som ett nätverksanrop
+      const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders' };
+      const builder = table => {
+        const q = { filters: [], update: null, desc: false, orderBy: 'starts_at' };
+        const run = () => {
+          if (!demoSession()) return { data: null, error: { message: 'permission denied' } };
+          const db = demoLoad(), list = db[TABLE[table]];
+          if (!list) return { data: null, error: { message: 'okänd tabell' } };
+          const match = r => q.filters.every(([c, op, v]) => op === 'eq' ? r[c] === v : op === 'neq' ? r[c] !== v : new Date(r[c]).getTime() >= new Date(v).getTime());
+          if (q.update) {
+            list.forEach(r => {
+              if (!match(r)) return;
+              const before = r.status; r.status = q.update.status;
+              if (table === 'bookings' && before === 'bokad' && r.status === 'avbokad')
+                demoAddSms(db, r.customer_phone, 'avbokning', r.id, `Din tid hos Lias Hantverkeri ${demoWhen(new Date(r.starts_at).getTime())} är avbokad.`);
+              if (table === 'course_bookings' && before === 'bokad' && r.status === 'avbokad')
+                demoAddSms(db, r.customer_phone, 'kurs-avbokning', r.id, `Din plats på ${r.course_name} hos Lias Hantverkeri (${demoWhen(new Date(r.starts_at).getTime())}) är avbokad.`);
+              if (table === 'orders' && before === 'betald' && r.status === 'klar')
+                demoAddSms(db, r.customer_phone, 'order-hamtklar', r.id, `Hej! Din beställning ${r.number} är klar att hämta hos Lias Hantverkeri. Välkommen!`);
+            });
+            demoSave(db);
+            return { data: null, error: null };
+          }
+          const rows = list.filter(match).sort((a, b) => new Date(a[q.orderBy]) - new Date(b[q.orderBy]));
+          return { data: q.desc ? rows.reverse() : rows, error: null };
+        };
+        const b = {
+          select() { return b; }, update(v) { q.update = v; return b; },
+          eq(c, v) { q.filters.push([c, 'eq', v]); return b; }, neq(c, v) { q.filters.push([c, 'neq', v]); return b; },
+          gte(c, v) { q.filters.push([c, 'gte', v]); return b; },
+          order(c, o) { q.orderBy = c; q.desc = !!(o && o.ascending === false); return b; },
+          then(res, rej) { return wait(run()).then(res, rej); },
+        };
+        return b;
+      };
+      return {
+        rpc(fn, p) {
+          p = p || {};
+          if (fn === 'create_booking') return wait(demoCreateBooking(p));
+          if (fn === 'get_busy') {
+            const f = new Date(p.p_from).getTime(), t = new Date(p.p_to).getTime();
+            return wait({ data: demoLoad().bookings.filter(b => b.status === 'bokad' && new Date(b.starts_at).getTime() < t && new Date(b.ends_at).getTime() > f).map(b => ({ starts_at: b.starts_at, ends_at: b.ends_at })), error: null });
+          }
+          if (fn === 'get_course_seats') {
+            const db = demoLoad(), course = COURSES_DATA.find(x => x.id === p.p_course_id);
+            if (!course) return wait(fail('OGILTIG_OMGANG'));
+            const out = {}; courseOccasions(course).forEach(o => { out[o.key] = demoTaken(db, course, o); });
+            return wait({ data: out, error: null });
+          }
+          if (fn === 'book_course') return wait(demoBookCourse(p));
+          if (fn === 'get_stock') return wait({ data: demoStock(demoLoad()), error: null });
+          if (fn === 'place_order') return wait(demoPlaceOrder(p));
+          if (fn === 'is_admin') return wait({ data: !!demoSession(), error: null });
+          return wait(fail('okänd funktion'));
+        },
+        from: builder,
+        auth: {
+          getSession: () => wait({ data: { session: demoSession() }, error: null }),
+          signInWithPassword: ({ email, password }) => {
+            if (String(email).trim().toLowerCase() !== DEMO_LOGIN.email || password !== DEMO_LOGIN.password) return wait({ data: { session: null }, error: { message: 'Invalid login credentials' } });
+            const session = { user: { id: 'demo-lia', email: DEMO_LOGIN.email } };
+            localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+            return wait({ data: { session }, error: null });
+          },
+          signOut: () => { localStorage.removeItem(DEMO_SESSION_KEY); return wait({ error: null }); },
+        },
+        channel() {
+          const ch = { handlers: [] };
+          ch.on = (type, filter, cb) => { ch.handlers.push({ table: filter && filter.table, cb }); return ch; };
+          ch.subscribe = statusCb => {
+            ch.listener = (table, row) => ch.handlers.forEach(h => { if (!h.table || h.table === table) h.cb({ eventType: 'INSERT', table, new: row }); });
+            demoListeners.add(ch.listener); setTimeout(() => statusCb && statusCb('SUBSCRIBED'), 200); return ch;
+          };
+          return ch;
+        },
+        removeChannel(ch) { if (ch && ch.listener) demoListeners.delete(ch.listener); },
+      };
+    }
+    if (DEMO) sb = createDemoClient();
+
+    function DemoBanner() {
+      return (
+        <div className="lh-demo" role="note">
+          <Icon name="info" size={16} /><strong>Demoläge</strong> · Inga riktiga bokningar, köp eller meddelanden genomförs.{' '}
+          <button type="button" onClick={() => { if (window.confirm('Radera alla demobokningar, demoköp och demo-sms?')) { demoReset(); window.location.reload(); } }}>Nollställ</button>
+        </div>
+      );
+    }
+
+    const SMS_LABELS = { 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
+    function DemoSmsBubble({ sms }) {
+      const label = /till-lia$/.test(sms.kind) ? 'Till Lia' : (SMS_LABELS[sms.kind] || 'Sms') + ' till ' + sms.to;
+      return (
+        <div data-sms={sms.kind} style={{ backgroundColor: '#FFFFFF', border: `1px solid ${COLORS.sand2}`, borderRadius: '14px 14px 14px 4px', padding: '10px 12px', fontSize: '13px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: COLORS.sandBrown, marginBottom: '4px' }}>Från {sms.from} · {label}</div>
+          {sms.text}
+        </div>
+      );
+    }
+    function DemoSmsFor({ refId, kind }) {
+      const list = demoLoad().sms.filter(m => m.bookingId === refId && m.kind === kind);
+      if (!DEMO || !list.length) return null;
+      return (
+        <div style={{ marginTop: '16px', textAlign: 'left' }}>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: COLORS.earthBrown, marginBottom: '6px' }}>🧪 Sms som skulle ha skickats till dig:</div>
+          {list.map(m => <DemoSmsBubble key={m.id} sms={m} />)}
+        </div>
+      );
+    }
+    function DemoSmsLog() {
+      const sms = demoLoad().sms;
+      return (
+        <section style={{ marginTop: '24px' }}>
+          <h2 style={{ color: COLORS.sand1, fontSize: '17px', fontFamily: T.font.heading, margin: '0 0 4px 0' }}>📱 Sms-logg (demo)</h2>
+          <p style={{ color: COLORS.sand1, opacity: 0.85, fontSize: '12px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats.</p>
+          {sms.length === 0
+            ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
+            : <div style={{ display: 'grid', gap: '8px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}
+        </section>
+      );
+    }
+
+    const COLORS = {
+      primary: '#4B9FA6',
+      sand1: '#F4EDE0',
+      sand2: '#E8DCC8',
+      sandBrown: '#91744A',
+      rosemary: '#476452',
+      earthBrown: '#6B5138',
+      dark: '#2C2C2C',
+      border: 'rgba(139, 117, 91, 0.15)',
+      error: '#D97757',
+      success: '#7FA184',
+      herr: '#5A7C6F',
+      dam: '#C27A4B',
+      barn: '#E8B863',
+    };
+
+    const IMAGES = {
+      hair1: 'bilder/galleri-lia-1.jpg',
+      hair2: 'bilder/galleri-lia-2.jpg'
+    };
+    const SERVICES = [
+      { id: 'h-kort', cat: 'Herr', name: 'Herr kort hår', dur: 20, price: 395 },
+      { id: 'h-medel', cat: 'Herr', name: 'Herr medel hår', dur: 30, price: 495 },
+      { id: 'h-långt', cat: 'Herr', name: 'Herr långt hår', dur: 40, price: 595 },
+      { id: 'h-färg', cat: 'Herr', name: 'Färgning herr', dur: 45, price: 349 },
+      { id: 'h-skägg', cat: 'Herr', name: 'Skäggtrim', dur: 15, price: 149 },
+      { id: 'h-style', cat: 'Herr', name: 'Styling herr', dur: 10, price: 99 },
+      { id: 'd-kort', cat: 'Dam', name: 'Dam kort hår', dur: 30, price: 495 },
+      { id: 'd-medel', cat: 'Dam', name: 'Dam medel hår', dur: 45, price: 595 },
+      { id: 'd-långt', cat: 'Dam', name: 'Dam långt hår', dur: 60, price: 695 },
+      { id: 'd-färg', cat: 'Dam', name: 'Färgning dam', dur: 45, price: 449 },
+      { id: 'd-slingor', cat: 'Dam', name: 'Slingor/highlights', dur: 60, price: 549 },
+      { id: 'd-style', cat: 'Dam', name: 'Styling dam', dur: 20, price: 149 },
+      { id: 'd-fön', cat: 'Dam', name: 'Fön', dur: 15, price: 99 },
+      { id: 'b-klipp', cat: 'Barn', name: 'Barnklippning', dur: 25, price: 295 },
+    ];
+
+    const COURSES_DATA = [
+      { id: 'c-begin', name: 'Keramik för nybörjare', desc: 'Lär dig grunderna i keramik. Vi börjar med handteknik och introducerar hjulteknik.', price: 1200, duration: '6 veckor', schedule: 'Tisdagar 18:00–20:00', capacity: 8, emoji: '🎨', kind: 'serie', dow: 2, from: [18, 0], to: [20, 0], weeks: 6 },
+      { id: 'c-adv', name: 'Avancerad keramik', desc: 'För dig som redan har grundkunskap. Vi fokuserar på både hjul och skulpturteknik.', price: 1500, duration: '8 veckor', schedule: 'Torsdagar 18:00–20:00', capacity: 6, emoji: '🖌️', kind: 'serie', dow: 4, from: [18, 0], to: [20, 0], weeks: 8 },
+      { id: 'c-drop', name: 'Keramikverkstad drop-in', desc: 'Kom när du vill och skapa under Lias övervakning. Eldning ingår.', price: 150, duration: '2 timmar', schedule: 'Fredagar 16:00–18:00 & Lördagar 10:00–12:00', capacity: 10, emoji: '✨', kind: 'dropin', slots: [{ dow: 5, from: [16, 0], to: [18, 0] }, { dow: 6, from: [10, 0], to: [12, 0] }] },
+      { id: 'c-kids', name: 'Keramik för barn', desc: 'Roliga och kreativa keramikprojekt för barn 6–12 år.', price: 400, duration: '4 veckor', schedule: 'Onsdagar 16:00–17:00', capacity: 12, emoji: '👶', kind: 'serie', dow: 3, from: [16, 0], to: [17, 0], weeks: 4 },
+    ];
+
+    // Kommande omgångar (kurser) eller tillfällen (drop-in), räknat från imorgon i svensk tid.
+    // OBS: exempeldatum tills Lia bestämmer riktiga startdatum.
+    function courseOccasions(c) {
+      const t = tzParts(Date.now());
+      const slots = c.kind === 'dropin' ? c.slots : [{ dow: c.dow, from: c.from, to: c.to }];
+      const want = c.kind === 'dropin' ? 8 : 3;
+      const out = [];
+      for (let i = 1; i <= 200 && out.length < want; i++) {
+        const u = new Date(Date.UTC(t.year, t.month - 1, t.day + i, 12));
+        const y = u.getUTCFullYear(), m = u.getUTCMonth() + 1, d = u.getUTCDate();
+        const s = slots.find(x => x.dow === u.getUTCDay());
+        if (!s) continue;
+        if (c.kind !== 'dropin' && out.length && u.getTime() - out[out.length - 1].noon < c.weeks * 7 * 86400000) continue;
+        const startMs = stockholmMs(y, m, d, s.from[0], s.from[1]);
+        out.push({
+          key: c.id + '@' + y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0') + '-' + String(s.from[0]).padStart(2, '0'),
+          idx: out.length, noon: u.getTime(), startMs, endMs: stockholmMs(y, m, d, s.to[0], s.to[1]),
+          lastMs: c.kind === 'dropin' ? null : u.getTime() + (c.weeks - 1) * 7 * 86400000,
+        });
+      }
+      return out;
+    }
+
+    const SHOP_DATA = [
+      { id: 's-cup', name: 'Handgjord kaffekopp', desc: 'Vacker keramikkopp gjord på hjulet. Unik design.', price: 280, emoji: '☕' },
+      { id: 's-bowl', name: 'Keramikskål', desc: 'Perfekt för frukt, chips eller som dekorationsobjekt.', price: 350, emoji: '🥣' },
+      { id: 's-vase', name: 'Dekorativ vas', desc: 'Moderna former, perfekt för blombukett eller som dekoration.', price: 450, emoji: '🌸' },
+      { id: 's-plate', name: 'Handmålad tallrik', desc: 'Unik tallrik med handmålat mönster. Mat- och diskmaskinssäker.', price: 320, emoji: '🍽️' },
+      { id: 's-pot', name: 'Kruka för växter', desc: 'Elegant kruka för inomhusväxter. Med dräneringshål.', price: 220, emoji: '🌿' },
+      { id: 's-set', name: 'Servis set (4 st)', desc: 'Matchande kopp, tallrik och skål i samma design. Perfekt gåva!', price: 899, emoji: '🎁' },
+    ];
+
+    // Öppettider per veckodag (0 = söndag … 6 = lördag), [öppnar, stänger] i svensk tid
+    const OPENING = { 0: null, 1: [10, 18], 2: [10, 18], 3: [10, 18], 4: [10, 20], 5: [10, 18], 6: [9, 15] };
+
+    const initialState = { gdprOk: false, tab: 'home' };
+
+    function reducer(state, a) {
+      switch (a.type) {
+        case 'GDPR': return { ...state, gdprOk: true };
+        case 'TAB': return { ...state, tab: a.p, nav: (state.nav || 0) + 1 };
+        case 'START_BOOK': return { ...state, tab: 'booking', nav: (state.nav || 0) + 1 };
+        case 'LOAD': return { ...initialState, gdprOk: !!(a.p && a.p.gdprOk), tab: (a.p && a.p.tab) || 'home' };
+        default: return state;
+      }
+    }
+
+    function formatPrice(p) { return Number(p).toLocaleString('sv-SE', { style: 'currency', currency: 'SEK' }); }
+
+    // ---- Svensk tid, oavsett vilken tidszon besökarens telefon har ----
+    const TZ = 'Europe/Stockholm';
+    const TZ_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    function tzParts(ms) {
+      const p = {};
+      TZ_FMT.formatToParts(new Date(ms)).forEach(x => { if (x.type !== 'literal') p[x.type] = Number(x.value); });
+      return p;
+    }
+    // Svensk lokal tid (år, månad, dag, timme, minut) -> exakt tidpunkt (millisekunder)
+    function stockholmMs(y, m, d, h, min) {
+      const want = Date.UTC(y, m - 1, d, h, min);
+      let ms = want;
+      for (let i = 0; i < 3; i++) {
+        const p = tzParts(ms);
+        ms += want - Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+      }
+      return ms;
+    }
+    function fmtTime(ms) { return new Date(ms).toLocaleTimeString('sv-SE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }); }
+    function fmtDayLong(ms) { const t = new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); }
+
+    // De kommande öppna dagarna (söndag hoppas över)
+    function upcomingDays(count) {
+      const t = tzParts(Date.now());
+      const out = [];
+      for (let i = 0; out.length < count && i < 40; i++) {
+        const u = new Date(Date.UTC(t.year, t.month - 1, t.day + i, 12));
+        const y = u.getUTCFullYear(), m = u.getUTCMonth() + 1, d = u.getUTCDate(), dow = u.getUTCDay();
+        const hours = OPENING[dow];
+        if (!hours) continue;
+        if (stockholmMs(y, m, d, hours[1], 0) < Date.now() + 45 * 60000) continue; // dagen är i praktiken slut
+        out.push({ y, m, d, dow, key: y + '-' + m + '-' + d, open: hours[0], close: hours[1], noon: u.getTime() });
+      }
+      return out;
+    }
+
+    // Lediga starttider en viss dag, givet total längd och upptagna tider
+    function daySlots(day, durationMin, busy) {
+      const out = [];
+      const closeMs = stockholmMs(day.y, day.m, day.d, day.close, 0);
+      const earliest = Date.now() + 30 * 60000;
+      for (let h = day.open; h < day.close; h++) {
+        for (let mm = 0; mm < 60; mm += 15) {
+          const s = stockholmMs(day.y, day.m, day.d, h, mm);
+          const e = s + durationMin * 60000;
+          if (s < earliest || e > closeMs) continue;
+          if (busy.some(b => s < b.e && e > b.s)) continue;
+          out.push(s);
+        }
+      }
+      return out;
+    }
+
+    const BOOKING_ERRORS = {
+      TIDEN_UPPTAGEN: 'Någon hann boka den tiden precis före dig. Välj en annan tid.',
+      OGILTIG_TID: 'Den tiden går inte längre att boka. Välj en annan tid.',
+      UTANFOR_OPPETTID: 'Tiden ligger utanför öppettiderna. Välj en annan tid.',
+      OGILTIGT_NAMN: 'Skriv ditt namn (minst 2 tecken).',
+      OGILTIGT_TELEFON: 'Telefonnumret ska vara 10 siffror och börja med 0.',
+      OGILTIG_EPOST: 'Kontrollera e-postadressen.',
+      OGILTIGA_TJANSTER: 'Tjänsterna kunde inte hittas. Ladda om sidan och försök igen.',
+      OGILTIG_OMGANG: 'Omgången går inte längre att boka. Välj en annan.',
+      OGILTIGT_ANTAL: 'Välj mellan 1 och 4 platser.',
+      FOR_FA_PLATSER: 'Det finns inte så många platser kvar. Välj färre platser eller en annan omgång.',
+      SLUT_I_LAGER: 'En vara räcker inte i lager. Varukorgen har uppdaterats.',
+      OGILTIG_VARUKORG: 'Varukorgen är tom eller ogiltig.',
+      OGILTIG_BETALNING: 'Välj betalsätt.',
+    };
+    function bookingErrorText(error) {
+      const msg = (error && error.message) || '';
+      const code = Object.keys(BOOKING_ERRORS).find(k => msg.includes(k));
+      return code ? { code, text: BOOKING_ERRORS[code] } : { code: 'NATVERK', text: 'Bokningen kunde inte skickas. Kontrollera din internetanslutning och försök igen.' };
+    }
+
+    const BOX = { backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '12px', padding: '16px' };
+    const H2 = { color: COLORS.sand1, fontSize: '20px', fontFamily: T.font.heading, margin: '0 0 6px 0' };
+    const SUB = { color: COLORS.sand1, opacity: 0.85, fontSize: '13px', margin: '0 0 18px 0' };
+    const INPUT = { width: '100%', padding: '14px', border: `2px solid ${COLORS.earthBrown}`, borderRadius: '10px', fontSize: '16px', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: COLORS.dark };
+
+    function GDPRModal({ onOk }) {
+      const [scrolled, setScrolled] = useState(false);
+      const ref = useRef(null);
+
+      useEffect(() => {
+        if (ref.current && ref.current.scrollHeight <= ref.current.clientHeight + 20) {
+          setScrolled(true);
+        }
+      }, []);
+
+      return (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(75, 159, 166, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: COLORS.sand1, borderRadius: '20px', maxWidth: '520px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(75, 159, 166, 0.25)' }}>
+            {/* Header */}
+            <div style={{ padding: '32px 28px 24px', textAlign: 'center', borderBottom: 'none' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
+              <h2 style={{ margin: '0 0 6px 0', color: COLORS.earthBrown, fontSize: '26px', fontFamily: T.font.heading, fontWeight: '600', letterSpacing: '-0.5px' }}>Integritet & Cookies</h2>
+              <p style={{ margin: '0', color: COLORS.dark, opacity: 0.65, fontSize: '15px' }}>Vi värnar din data och gör det transparent</p>
+            </div>
+
+            {/* Content */}
+            <div ref={ref} onScroll={(e) => {
+              if (e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 20) setScrolled(true);
+            }} style={{ flex: 1, padding: '32px 28px', overflowY: 'auto', color: COLORS.dark, fontSize: '15px', lineHeight: '1.8' }}>
+              {/* Vi gör så här */}
+              <div style={{ marginBottom: '28px' }}>
+                <h3 style={{ margin: '0 0 14px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8 }}>✓ Vi gör så här</h3>
+                <ul style={{ margin: '0', padding: '0 0 0 20px', listStyle: 'none' }}>
+                  <li style={{ marginBottom: '10px' }}>Vi sparar dina bokningsuppgifter säkert</li>
+                  <li style={{ marginBottom: '10px' }}>Vi använder cookies för att hålla dig inloggad</li>
+                  <li style={{ marginBottom: '10px' }}>Vi delar aldrig dina uppgifter med tredje part</li>
+                  <li>Du kan begära att få dina uppgifter raderade</li>
+                </ul>
+              </div>
+
+              {/* Kontakta oss */}
+              <div style={{ marginBottom: '28px', backgroundColor: `${COLORS.sandBrown}15`, padding: '16px', borderRadius: '12px', borderLeft: `4px solid ${COLORS.sandBrown}` }}>
+                <h3 style={{ margin: '0 0 12px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>📞 Kontakta oss</h3>
+                <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.6' }}>
+                  E-post: <strong>lias@hantverkeri.se</strong><br />
+                  Tel: <strong>070-XXX XX XX</strong><br />
+                  Adress: Karlskoga, Sverige
+                </p>
+              </div>
+
+              {/* Dina rättigheter */}
+              <div>
+                <h3 style={{ margin: '0 0 12px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>⚖️ Dina rättigheter</h3>
+                <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.6' }}>Du har rätt till insyni, rättelse, radering och dataportabilitet enligt GDPR.</p>
+              </div>
+            </div>
+
+            {/* Footer Button */}
+            <div style={{ padding: '20px 28px 28px', borderTop: 'none', backgroundColor: 'transparent', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={onOk} disabled={!scrolled} style={{ padding: '14px 32px', backgroundColor: scrolled ? COLORS.sandBrown : `${COLORS.sandBrown}60`, color: COLORS.sand1, border: 'none', borderRadius: '12px', cursor: scrolled ? 'pointer' : 'not-allowed', fontWeight: '600', fontSize: '15px', opacity: scrolled ? 1 : 0.6, transition: 'all 0.2s', boxShadow: scrolled ? `0 8px 20px rgba(145, 116, 74, 0.25)` : 'none' }}>
+                Jag förstår och accepterar
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Header({ state }) {
+      const home = state.tab === 'home';
+      return <AppHeader title={PAGE_TITLES[state.tab] || 'Lias Hantverkeri'} subtitle={home ? 'Skapa · Vårda · Inspireras' : 'Lias Hantverkeri'} />;
+    }
+
+    function Nav({ state, dispatch }) {
+      return <BottomNavigation active={state.tab} onSelect={id => dispatch({ type: 'TAB', p: id })} />;
+    }
+
+    // ===== BILDER – byt null / tillfälliga bilder mot riktiga filer, t.ex. 'images/salong-miljo.jpg' =====
+    const PIC = window.LH_IMG || {};
+    const IMG = {
+      salongMiljo: PIC['salong-miljo'],
+      frisorDetalj: PIC['frisor-detalj'],
+      keramikDrejning: PIC['keramik-drejning'],
+      keramikverkstadMiljo: PIC['keramikverkstad-miljo'],
+      produktKopp: PIC['produkt-kopp'],
+      produktSkal: PIC['produkt-skal'],
+      produktKruka: PIC['produkt-kruka'],
+      produktPresentset: PIC['produkt-presentset'],
+      produktTallrik: PIC['produkt-tallrik'],
+      produktVas: PIC['produkt-vas'],
+      bannerGalleri: PIC['banner-galleri'],
+      bannerKontakt: PIC['banner-kontakt'],
+      bannerBoka: PIC['banner-boka'],
+      galleriHerrklipp: PIC['galleri-herrklipp'],
+      galleriBarnklipp: PIC['galleri-barnklipp'],
+      galleriStyling: PIC['galleri-styling'],
+    };
+    // Produktbilder per produkt-id. Alla produkter har bild (visar "Bild kommer").
+    const PRODUCT_IMG = { 's-cup': IMG.produktKopp, 's-bowl': IMG.produktSkal, 's-pot': IMG.produktKruka, 's-set': IMG.produktPresentset, 's-vase': IMG.produktVas, 's-plate': IMG.produktTallrik };
+
+    function Home({ dispatch }) {
+      const entries = [
+        { id: 'boka', title: 'Boka frisör', text: 'Klippning, färgning, styling – för all ålder', cta: 'Boka tid', icon: 'scissors', img: IMG.frisorDetalj, go: () => dispatch({ type: 'START_BOOK' }) },
+        { id: 'kurser', title: 'Upptäck keramikkurser', text: 'Lär dig keramik från grunden eller utveckla dina färdigheter', cta: 'Se kurser', icon: 'palette', img: IMG.keramikDrejning, go: () => dispatch({ type: 'TAB', p: 'courses' }) },
+        { id: 'shop', title: 'Besök keramikshoppen', text: 'Handgjorda keramikprodukter – unika och vackra', cta: 'Till shoppen', icon: 'bag', img: IMG.produktKopp, go: () => dispatch({ type: 'TAB', p: 'shop' }) },
+      ];
+      return (
+        <div className="lh-home">
+          <section className="lh-hero" aria-labelledby="hero-rubrik">
+            <ResponsiveImage src={IMG.salongMiljo} alt="Miljö från Lias salong" ratio="16 / 10" radius={0} eager fallbackLabel="Miljöbild kommer" />
+            <div className="lh-hero__text">
+              <h2 id="hero-rubrik">Välkommen till Lias Hantverkeri</h2>
+              <p className="lh-hero__sub">Frisörsalong och keramikverkstad i Karlskoga</p>
+              <p className="lh-hero__msg">Skapa, vårda och inspireras.</p>
+            </div>
+          </section>
+
+          <h2 className="lh-home__h">Vad vill du göra?</h2>
+          <div className="lh-entries">
+            {entries.map(e => (
+              <button key={e.id} type="button" className="lh-entry" data-entry={e.id} onClick={e.go}>
+                <div className="lh-entry__img"><ResponsiveImage src={e.img} alt="" ratio="1 / 1" radius={14} fallbackLabel="" /></div>
+                <div className="lh-entry__body">
+                  <span className="lh-entry__title"><Icon name={e.icon} size={20} />{e.title}</span>
+                  <span className="lh-entry__text">{e.text}</span>
+                  <span className="lh-entry__cta">{e.cta}<Icon name="chevronRight" size={18} /></span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <Card className="lh-intro">
+            <p>Hos oss får du en personlig frisörklipp eller en kreativ keramik-upplevelse i vår verkstad i Karlskoga.</p>
+          </Card>
+        </div>
+      );
+    }
+
+    function Booking({ dispatch }) {
+      const [step, setStep] = useState(1);
+      const [ids, setIds] = useState([]);
+      const [day, setDay] = useState(null);
+      const [busy, setBusy] = useState([]);
+      const [busyState, setBusyState] = useState('idle');
+      const [slot, setSlot] = useState(null);
+      const [form, setForm] = useState({ name: '', phone: '', email: '' });
+      const [tried, setTried] = useState(false);
+      const [sending, setSending] = useState(false);
+      const [error, setError] = useState(null);
+      const [done, setDone] = useState(null);
+      const [navH, setNavH] = useState(72);
+      const days = React.useMemo(() => upcomingDays(14), []);
+
+      useEffect(() => { const n = document.querySelector('nav'); if (n) setNavH(n.offsetHeight); }, []);
+      useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
+
+      const chosen = SERVICES.filter(s => ids.includes(s.id));
+      const totalDur = chosen.reduce((a, s) => a + s.dur, 0);
+      const totalPrice = chosen.reduce((a, s) => a + s.price, 0);
+
+      const toggle = id => { setIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); setSlot(null); };
+
+      const loadBusy = async d => {
+        setBusyState('loading'); setBusy([]);
+        try {
+          const from = stockholmMs(d.y, d.m, d.d, 0, 0), to = stockholmMs(d.y, d.m, d.d, 23, 59);
+          const { data, error: err } = await sb.rpc('get_busy', { p_from: new Date(from).toISOString(), p_to: new Date(to).toISOString() });
+          if (err) throw err;
+          setBusy((data || []).map(b => ({ s: new Date(b.starts_at).getTime(), e: new Date(b.ends_at).getTime() })));
+          setBusyState('ok');
+        } catch (e) { console.error(e); setBusyState('error'); }
+      };
+      const pickDay = d => { setDay(d); setSlot(null); setError(null); loadBusy(d); };
+      const slots = day && busyState === 'ok' ? daySlots(day, totalDur, busy) : [];
+
+      const phoneDigits = form.phone.replace(/\D/g, '');
+      const valid = {
+        name: form.name.trim().length >= 2,
+        phone: /^0\d{9}$/.test(phoneDigits),
+        email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim()),
+      };
+      const allValid = valid.name && valid.phone && valid.email;
+
+      const submit = async () => {
+        setTried(true);
+        if (!allValid || sending) return;
+        setSending(true); setError(null);
+        try {
+          const { data, error: err } = await sb.rpc('create_booking', {
+            p_service_ids: ids, p_starts_at: new Date(slot).toISOString(),
+            p_name: form.name.trim(), p_phone: phoneDigits, p_email: form.email.trim(),
+          });
+          if (err) throw err;
+          setDone(data);
+        } catch (e) {
+          const r = bookingErrorText(e);
+          setError(r.text);
+          if (['TIDEN_UPPTAGEN', 'OGILTIG_TID', 'UTANFOR_OPPETTID'].includes(r.code)) { setSlot(null); setStep(2); if (day) loadBusy(day); }
+        }
+        setSending(false);
+      };
+
+      const wrap = { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' };
+
+      if (!sb) {
+        return (
+          <div style={wrap}>
+            <div style={BOX}>
+              <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '20px', fontFamily: T.font.heading }}>Onlinebokningen öppnar snart</h2>
+              <p style={{ margin: 0, color: COLORS.dark, fontSize: '14px', lineHeight: '1.6' }}>Under tiden kan du boka genom att kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>.</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (done) {
+        const s = new Date(done.starts_at).getTime(), e = new Date(done.ends_at).getTime();
+        return (
+          <div style={wrap}>
+            <div style={{ ...BOX, textAlign: 'center', padding: '28px 20px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '8px' }}>✅</div>
+              <h2 style={{ margin: '0 0 6px 0', color: COLORS.earthBrown, fontSize: '24px', fontFamily: T.font.heading }}>Din tid är bokad!</h2>
+              <p style={{ margin: '0 0 18px 0', color: COLORS.dark, fontSize: '14px' }}>Välkommen, {form.name.trim().split(' ')[0]}!</p>
+              <div style={{ backgroundColor: COLORS.sand2, borderRadius: '10px', padding: '14px', textAlign: 'left', fontSize: '15px', color: COLORS.dark, lineHeight: '1.8' }}>
+                <div>📅 <strong>{fmtDayLong(s)}</strong></div>
+                <div>🕐 <strong>{fmtTime(s)}–{fmtTime(e)}</strong></div>
+                <div>✂️ {done.service_names}</div>
+                <div>💰 <strong>{formatPrice(done.price)}</strong> (betalas på plats)</div>
+              </div>
+              {DEMO && (
+                <div style={{ marginTop: '16px', textAlign: 'left' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: COLORS.earthBrown, marginBottom: '6px' }}>🧪 Sms som skulle ha skickats till dig:</div>
+                  {demoLoad().sms.filter(m => m.bookingId === done.id && m.kind === 'bekraftelse').map(m => <DemoSmsBubble key={m.id} sms={m} />)}
+                </div>
+              )}
+              <p style={{ margin: '16px 0 18px 0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.6' }}>Ta gärna en skärmbild. Behöver du ändra eller avboka? Kontakta Lia på <strong>070-XXX XX XX</strong>.</p>
+              <button onClick={() => dispatch({ type: 'TAB', p: 'home' })} style={{ padding: '14px 32px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}>Klar</button>
+            </div>
+          </div>
+        );
+      }
+
+      const stepTitle = (n, title, sub) => (
+        <div style={{ marginBottom: '4px' }}>
+          {n > 1 && <button onClick={() => { setStep(n - 1); setError(null); }} style={{ background: 'none', border: 'none', color: COLORS.sand1, fontSize: '14px', padding: '0 0 10px 0', cursor: 'pointer', fontWeight: '600' }}>← Tillbaka</button>}
+          <div style={{ color: COLORS.sand1, opacity: 0.75, fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px' }}>STEG {n} AV 3</div>
+          <h2 style={H2}>{title}</h2>
+          {sub && <p style={SUB}>{sub}</p>}
+        </div>
+      );
+
+      const actionBar = (label, enabled, onClick) => (
+        <div style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: COLORS.primary }}>
+          <button disabled={!enabled} onClick={onClick} style={{ display: 'block', width: '100%', maxWidth: '568px', margin: '0 auto', padding: '15px', backgroundColor: enabled ? COLORS.sandBrown : 'rgba(244,237,224,0.35)', color: COLORS.sand1, border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '16px', cursor: enabled ? 'pointer' : 'not-allowed' }}>{label}</button>
+        </div>
+      );
+
+      const errorBox = error && <div style={{ backgroundColor: '#FFEBEE', border: `2px solid ${COLORS.error}`, color: '#8A2E12', padding: '12px', borderRadius: '10px', marginBottom: '16px', fontSize: '14px', fontWeight: '600' }}>⚠️ {error}</div>;
+
+      // ---------- STEG 1: tjänst ----------
+      if (step === 1) {
+        return (
+          <div style={wrap}>
+            <div data-banner="boka" style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.bannerBoka} alt="Boka tid – för en stund som är din. Klippning, färgning, styling för herr, dam och barn. Bild från en salong med spegel och frisörstol." ratio="3 / 2" eager /></div>
+            {stepTitle(1, 'Välj tjänst', 'Du kan välja flera tjänster.')}
+            {['Herr', 'Dam', 'Barn'].map(cat => {
+              const catColor = cat === 'Herr' ? COLORS.herr : cat === 'Dam' ? COLORS.dam : COLORS.barn;
+              return (
+                <div key={cat} style={{ marginBottom: '20px' }}>
+                  <h3 style={{ backgroundColor: catColor, color: COLORS.sand1, fontSize: '18px', fontFamily: T.font.heading, fontWeight: '600', margin: '0 0 10px 0', padding: '12px 16px', borderRadius: '10px' }}>{cat === 'Herr' ? '👨 ' : cat === 'Dam' ? '👩 ' : '👶 '}{cat}</h3>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {SERVICES.filter(s => s.cat === cat).map(svc => {
+                      const on = ids.includes(svc.id);
+                      return (
+                        <button key={svc.id} onClick={() => toggle(svc.id)} style={{ padding: '14px', backgroundColor: on ? COLORS.sandBrown : COLORS.sand1, border: `2px solid ${on ? COLORS.earthBrown : COLORS.sand2}`, borderRadius: '10px', cursor: 'pointer', textAlign: 'left', color: on ? COLORS.sand1 : COLORS.dark }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', fontSize: '15px', color: on ? COLORS.sand1 : COLORS.earthBrown }}>{on ? '✓ ' : ''}{svc.name}</div>
+                              <div style={{ fontSize: '12px', opacity: 0.75 }}>{svc.dur} min</div>
+                            </div>
+                            <div style={{ fontWeight: '700', fontSize: '16px', color: on ? COLORS.sand1 : COLORS.sandBrown }}>{formatPrice(svc.price)}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {actionBar(ids.length ? `Fortsätt · ${totalDur} min · ${formatPrice(totalPrice)}` : 'Välj minst en tjänst', ids.length > 0, () => { setStep(2); setError(null); })}
+          </div>
+        );
+      }
+
+      // ---------- STEG 2: dag och tid ----------
+      if (step === 2) {
+        return (
+          <div style={wrap}>
+            {stepTitle(2, 'Välj dag och tid', `${chosen.map(s => s.name).join(', ')} · ${totalDur} min`)}
+            {errorBox}
+            <div style={{ color: COLORS.sand1, fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>Dag</div>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '18px', WebkitOverflowScrolling: 'touch' }}>
+              {days.map(d => {
+                const on = day && day.key === d.key;
+                const dt = new Date(d.noon);
+                return (
+                  <button key={d.key} onClick={() => pickDay(d)} style={{ flex: '0 0 auto', width: '64px', padding: '10px 4px', backgroundColor: on ? COLORS.sandBrown : COLORS.sand1, color: on ? COLORS.sand1 : COLORS.earthBrown, border: `2px solid ${on ? COLORS.earthBrown : COLORS.sand2}`, borderRadius: '12px', cursor: 'pointer', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '600', textTransform: 'capitalize' }}>{dt.toLocaleDateString('sv-SE', { timeZone: 'UTC', weekday: 'short' }).replace('.', '')}</div>
+                    <div style={{ fontSize: '22px', fontWeight: '700', lineHeight: '1.2' }}>{d.d}</div>
+                    <div style={{ fontSize: '11px' }}>{dt.toLocaleDateString('sv-SE', { timeZone: 'UTC', month: 'short' }).replace('.', '')}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {!day && <div style={{ ...BOX, textAlign: 'center', color: COLORS.dark, fontSize: '14px' }}>👆 Välj en dag för att se lediga tider</div>}
+            {day && busyState === 'loading' && <div style={{ ...BOX, textAlign: 'center', color: COLORS.dark, fontSize: '14px' }}>Hämtar lediga tider…</div>}
+            {day && busyState === 'error' && (
+              <div style={{ ...BOX, textAlign: 'center', color: COLORS.dark, fontSize: '14px' }}>
+                Lediga tider kunde inte hämtas. Kontrollera internet.
+                <div><button onClick={() => loadBusy(day)} style={{ marginTop: '10px', padding: '10px 18px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Försök igen</button></div>
+              </div>
+            )}
+            {day && busyState === 'ok' && (
+              <div>
+                <div style={{ color: COLORS.sand1, fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>{fmtDayLong(d2ms(day))}</div>
+                {slots.length === 0
+                  ? <div style={{ ...BOX, textAlign: 'center', color: COLORS.dark, fontSize: '14px' }}>Inga lediga tider den här dagen. Välj en annan dag.</div>
+                  : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                      {slots.map(s => {
+                        const on = slot === s;
+                        return <button key={s} onClick={() => { setSlot(s); setError(null); }} style={{ padding: '12px 0', backgroundColor: on ? COLORS.sandBrown : COLORS.sand1, color: on ? COLORS.sand1 : COLORS.dark, border: `2px solid ${on ? COLORS.earthBrown : COLORS.sand2}`, borderRadius: '10px', fontWeight: on ? '700' : '600', fontSize: '15px', cursor: 'pointer' }}>{fmtTime(s)}</button>;
+                      })}
+                    </div>}
+              </div>
+            )}
+            {actionBar(slot ? `Fortsätt · ${fmtTime(slot)}` : 'Välj en tid', !!slot, () => { setStep(3); setError(null); })}
+          </div>
+        );
+      }
+
+      // ---------- STEG 3: uppgifter och boka ----------
+      const field = (key, label, props, msg) => (
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontWeight: '700', color: COLORS.sand1, marginBottom: '6px', fontSize: '14px' }}>{label}</label>
+          <input {...props} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} style={{ ...INPUT, borderColor: tried && !valid[key] ? COLORS.error : COLORS.earthBrown }} />
+          {tried && !valid[key] && <div style={{ color: '#FFE3DA', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>⚠️ {msg}</div>}
+        </div>
+      );
+      return (
+        <div style={wrap}>
+          {stepTitle(3, 'Dina uppgifter', 'Kontrollera bokningen och fyll i dina uppgifter.')}
+          {errorBox}
+          <div style={{ ...BOX, marginBottom: '18px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.8' }}>
+            <div>📅 <strong>{fmtDayLong(slot)}</strong></div>
+            <div>🕐 <strong>{fmtTime(slot)}–{fmtTime(slot + totalDur * 60000)}</strong></div>
+            <div>✂️ {chosen.map(s => s.name).join(', ')}</div>
+            <div>💰 <strong>{formatPrice(totalPrice)}</strong> (betalas på plats)</div>
+          </div>
+          {field('name', 'Namn', { type: 'text', placeholder: 'För- och efternamn', autoComplete: 'name' }, 'Skriv ditt namn.')}
+          {field('phone', 'Mobilnummer', { type: 'tel', placeholder: '07XXXXXXXX', autoComplete: 'tel', inputMode: 'numeric' }, 'Mobilnumret ska vara 10 siffror och börja med 0.')}
+          {field('email', 'E-post', { type: 'email', placeholder: 'namn@exempel.se', autoComplete: 'email' }, 'Kontrollera e-postadressen.')}
+          {actionBar(sending ? 'Bokar…' : `Boka · ${formatPrice(totalPrice)}`, !sending, submit)}
+        </div>
+      );
+    }
+    function d2ms(day) { return stockholmMs(day.y, day.m, day.d, 12, 0); }
+
+    // ---------- Gemensamma byggstenar för kurs- och shopflödet ----------
+    function useNavHeight() {
+      const [h, setH] = useState(72);
+      useEffect(() => { const n = document.querySelector('nav'); if (n) setH(n.offsetHeight); }, []);
+      return h;
+    }
+    function ActionBar({ label, enabled, onClick, color, textColor }) {
+      const navH = useNavHeight();
+      return (
+        <div style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: COLORS.primary }}>
+          <button disabled={!enabled} onClick={onClick} style={{ display: 'block', width: '100%', maxWidth: '568px', margin: '0 auto', padding: '15px', backgroundColor: enabled ? (color || COLORS.sandBrown) : 'rgba(244,237,224,0.35)', color: textColor || COLORS.sand1, border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '16px', cursor: enabled ? 'pointer' : 'not-allowed' }}>{label}</button>
+        </div>
+      );
+    }
+    function StepTitle({ n, total, title, sub, onBack }) {
+      return (
+        <div style={{ marginBottom: '4px' }}>
+          {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', color: COLORS.sand1, fontSize: '14px', padding: '0 0 10px 0', cursor: 'pointer', fontWeight: '600' }}>← Tillbaka</button>}
+          {n && <div style={{ color: COLORS.sand1, opacity: 0.75, fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px' }}>STEG {n} AV {total}</div>}
+          <h2 style={H2}>{title}</h2>
+          {sub && <p style={SUB}>{sub}</p>}
+        </div>
+      );
+    }
+    function ErrorBox({ text }) {
+      if (!text) return null;
+      return <div style={{ backgroundColor: '#FFEBEE', border: `2px solid ${COLORS.error}`, color: '#8A2E12', padding: '12px', borderRadius: '10px', marginBottom: '16px', fontSize: '14px', fontWeight: '600' }}>⚠️ {text}</div>;
+    }
+    function contactCheck(form) {
+      const phoneDigits = form.phone.replace(/\D/g, '');
+      const v = { name: form.name.trim().length >= 2, phone: /^0\d{9}$/.test(phoneDigits), email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim()) };
+      return { ...v, all: v.name && v.phone && v.email, phoneDigits };
+    }
+    function ContactFields({ form, setForm, tried }) {
+      const v = contactCheck(form);
+      const field = (key, label, props, msg) => (
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontWeight: '700', color: COLORS.sand1, marginBottom: '6px', fontSize: '14px' }}>{label}</label>
+          <input {...props} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} style={{ ...INPUT, borderColor: tried && !v[key] ? COLORS.error : COLORS.earthBrown }} />
+          {tried && !v[key] && <div style={{ color: '#FFE3DA', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>⚠️ {msg}</div>}
+        </div>
+      );
+      return (
+        <div>
+          {field('name', 'Namn', { type: 'text', placeholder: 'För- och efternamn', autoComplete: 'name' }, 'Skriv ditt namn.')}
+          {field('phone', 'Mobilnummer', { type: 'tel', placeholder: '07XXXXXXXX', autoComplete: 'tel', inputMode: 'numeric' }, 'Mobilnumret ska vara 10 siffror och börja med 0.')}
+          {field('email', 'E-post', { type: 'email', placeholder: 'namn@exempel.se', autoComplete: 'email' }, 'Kontrollera e-postadressen.')}
+        </div>
+      );
+    }
+    function DoneCard({ title, sub, lines, children, onDone }) {
+      return (
+        <div style={{ ...BOX, textAlign: 'center', padding: '28px 20px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '8px' }}>✅</div>
+          <h2 style={{ margin: '0 0 6px 0', color: COLORS.earthBrown, fontSize: '24px', fontFamily: T.font.heading }}>{title}</h2>
+          {sub && <p style={{ margin: '0 0 18px 0', color: COLORS.dark, fontSize: '14px' }}>{sub}</p>}
+          <div style={{ backgroundColor: COLORS.sand2, borderRadius: '10px', padding: '14px', textAlign: 'left', fontSize: '15px', color: COLORS.dark, lineHeight: '1.8' }}>{lines.map((l, i) => <div key={i}>{l}</div>)}</div>
+          {children}
+          <button onClick={onDone} style={{ marginTop: '18px', padding: '14px 32px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}>Klar</button>
+        </div>
+      );
+    }
+    const ONLINE_SOON = <div style={{ ...BOX, marginBottom: '16px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.6' }}>Onlinebokning och köp öppnar snart. Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>.</div>;
+    const pageWrap = { padding: '20px 16px', maxWidth: '700px', margin: '0 auto' };
+    const plats = n => n === 1 ? '1 plats' : n + ' platser';
+    function fmtDate(ms) { const t = new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, day: 'numeric', month: 'short' }).replace('.', ''); return t; }
+
+    // ---------- KURSER ----------
+    function Courses() {
+      const [step, setStep] = useState(1);
+      const [course, setCourse] = useState(null);
+      const [taken, setTaken] = useState(null);
+      const [takenState, setTakenState] = useState('idle');
+      const [occ, setOcc] = useState(null);
+      const [count, setCount] = useState(1);
+      const [form, setForm] = useState({ name: '', phone: '', email: '' });
+      const [tried, setTried] = useState(false);
+      const [sending, setSending] = useState(false);
+      const [error, setError] = useState(null);
+      const [done, setDone] = useState(null);
+      useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
+
+      const occs = course ? courseOccasions(course) : [];
+      const left = o => course.capacity - ((taken && taken[o.key]) || 0);
+      const loadSeats = async c => {
+        setTakenState('loading');
+        const { data, error: err } = await sb.rpc('get_course_seats', { p_course_id: c.id });
+        if (err) { setTakenState('error'); return; }
+        setTaken(data); setTakenState('ok');
+      };
+      const choose = c => { setCourse(c); setOcc(null); setCount(1); setError(null); setStep(2); loadSeats(c); };
+      const reset = () => { setStep(1); setCourse(null); setOcc(null); setDone(null); setTried(false); setError(null); };
+
+      const submit = async () => {
+        setTried(true);
+        const v = contactCheck(form);
+        if (!v.all || sending) return;
+        setSending(true); setError(null);
+        const { data, error: err } = await sb.rpc('book_course', { p_course_id: course.id, p_occasion_key: occ.key, p_seats: count, p_name: form.name.trim(), p_phone: v.phoneDigits, p_email: form.email.trim() });
+        setSending(false);
+        if (err) {
+          const r = bookingErrorText(err); setError(r.text);
+          if (['FOR_FA_PLATSER', 'OGILTIG_OMGANG', 'OGILTIGT_ANTAL'].includes(r.code)) { setOcc(null); setStep(2); loadSeats(course); }
+          return;
+        }
+        setDone(data);
+      };
+
+      if (done) {
+        return (
+          <div style={pageWrap}>
+            <DoneCard title="Du är anmäld!" sub={`Välkommen, ${form.name.trim().split(' ')[0]}!`} onDone={reset} lines={[
+              <span>🎨 <strong>{done.course_name}</strong></span>,
+              <span>📅 <strong>{fmtDayLong(new Date(done.starts_at).getTime())}</strong>{done.last_date ? ` – sista gången ${fmtDate(new Date(done.last_date).getTime())}` : ''}</span>,
+              <span>🕐 <strong>{fmtTime(new Date(done.starts_at).getTime())}–{fmtTime(new Date(done.ends_at).getTime())}</strong></span>,
+              <span>👥 {plats(done.seats)}</span>,
+              <span>💰 <strong>{formatPrice(done.price)}</strong> (betalas på plats)</span>,
+            ]}>
+              <DemoSmsFor refId={done.id} kind="kurs-bekraftelse" />
+            </DoneCard>
+          </div>
+        );
+      }
+
+      if (step === 1) {
+        return (
+          <div style={pageWrap}>
+            <div style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.keramikDrejning} alt="Händer som drejar ett kärl i lera" ratio="16 / 9" position="50% 62%" eager /></div>
+            <div style={{ ...BOX, marginBottom: '20px' }}>
+              <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading }}>🎨 Keramikkurser</h2>
+              <p style={{ margin: 0, color: COLORS.dark, fontSize: '14px' }}>Lär dig keramik från grunden eller utveckla dina befintliga färdigheter</p>
+            </div>
+            {!DEMO && ONLINE_SOON}
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {COURSES_DATA.map(c => (
+                <div key={c.id} data-course={c.id} style={{ ...BOX, padding: '20px' }}>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '32px', lineHeight: '1' }}>{c.emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: '0 0 4px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600', fontFamily: T.font.heading }}>{c.name}</h3>
+                      <p style={{ margin: 0, color: COLORS.dark, fontSize: '13px', opacity: 0.8, lineHeight: '1.4' }}>{c.desc}</p>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px', color: COLORS.dark, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div><strong style={{ color: COLORS.sandBrown }}>⏱️ Längd:</strong><br />{c.duration}</div>
+                    <div><strong style={{ color: COLORS.sandBrown }}>📅 Schema:</strong><br />{c.schedule}</div>
+                    <div><strong style={{ color: COLORS.sandBrown }}>👥 Platser:</strong><br />{c.capacity} personer</div>
+                    <div><strong style={{ color: COLORS.primary, fontSize: '15px' }}>💰 {formatPrice(c.price)}</strong>{c.kind === 'dropin' ? ' / tillfälle' : ''}</div>
+                  </div>
+                  {DEMO && <button onClick={() => choose(c)} style={{ width: '100%', padding: '13px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{c.kind === 'dropin' ? 'Välj tillfälle' : 'Välj kursomgång'}</button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      if (step === 2) {
+        return (
+          <div style={pageWrap}>
+            <StepTitle n={1} total={2} title={course.kind === 'dropin' ? 'Välj tillfälle' : 'Välj kursomgång'} sub={`${course.name} · ${course.schedule}`} onBack={reset} />
+            <ErrorBox text={error} />
+            {DEMO && <p style={{ ...SUB, marginTop: '-8px' }}>🧪 Datumen är exempel i demon.</p>}
+            {takenState === 'loading' && <div style={BOX}>Hämtar lediga platser…</div>}
+            {takenState === 'error' && <div style={BOX}>Platserna kunde inte hämtas. <button onClick={() => loadSeats(course)} style={{ marginLeft: '6px', padding: '8px 14px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>Försök igen</button></div>}
+            {takenState === 'ok' && (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {occs.map(o => {
+                  const l = left(o), full = l <= 0, on = occ && occ.key === o.key;
+                  return (
+                    <button key={o.key} data-occ={o.key} disabled={full} onClick={() => { setOcc(o); setCount(1); setError(null); }} style={{ padding: '14px', textAlign: 'left', backgroundColor: on ? COLORS.sandBrown : full ? 'rgba(244,237,224,0.55)' : COLORS.sand1, color: on ? COLORS.sand1 : COLORS.dark, border: `2px solid ${on ? COLORS.earthBrown : COLORS.sand2}`, borderRadius: '12px', cursor: full ? 'not-allowed' : 'pointer' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '15px', color: on ? COLORS.sand1 : COLORS.earthBrown }}>{on ? '✓ ' : ''}{course.kind === 'dropin' ? fmtDayLong(o.startMs) : 'Start ' + fmtDayLong(o.startMs).toLowerCase()}</div>
+                          <div style={{ fontSize: '13px', opacity: 0.85 }}>{fmtTime(o.startMs)}–{fmtTime(o.endMs)}{o.lastMs ? ` · ${course.weeks} gånger, sista ${fmtDate(o.lastMs)}` : ''}</div>
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', color: on ? COLORS.sand1 : full ? COLORS.error : l <= 2 ? '#B4561F' : COLORS.rosemary }}>{full ? 'Fullbokad' : plats(l) + ' kvar'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {occ && (
+              <div style={{ ...BOX, marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <strong style={{ color: COLORS.earthBrown }}>Antal platser</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button aria-label="Färre" disabled={count <= 1} onClick={() => setCount(count - 1)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '20px', fontWeight: '700', color: COLORS.earthBrown, opacity: count <= 1 ? 0.4 : 1 }}>−</button>
+                  <strong data-testid="antal" style={{ fontSize: '20px', minWidth: '20px', textAlign: 'center' }}>{count}</strong>
+                  <button aria-label="Fler" disabled={count >= Math.min(4, left(occ))} onClick={() => setCount(count + 1)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '20px', fontWeight: '700', color: COLORS.earthBrown, opacity: count >= Math.min(4, left(occ)) ? 0.4 : 1 }}>+</button>
+                </div>
+              </div>
+            )}
+            <ActionBar label={occ ? `Fortsätt · ${plats(count)} · ${formatPrice(course.price * count)}` : (course.kind === 'dropin' ? 'Välj ett tillfälle' : 'Välj en omgång')} enabled={!!occ} onClick={() => { setStep(3); setError(null); }} />
+          </div>
+        );
+      }
+
+      return (
+        <div style={pageWrap}>
+          <StepTitle n={2} total={2} title="Dina uppgifter" sub="Kontrollera bokningen och fyll i dina uppgifter." onBack={() => { setStep(2); setError(null); }} />
+          <ErrorBox text={error} />
+          <div style={{ ...BOX, marginBottom: '18px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.8' }}>
+            <div>🎨 <strong>{course.name}</strong></div>
+            <div>📅 <strong>{fmtDayLong(occ.startMs)}</strong>{occ.lastMs ? ` – sista gången ${fmtDate(occ.lastMs)}` : ''}</div>
+            <div>🕐 <strong>{fmtTime(occ.startMs)}–{fmtTime(occ.endMs)}</strong></div>
+            <div>👥 {plats(count)}</div>
+            <div>💰 <strong>{formatPrice(course.price * count)}</strong> (betalas på plats)</div>
+          </div>
+          <ContactFields form={form} setForm={setForm} tried={tried} />
+          <ActionBar label={sending ? 'Bokar…' : `Boka · ${formatPrice(course.price * count)}`} enabled={!sending} onClick={submit} />
+        </div>
+      );
+    }
+
+    // ---------- SHOP ----------
+    function Shop() {
+      const [cart, setCart] = useState(() => { try { return JSON.parse(sessionStorage.getItem('lias_cart')) || {}; } catch (e) { return {}; } });
+      const [stock, setStock] = useState(null);
+      const [step, setStep] = useState(1);
+      const [form, setForm] = useState({ name: '', phone: '', email: '' });
+      const [payment, setPayment] = useState(null);
+      const [tried, setTried] = useState(false);
+      const [paying, setPaying] = useState(false);
+      const [error, setError] = useState(null);
+      const [done, setDone] = useState(null);
+
+      useEffect(() => { try { sessionStorage.setItem('lias_cart', JSON.stringify(cart)); } catch (e) {} }, [cart]);
+      useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
+      const loadStock = async () => { if (!DEMO) return; const { data, error: err } = await sb.rpc('get_stock'); if (!err) setStock(data); };
+      useEffect(() => { loadStock(); }, []);
+      // Ta bort varor som inte längre finns i lager
+      useEffect(() => {
+        if (!stock) return;
+        const fixed = {}; let changed = false;
+        Object.entries(cart).forEach(([id, q]) => { const n = Math.min(q, stock[id] || 0); if (n > 0) fixed[id] = n; if (n !== q) changed = true; });
+        if (changed) setCart(fixed);
+      }, [stock]);
+
+      const lines = SHOP_DATA.filter(p => cart[p.id]).map(p => ({ ...p, qty: cart[p.id] }));
+      const count = lines.reduce((a, l) => a + l.qty, 0);
+      const total = lines.reduce((a, l) => a + l.qty * l.price, 0);
+      const setQty = (id, q) => setCart(prev => { const n = { ...prev }; if (q <= 0) delete n[id]; else n[id] = q; return n; });
+      const max = id => Math.min(10, stock ? (stock[id] || 0) : 0);
+
+      const qtyControl = p => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button aria-label={'Färre ' + p.name} onClick={() => setQty(p.id, (cart[p.id] || 0) - 1)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '18px', fontWeight: '700', color: COLORS.earthBrown }}>−</button>
+          <strong style={{ minWidth: '16px', textAlign: 'center' }}>{cart[p.id] || 0}</strong>
+          <button aria-label={'Fler ' + p.name} disabled={(cart[p.id] || 0) >= max(p.id)} onClick={() => setQty(p.id, (cart[p.id] || 0) + 1)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: `2px solid ${COLORS.earthBrown}`, backgroundColor: '#fff', fontSize: '18px', fontWeight: '700', color: COLORS.earthBrown, opacity: (cart[p.id] || 0) >= max(p.id) ? 0.4 : 1 }}>+</button>
+        </div>
+      );
+
+      const pay = async () => {
+        setTried(true);
+        const v = contactCheck(form);
+        if (!v.all || !payment || paying) return;
+        setPaying(true); setError(null);
+        await new Promise(r => setTimeout(r, 1200));   // simulerad betalning (demo)
+        const { data, error: err } = await sb.rpc('place_order', { p_items: lines.map(l => ({ id: l.id, qty: l.qty })), p_payment: payment, p_name: form.name.trim(), p_phone: v.phoneDigits, p_email: form.email.trim() });
+        setPaying(false);
+        if (err) {
+          const r = bookingErrorText(err);
+          const prod = r.code === 'SLUT_I_LAGER' && SHOP_DATA.find(p => String(err.message).endsWith(':' + p.id));
+          setError(prod ? `Tyvärr räcker inte lagret för ${prod.name}. Varukorgen har uppdaterats.` : r.text);
+          loadStock();
+          return;
+        }
+        setDone(data); setCart({});
+      };
+
+      if (done) {
+        return (
+          <div style={pageWrap}>
+            <DoneCard title="Tack för ditt köp!" sub={`Ordernummer ${done.number}`} onDone={() => { setDone(null); setStep(1); setTried(false); setPayment(null); loadStock(); }} lines={[
+              ...done.items.map(i => <span>🛍️ {i.qty} st {i.name} <span style={{ opacity: 0.75 }}>({formatPrice(i.qty * i.price)})</span></span>),
+              <span>💰 <strong>{formatPrice(done.total)}</strong> betalt med {done.payment === 'swish' ? 'Swish' : 'kort'}{DEMO ? ' (demo)' : ''}</span>,
+              <span>📍 Hämtas hos Lias Hantverkeri i Karlskoga. Du får ett sms när beställningen är klar att hämta.</span>,
+            ]}>
+              <DemoSmsFor refId={done.id} kind="order-bekraftelse" />
+            </DoneCard>
+          </div>
+        );
+      }
+
+      if (paying) {
+        return (
+          <div style={pageWrap}>
+            <div style={{ ...BOX, textAlign: 'center', padding: '36px 20px' }}>
+              <div style={{ fontSize: '44px', marginBottom: '10px' }}>{payment === 'swish' ? '📱' : '💳'}</div>
+              <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '20px', fontFamily: T.font.heading }}>{payment === 'swish' ? 'Väntar på godkännande i Swish…' : 'Behandlar kortbetalning…'}</h2>
+              <p style={{ margin: 0, fontSize: '14px', color: COLORS.dark }}>{DEMO ? '🧪 Demo: ingen riktig betalning görs.' : 'Stäng inte sidan.'}</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (step === 2) {
+        return (
+          <div style={pageWrap}>
+            <StepTitle title="Kassa" sub="Kontrollera din beställning och fyll i dina uppgifter." onBack={() => { setStep(1); setError(null); }} />
+            <ErrorBox text={error} />
+            <div style={{ ...BOX, marginBottom: '16px' }}>
+              {lines.length === 0 && <div style={{ fontSize: '14px' }}>Varukorgen är tom.</div>}
+              {lines.map(l => (
+                <div key={l.id} data-line={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${COLORS.sand2}` }}>
+                  <div style={{ fontSize: '14px', color: COLORS.dark }}><span style={{ fontSize: '20px' }}>{l.emoji}</span> <strong>{l.name}</strong><div style={{ fontSize: '12px', opacity: 0.75 }}>{formatPrice(l.price)} / st</div></div>
+                  {qtyControl(l)}
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', fontSize: '16px', color: COLORS.earthBrown }}><strong>Totalt</strong><strong>{formatPrice(total)}</strong></div>
+            </div>
+            <div style={{ ...BOX, marginBottom: '18px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.6' }}>📍 <strong>Hämtas i butiken</strong> hos Lias Hantverkeri i Karlskoga. Du får ett sms när beställningen är klar att hämta.</div>
+            <ContactFields form={form} setForm={setForm} tried={tried} />
+            <div style={{ fontWeight: '700', color: COLORS.sand1, marginBottom: '6px', fontSize: '14px' }}>Betalsätt</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '6px' }}>
+              {[['swish', '📱 Swish'], ['kort', '💳 Kort']].map(([id, label]) => (
+                <button key={id} onClick={() => setPayment(id)} style={{ padding: '14px', backgroundColor: payment === id ? '#FFFFFF' : COLORS.sand1, color: payment === id ? COLORS.rosemary : COLORS.earthBrown, border: payment === id ? `3px solid ${COLORS.rosemary}` : `2px solid ${tried && !payment ? COLORS.error : COLORS.sand2}`, boxShadow: payment === id ? '0 0 0 3px rgba(255,255,255,0.6)' : 'none', borderRadius: '12px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}>{payment === id ? '✓ ' : ''}{label}</button>
+              ))}
+            </div>
+            {tried && !payment && <div style={{ color: '#FFE3DA', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>⚠️ Välj betalsätt.</div>}
+            {DEMO && <p style={{ ...SUB, marginTop: '8px' }}>🧪 Demo: ingen riktig betalning görs.</p>}
+            <ActionBar label={`Betala · ${formatPrice(total)}`} enabled={lines.length > 0} onClick={pay} color={COLORS.rosemary} textColor="#FFFFFF" />
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ ...pageWrap, maxWidth: '900px' }}>
+          <div style={{ ...BOX, marginBottom: '20px' }}>
+            <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading }}>🛍️ Keramikshop</h2>
+            <p style={{ margin: 0, color: COLORS.dark, fontSize: '14px' }}>Handgjorda keramikprodukter direkt från Lias verkstad</p>
+          </div>
+          {!DEMO && ONLINE_SOON}
+          <p style={{ ...SUB, textAlign: 'center' }}>Produktbilderna är illustrationer – varje föremål är handgjort och unikt.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+            {SHOP_DATA.map(p => {
+              const s = stock ? (stock[p.id] || 0) : null, out = s === 0;
+              return (
+                <div key={p.id} data-product={p.id} style={{ ...BOX, padding: 0, overflow: 'hidden' }}>
+                  <div style={{ opacity: out ? 0.55 : 1 }}><ResponsiveImage src={PRODUCT_IMG[p.id]} alt={p.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" /></div>
+                  <div style={{ padding: '16px' }}>
+                    <h3 style={{ margin: '0 0 6px 0', color: COLORS.earthBrown, fontSize: '15px', fontWeight: '600', fontFamily: T.font.heading }}>{p.name}</h3>
+                    <p style={{ margin: '0 0 10px 0', color: COLORS.dark, fontSize: '13px', opacity: 0.8, lineHeight: '1.4' }}>{p.desc}</p>
+                    {DEMO && s !== null && <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '10px', color: out ? COLORS.error : s <= 2 ? '#B4561F' : COLORS.rosemary }}>{out ? 'Slut i lager' : s + ' i lager'}</div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: `1px solid ${COLORS.border}` }}>
+                      <span style={{ fontSize: '18px', fontWeight: '700', color: COLORS.primary }}>{formatPrice(p.price)}</span>
+                      {DEMO && (cart[p.id]
+                        ? qtyControl(p)
+                        : <button disabled={out || s === null} onClick={() => setQty(p.id, 1)} style={{ padding: '10px 16px', backgroundColor: out ? 'rgba(145,116,74,0.35)' : COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '8px', cursor: out ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '13px' }}>{out ? 'Slut' : 'Lägg i varukorg'}</button>)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {DEMO && <p style={{ ...SUB, textAlign: 'center' }}>🧪 Lagersaldot är exempel i demon.</p>}
+          <div style={{ ...BOX, backgroundColor: COLORS.sand2, textAlign: 'center', fontSize: '13px', color: COLORS.dark, lineHeight: '1.6' }}>
+            <strong style={{ color: COLORS.earthBrown, fontSize: '14px', display: 'block', marginBottom: '8px' }}>💬 Är du intresserad av en specialbeställning?</strong>
+            Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>
+          </div>
+          {DEMO && count > 0 && <ActionBar label={`Till kassan · ${count} ${count === 1 ? 'vara' : 'varor'} · ${formatPrice(total)}`} enabled={true} onClick={() => { setStep(2); setError(null); }} />}
+        </div>
+      );
+    }
+
+    function Contact() {
+      return (
+        <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+          <div data-banner="kontakt" style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.bannerKontakt} alt="Kontakta oss – vi svarar gärna på dina frågor! Tillsammans skapar vi något vackert. Bild med Lias Hantverkeris logga, blommor och keramik på ett skrivbord." ratio="3 / 2" eager /></div>
+          <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
+            <h2 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading }}>📞 Kontakta oss</h2>
+            <p style={{ margin: '0', color: COLORS.dark, fontSize: '14px' }}>Vi svarar gärna på dina frågor!</p>
+          </div>
+
+          <div style={{ display: 'grid', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', padding: '16px' }}>
+              <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '15px', fontWeight: '600' }}>📞 Telefon</h3>
+              <p style={{ margin: '0', color: COLORS.dark, fontSize: '14px', fontWeight: '500' }}>070-XXX XX XX</p>
+            </div>
+
+            <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', padding: '16px' }}>
+              <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '15px', fontWeight: '600' }}>📧 E-post</h3>
+              <p style={{ margin: '0', color: COLORS.dark, fontSize: '14px' }}>
+                <a href="mailto:lias@hantverkeri.se" style={{ color: COLORS.primary, textDecoration: 'none', fontWeight: '500' }}>lias@hantverkeri.se</a>
+              </p>
+            </div>
+
+            <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', padding: '16px' }}>
+              <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '15px', fontWeight: '600' }}>📍 Adress</h3>
+              <p style={{ margin: '0', color: COLORS.dark, fontSize: '14px', lineHeight: '1.6' }}>
+                Lias Hantverkeri<br />
+                Karlskoga<br />
+                Sverige
+              </p>
+            </div>
+          </div>
+
+          <form style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', color: COLORS.sand1, marginBottom: '6px', fontSize: '13px' }}>Ditt namn *</label>
+              <input type="text" placeholder="Namn" style={{ width: '100%', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: COLORS.sand1 }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', color: COLORS.sand1, marginBottom: '6px', fontSize: '13px' }}>E-post *</label>
+              <input type="email" placeholder="din@email.com" style={{ width: '100%', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: COLORS.sand1 }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', color: COLORS.sand1, marginBottom: '6px', fontSize: '13px' }}>Meddelande *</label>
+              <textarea placeholder="Ditt meddelande här..." rows={5} style={{ width: '100%', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'inherit', backgroundColor: COLORS.sand1, resize: 'vertical' }} />
+            </div>
+            <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: COLORS.sandBrown, color: COLORS.sand1, border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>Skicka meddelande</button>
+          </form>
+
+          <div style={{ backgroundColor: COLORS.sand2, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', padding: '16px', fontSize: '12px', color: COLORS.dark, textAlign: 'center', lineHeight: '1.6' }}>
+            <strong style={{ color: COLORS.earthBrown }}>🕐 Öppettider</strong><br />
+            Mån–Ons, Fre: 10–18<br />
+            Tor: 10–20 | Lör: 09–15<br />
+            Söndag: Stängt
+          </div>
+        </div>
+      );
+    }
+
+    function Gallery() {
+      return (
+        <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
+          <div data-banner="galleri" style={{ marginBottom: '24px' }}><ResponsiveImage src={IMG.bannerGalleri} alt="Galleriet – se vad vi gör! Bild med sax, kam, keramikmugg och skålar på ett träbord i salongen." ratio="3 / 2" eager /></div>
+
+          <div style={{ display: 'grid', gap: '20px', marginBottom: '24px' }}>
+            <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(139,117,91,0.1)' }}>
+              <img src={IMAGES.hair1} style={{ width: '100%', height: 'auto', display: 'block' }} alt="Frisörbild 1" />
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>Långt hår – vackert stilat</h3>
+                <p style={{ margin: '0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.4' }}>Elegant och vårdat resultat</p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(139,117,91,0.1)' }}>
+              <img src={IMAGES.hair2} style={{ width: '100%', height: 'auto', display: 'block' }} alt="Frisörbild 2" />
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>Glansigt och proffsigt hår</h3>
+                <p style={{ margin: '0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.4' }}>Våra specialister tar hand om ditt hår</p>
+              </div>
+            </div>
+
+            <div data-gallery="herrklipp" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(139,117,91,0.1)' }}>
+              <ResponsiveImage src={IMG.galleriHerrklipp} alt="Frisör klipper en man med kort, bakåtstylat hår och skägg" ratio="2 / 3" radius={0} />
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>Herrklippning</h3>
+                <p style={{ margin: '0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.4' }}>Inspirationsbild</p>
+              </div>
+            </div>
+
+            <div data-gallery="barnklipp" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(139,117,91,0.1)' }}>
+              <ResponsiveImage src={IMG.galleriBarnklipp} alt="Frisör klipper en glad pojke med kort, blont hår" ratio="2 / 3" radius={0} />
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>Barnklippning</h3>
+                <p style={{ margin: '0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.4' }}>Inspirationsbild</p>
+              </div>
+            </div>
+
+            <div data-gallery="styling" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(139,117,91,0.1)' }}>
+              <ResponsiveImage src={IMG.galleriStyling} alt="Frisör fönar långt, vågigt hår med slingor" ratio="2 / 3" radius={0} />
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>Föning och styling</h3>
+                <p style={{ margin: '0', color: COLORS.dark, fontSize: '13px', lineHeight: '1.4' }}>Inspirationsbild</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ backgroundColor: COLORS.sand2, border: `2px solid ${COLORS.earthBrown}`, borderRadius: '8px', padding: '16px', textAlign: 'center', fontSize: '13px', color: COLORS.dark, lineHeight: '1.6' }}>
+            <strong style={{ color: COLORS.earthBrown, fontSize: '14px', display: 'block', marginBottom: '8px' }}>📞 Vill du också få en fin frisyr?</strong>
+            Kontakta oss på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>
+          </div>
+        </div>
+      );
+    }
+
+    // Kort pling-ljud utan ljudfil
+    let AUDIO_CTX = null;
+    function playChime() {
+      try {
+        if (!AUDIO_CTX) AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+        if (AUDIO_CTX.state === 'suspended') AUDIO_CTX.resume();
+        [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([f, t]) => {
+          const o = AUDIO_CTX.createOscillator(), g = AUDIO_CTX.createGain();
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, AUDIO_CTX.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.35, AUDIO_CTX.currentTime + t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, AUDIO_CTX.currentTime + t + 0.5);
+          o.connect(g); g.connect(AUDIO_CTX.destination);
+          o.start(AUDIO_CTX.currentTime + t); o.stop(AUDIO_CTX.currentTime + t + 0.55);
+        });
+        return true;
+      } catch (e) { console.error('Ljud kunde inte spelas', e); return false; }
+    }
+
+    function AdminPanel({ dispatch }) {
+      const TABLES = DEMO ? ['bookings', 'course_bookings', 'orders'] : ['bookings'];
+      const [session, setSession] = useState(undefined);   // undefined = kontrollerar
+      const [isAdmin, setIsAdmin] = useState(null);
+      const [email, setEmail] = useState('');
+      const [pwd, setPwd] = useState('');
+      const [loginError, setLoginError] = useState(null);
+      const [loggingIn, setLoggingIn] = useState(false);
+      const [lists, setLists] = useState({ bookings: [], course_bookings: [], orders: [] });
+      const [listState, setListState] = useState('idle');
+      const [live, setLive] = useState(false);
+      const [alarmOn, setAlarmOn] = useState(false);
+      const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
+      const [newIds, setNewIds] = useState([]);
+      const seen = useRef(new Set());
+      const loadedOnce = useRef(false);
+      const alarmRef = useRef(false);
+      const baseTitle = useRef(document.title);
+
+      useEffect(() => { alarmRef.current = alarmOn; }, [alarmOn]);
+      useEffect(() => {
+        sb.auth.getSession().then(({ data }) => setSession((data && data.session) || null)).catch(() => setSession(null));
+      }, []);
+      useEffect(() => {
+        if (!session) { setIsAdmin(null); return; }
+        sb.rpc('is_admin').then(({ data, error }) => setIsAdmin(!error && data === true)).catch(() => setIsAdmin(false));
+      }, [session]);
+
+      const describe = (table, r) => {
+        if (table === 'orders') return { title: `Ny beställning ${r.number}: ${r.customer_name}`, body: r.items.map(i => i.qty + ' st ' + i.name).join(', ') + ' · ' + r.total + ' kr' };
+        const s = new Date(r.starts_at).getTime();
+        if (table === 'course_bookings') return { title: 'Ny kursbokning: ' + r.customer_name, body: `${r.course_name}\n${fmtDayLong(s)} kl ${fmtTime(s)} · ${plats(r.seats)}` };
+        return { title: 'Ny bokning: ' + r.customer_name, body: fmtDayLong(s) + ' kl ' + fmtTime(s) + '\n' + r.service_names };
+      };
+      const alarm = (table, r) => {
+        setNewIds(prev => [...prev, r.id]);
+        document.title = '🔔 Ny ' + (table === 'orders' ? 'beställning' : 'bokning') + ' – ' + baseTitle.current;
+        if (!alarmRef.current) return;
+        playChime();
+        try {
+          const d = describe(table, r);
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification(d.title, { body: d.body, tag: r.id });
+        } catch (e) { console.error(e); }
+      };
+      const sortBy = (table, arr) => [...arr].sort((a, b) => table === 'orders' ? new Date(a.created_at) - new Date(b.created_at) : new Date(a.starts_at) - new Date(b.starts_at));
+      const query = t => t === 'orders'
+        ? sb.from('orders').select('*').neq('status', 'hamtad').order('created_at', { ascending: true })
+        : sb.from(t).select('*').eq('status', 'bokad').gte('ends_at', new Date().toISOString()).order('starts_at', { ascending: true });
+
+      const load = async () => {
+        if (!loadedOnce.current) setListState('loading');
+        const results = await Promise.all(TABLES.map(t => query(t)));
+        if (results.some(r => r.error)) { results.forEach(r => r.error && console.error(r.error)); if (!loadedOnce.current) setListState('error'); return; }
+        const next = { bookings: [], course_bookings: [], orders: [] };
+        TABLES.forEach((t, i) => {
+          const rows = results[i].data || [];
+          if (loadedOnce.current) rows.forEach(r => { if (!seen.current.has(r.id)) alarm(t, r); });
+          rows.forEach(r => seen.current.add(r.id));
+          next[t] = sortBy(t, rows);
+        });
+        loadedOnce.current = true;
+        setLists(next); setListState('ok');
+      };
+
+      useEffect(() => {
+        if (!isAdmin) return;
+        load();
+        let ch = sb.channel('nya-bokningar');
+        TABLES.forEach(t => {
+          ch = ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: t }, payload => {
+            const r = payload.new;
+            if (!r || seen.current.has(r.id)) return;
+            if (t !== 'orders' && r.status !== 'bokad') return;
+            seen.current.add(r.id);
+            setLists(prev => ({ ...prev, [t]: sortBy(t, [...prev[t], r]) }));
+            alarm(t, r);
+          });
+        });
+        ch.subscribe(status => setLive(status === 'SUBSCRIBED'));
+        const poll = setInterval(load, 60000);   // reserv om liveanslutningen tappas
+        return () => { clearInterval(poll); sb.removeChannel(ch); };
+      }, [isAdmin]);
+
+      const login = async e => {
+        e.preventDefault();
+        setLoggingIn(true); setLoginError(null);
+        const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password: pwd });
+        setLoggingIn(false);
+        if (error) { setLoginError('Fel e-post eller lösenord.'); return; }
+        setPwd(''); setSession(data.session);
+      };
+      const logout = async () => { await sb.auth.signOut(); setSession(null); document.title = baseTitle.current; dispatch({ type: 'TAB', p: 'home' }); };
+      const activateAlarm = async () => {
+        playChime();
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+          try { setNotifState(await Notification.requestPermission()); } catch (e) { console.error(e); }
+        }
+        setAlarmOn(true);
+      };
+      const setStatus = async (table, r, status, question) => {
+        if (question && !window.confirm(question)) return;
+        const { error } = await sb.from(table).update({ status }).eq('id', r.id);
+        if (error) { window.alert('Ändringen misslyckades. Försök igen.'); return; }
+        setLists(prev => ({ ...prev, [table]: (status === 'avbokad' || status === 'hamtad') ? prev[table].filter(x => x.id !== r.id) : prev[table].map(x => x.id === r.id ? { ...x, status } : x) }));
+      };
+
+      const wrap = { padding: '20px 16px', maxWidth: '800px', margin: '0 auto' };
+      const btn = bg => ({ padding: '10px 16px', backgroundColor: bg, color: COLORS.sand1, border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' });
+      const small = bg => ({ ...btn(bg), marginTop: '10px', padding: '8px 14px', fontSize: '13px' });
+      const H = { color: COLORS.sand1, fontSize: '19px', fontFamily: T.font.heading, margin: '22px 0 10px 0' };
+      const card = id => ({ ...BOX, borderColor: newIds.includes(id) ? COLORS.sandBrown : COLORS.earthBrown, boxShadow: newIds.includes(id) ? '0 0 0 3px #E8B863' : 'none' });
+      const nyBadge = id => newIds.includes(id) && <span style={{ backgroundColor: '#E8B863', color: COLORS.dark, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>NY</span>;
+      const contact = r => (
+        <div style={{ fontSize: '14px', color: COLORS.dark, lineHeight: '1.7' }}>
+          <div>👤 <strong>{r.customer_name}</strong></div>
+          <div>📞 <a href={'tel:' + r.customer_phone} style={{ color: COLORS.primary }}>{r.customer_phone}</a></div>
+          <div>📧 <a href={'mailto:' + r.customer_email} style={{ color: COLORS.primary }}>{r.customer_email}</a></div>
+        </div>
+      );
+
+      if (!sb) return <div style={wrap}><div style={BOX}><strong style={{ color: COLORS.earthBrown }}>Admin är inte kopplad till Supabase ännu.</strong></div></div>;
+      if (session === undefined) return <div style={wrap}><div style={BOX}>Kontrollerar inloggning…</div></div>;
+
+      if (!session) {
+        return (
+          <div style={{ ...wrap, maxWidth: '420px' }}>
+            <form onSubmit={login} style={{ ...BOX, padding: '28px' }}>
+              <h2 style={{ color: COLORS.earthBrown, fontSize: '22px', fontFamily: T.font.heading, margin: '0 0 16px 0', textAlign: 'center' }}>Admin-inloggning</h2>
+              {DEMO && <div style={{ backgroundColor: '#E8B863', borderRadius: '8px', padding: '10px', fontSize: '13px', color: COLORS.dark, marginBottom: '14px' }}>🧪 Demo: logga in med <strong>{DEMO_LOGIN.email}</strong> och lösenordet <strong>{DEMO_LOGIN.password}</strong></div>}
+              <label style={{ display: 'block', fontWeight: '700', color: COLORS.dark, marginBottom: '6px', fontSize: '13px' }}>E-post</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="username" style={{ ...INPUT, marginBottom: '12px' }} />
+              <label style={{ display: 'block', fontWeight: '700', color: COLORS.dark, marginBottom: '6px', fontSize: '13px' }}>Lösenord</label>
+              <input type="password" value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="current-password" style={{ ...INPUT, marginBottom: '14px' }} />
+              {loginError && <div style={{ color: COLORS.error, fontWeight: '700', fontSize: '14px', marginBottom: '12px' }}>⚠️ {loginError}</div>}
+              <button type="submit" disabled={loggingIn} style={{ ...btn(COLORS.rosemary), width: '100%', padding: '14px' }}>{loggingIn ? 'Loggar in…' : 'Logga in'}</button>
+            </form>
+          </div>
+        );
+      }
+      if (isAdmin === null) return <div style={wrap}><div style={BOX}>Kontrollerar behörighet…</div></div>;
+      if (isAdmin === false) return <div style={wrap}><div style={BOX}><strong style={{ color: COLORS.earthBrown }}>Det här kontot har inte admin-behörighet.</strong><div style={{ marginTop: '12px' }}><button onClick={logout} style={btn(COLORS.rosemary)}>Logga ut</button></div></div></div>;
+
+      // Frisörtider grupperade per dag
+      const groups = [];
+      lists.bookings.forEach(b => {
+        const label = fmtDayLong(new Date(b.starts_at).getTime());
+        if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+        groups[groups.length - 1].items.push(b);
+      });
+
+      return (
+        <div style={wrap}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+            <h1 style={{ color: COLORS.sand1, fontSize: '24px', fontFamily: T.font.heading, margin: 0 }}>⚙️ Admin</h1>
+            <button onClick={logout} style={{ ...btn(COLORS.rosemary), border: `2px solid ${COLORS.sand1}`, whiteSpace: 'nowrap' }}>Logga ut</button>
+          </div>
+
+          <div style={{ ...BOX, display: 'grid', gap: '10px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: COLORS.dark }}>
+              {live ? '🟢 Live – nya bokningar dyker upp direkt' : '🟡 Ansluter… (listan uppdateras ändå varje minut)'}
+            </div>
+            {alarmOn
+              ? <div style={{ fontSize: '14px', color: COLORS.dark }}>🔔 <strong>Larmet är på.</strong> {notifState === 'granted' ? 'Ljud och skärmnotis vid ny bokning.' : 'Ljud vid ny bokning (skärmnotiser är inte tillåtna i webbläsaren).'} <button onClick={playChime} style={{ marginLeft: '6px', background: 'none', border: 'none', color: COLORS.sandBrown, textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}>Testa ljud</button></div>
+              : <div><button onClick={activateAlarm} style={{ ...btn(COLORS.sandBrown), width: '100%', padding: '14px' }}>🔔 Slå på larm (ljud + notis)</button><div style={{ fontSize: '12px', color: COLORS.dark, marginTop: '6px' }}>Webbläsaren kräver ett tryck här varje gång sidan öppnas, annars får den inte spela ljud.</div></div>}
+          </div>
+
+          {listState === 'loading' && <div style={{ ...BOX, marginTop: '18px' }}>Hämtar bokningar…</div>}
+          {listState === 'error' && <div style={{ ...BOX, marginTop: '18px' }}>Bokningarna kunde inte hämtas. <button onClick={load} style={btn(COLORS.sandBrown)}>Försök igen</button></div>}
+
+          {listState === 'ok' && <>
+            <h2 style={H}>✂️ Frisörtider ({lists.bookings.length})</h2>
+            {lists.bookings.length === 0 && <div style={{ ...BOX, textAlign: 'center' }}>Inga kommande bokningar.</div>}
+            {groups.map(g => (
+              <section key={g.label} style={{ marginBottom: '14px' }}>
+                <h3 style={{ color: COLORS.sand1, fontSize: '15px', margin: '0 0 8px 0' }}>{g.label}</h3>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {g.items.map(b => {
+                    const s = new Date(b.starts_at).getTime(), e = new Date(b.ends_at).getTime();
+                    return (
+                      <div key={b.id} data-booking={b.id} style={card(b.id)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                          <strong style={{ fontSize: '18px', color: COLORS.earthBrown }}>{fmtTime(s)}–{fmtTime(e)}</strong>{nyBadge(b.id)}
+                        </div>
+                        <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>{b.service_names} · {formatPrice(b.price)}</div>
+                        {contact(b)}
+                        <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+
+            {DEMO && <>
+              <h2 style={H}>🎨 Kursbokningar ({lists.course_bookings.length})</h2>
+              {lists.course_bookings.length === 0 && <div style={{ ...BOX, textAlign: 'center' }}>Inga kommande kursbokningar.</div>}
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {lists.course_bookings.map(c => {
+                  const s = new Date(c.starts_at).getTime(), e = new Date(c.ends_at).getTime();
+                  return (
+                    <div key={c.id} data-coursebooking={c.id} style={card(c.id)}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                        <strong style={{ fontSize: '16px', color: COLORS.earthBrown }}>{c.course_name}</strong>{nyBadge(c.id)}
+                      </div>
+                      <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>{fmtDayLong(s)} · {fmtTime(s)}–{fmtTime(e)}{c.last_date ? ` (sista ${fmtDate(new Date(c.last_date).getTime())})` : ''}<br />{plats(c.seats)} · {formatPrice(c.price)}</div>
+                      {contact(c)}
+                      <button onClick={() => setStatus('course_bookings', c, 'avbokad', `Avboka ${c.customer_name} från ${c.course_name}?\nPlatserna blir lediga igen.`)} style={small(COLORS.error)}>Avboka</button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <h2 style={H}>🛍️ Beställningar ({lists.orders.length})</h2>
+              {lists.orders.length === 0 && <div style={{ ...BOX, textAlign: 'center' }}>Inga beställningar att hantera.</div>}
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {lists.orders.map(o => (
+                  <div key={o.id} data-order={o.id} style={card(o.id)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                      <strong style={{ fontSize: '16px', color: COLORS.earthBrown }}>{o.number}</strong>
+                      <span style={{ display: 'flex', gap: '6px' }}>{nyBadge(o.id)}<span style={{ backgroundColor: o.status === 'klar' ? '#CFE3D2' : '#F3E3C3', color: COLORS.dark, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{o.status === 'klar' ? 'KLAR ATT HÄMTA' : 'BETALD'}</span></span>
+                    </div>
+                    <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>
+                      {o.items.map(i => <div key={i.id}>{i.qty} st {i.name}</div>)}
+                      <strong>{formatPrice(o.total)}</strong> · {o.payment === 'swish' ? 'Swish' : 'Kort'}
+                    </div>
+                    {contact(o)}
+                    {o.status === 'betald'
+                      ? <button onClick={() => setStatus('orders', o, 'klar')} style={small(COLORS.rosemary)}>Klar att hämta – skicka sms</button>
+                      : <button onClick={() => setStatus('orders', o, 'hamtad', `Markera ${o.number} som hämtad?`)} style={small(COLORS.sandBrown)}>Hämtad</button>}
+                  </div>
+                ))}
+              </div>
+              <DemoSmsLog />
+            </>}
+          </>}
+        </div>
+      );
+    }
+
+    function App() {
+      const [state, dispatch] = useReducer(reducer, initialState);
+
+      useEffect(() => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          try {
+            dispatch({ type: 'LOAD', p: JSON.parse(stored) });
+          } catch (e) {
+            console.error('Load error', e);
+          }
+        }
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ gdprOk: state.gdprOk, tab: state.tab }));
+      }, [state]);
+
+      if (!state.gdprOk) return <GDPRModal onOk={() => dispatch({ type: 'GDPR' })} />;
+      const REBUILT = ['home'];   // sidor med ny design (övriga byggs om i kommande steg)
+      const pageBg = REBUILT.includes(state.tab) ? T.color.page : COLORS.primary;
+
+      return (
+        <div style={{ backgroundColor: pageBg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <Header state={state} dispatch={dispatch} />
+          {DEMO && <DemoBanner />}
+          <main key={state.nav || 0} style={{ backgroundColor: pageBg, flex: 1, paddingBottom: '24px' }}>
+            {state.tab === 'home' && <Home dispatch={dispatch} />}
+            {state.tab === 'booking' && <Booking dispatch={dispatch} />}
+            {state.tab === 'courses' && <Courses />}
+            {state.tab === 'shop' && <Shop />}
+            {state.tab === 'contact' && <Contact />}
+            {state.tab === 'gallery' && <Gallery />}
+            {state.tab === 'admin' && <AdminPanel dispatch={dispatch} />}
+          </main>
+          <Nav state={state} dispatch={dispatch} />
+          <footer style={{ backgroundColor: COLORS.earthBrown, color: COLORS.sand1, marginTop: '24px', padding: '24px 20px 100px', textAlign: 'center', fontSize: '12px' }}>
+            <p style={{ margin: '0 0 8px 0' }}>Lias Hantverkeri © 2026</p>
+            <p style={{ margin: '0', opacity: 0.8 }}>Karlskoga, Sverige</p>
+            <button onClick={() => { dispatch({ type: 'TAB', p: 'admin' }); window.scrollTo(0, 0); }} style={{ marginTop: '12px', background: 'none', border: 'none', color: COLORS.sand1, opacity: 0.45, fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>Admin</button>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
