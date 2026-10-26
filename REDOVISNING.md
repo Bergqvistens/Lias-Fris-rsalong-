@@ -152,3 +152,23 @@ Datum: 26 oktober 2026. Uppdraget genomfört i fem steg (avsnitt 17): tokens och
 - **AI-bilder** måste ersättas med riktiga bilder innan skarp drift. Kundbilder kräver godkännande.
 - **Admin har kvar den gamla stilen.** Planerat steg 6: bilduppladdning, ekonomiöversikt, kvittosök och export. En Fortnox-koppling kräver Supabase och en server.
 - **Demodata sparas i webbläsarens localStorage** och försvinner om man rensar webbläsaren. Det är meningen.
+
+## Tillägg: steg 6 – admin (26 oktober 2026, demoläge)
+Utöver uppdraget, på Tommys begäran. Admin har nu tre flikar:
+- **Bokningar** – samma som tidigare.
+- **Ekonomi:**
+  - Inkomst idag och de senaste 24 timmarna.
+  - Inkomst per dag för de senaste 14 dagarna.
+  - Betalningar det senaste dygnet.
+  - Registrering av betalning på plats för frisör- och kursbesök, med Swish, kort eller kontant. Varje betalning får ett kvittonummer (K-…).
+  - Sökning på kvitto med kvittovy.
+  - Månadsexport som CSV-fil till revisorn.
+- **Bilder:** Lia laddar upp bilder. De förminskas automatiskt, och kundens godkännande krävs innan de sparas. De visas sedan först i galleriet under "Från Lias salong".
+
+Begränsningar:
+- Allt sparas bara i demons webbläsarlagring.
+- I Supabase-läge visar flikarna att funktionerna inte är byggda än. Det kräver tabeller för betalningar och bilder samt Supabase Storage.
+- Ekonomiöversikten är inte bokföring och ersätter inte ett kassaregister.
+- Fortnox-koppling är inte byggd. Den kräver Supabase och en server.
+
+Test: `tester/s6check.js`, 52 av 52.

@@ -256,6 +256,29 @@
     .lh-lightbox .lh-iconbtn { color: #FFFFFF; background: rgba(255,255,255,0.12); }
     .lh-lightbox .lh-btn--secondary { color: #FFFFFF; border-color: rgba(255,255,255,0.7); }
     .lh-opt[data-pay][aria-pressed="true"] { background: #FFFFFF; }
+    /* ===== Steg 6: admin – ekonomi och bilder ===== */
+    .lh-admintabs { margin-top: 4px; }
+    .lh-econ__note { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 12px; font: 600 15px/1.45 var(--font-body); color: var(--flow-fg, #F4EDE0); }
+    .lh-econ__help { margin: 0 0 10px; font: 15px/1.45 var(--font-body); color: var(--text-muted); }
+    .lh-ok { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 12px 14px; background: #ECF2EE; color: var(--forest); border: 1.5px solid var(--forest); border-radius: 14px; font: 600 15px/1.45 var(--font-body); }
+    .lh-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; }
+    .lh-kpi { display: flex; flex-direction: column; gap: 2px; }
+    .lh-kpi__label { font: 600 14px var(--font-body); color: var(--text-muted); }
+    .lh-kpi__value { font: 700 26px/1.2 var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
+    .lh-kpi__sub { font: 15px var(--font-body); color: var(--text-muted); }
+    .lh-visits { display: grid; gap: 12px; }
+    .lh-visit { padding: 12px; border: 1.5px solid rgba(74,56,42,0.18); border-radius: 14px; background: #FFFFFF; }
+    .lh-visit__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font: 16px var(--font-body); color: var(--forest); }
+    .lh-visit__what { margin: 2px 0 8px; font: 15px/1.4 var(--font-body); color: var(--text-muted); }
+    .lh-visit__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr)); gap: 0 10px; }
+    .lh-err-inline { display: flex; align-items: center; gap: 6px; margin: -6px 0 10px; font: 500 14px var(--font-body); color: var(--terracotta-text); }
+    .lh-daytable td { font-variant-numeric: tabular-nums; }
+    .lh-daytable thead th { font: 600 14px var(--font-body); color: var(--text-muted); }
+    .lh-bar { display: block; height: 6px; margin-top: 4px; border-radius: 999px; background: rgba(31,61,50,0.08); }
+    .lh-bar span { display: block; height: 100%; border-radius: 999px; background: var(--teal); }
+    .lh-consent { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; margin: 4px 0 12px; font: 16px/1.4 var(--font-body); color: var(--text); cursor: pointer; }
+    .lh-consent input { width: 24px; height: 24px; margin: 0; flex-shrink: 0; accent-color: var(--forest); }
+    select.lh-input { appearance: auto; }
   </style>
 </head>
 <body>
@@ -428,7 +451,7 @@
     const DEMO_STOCK = { 's-cup': 5, 's-bowl': 3, 's-vase': 1, 's-plate': 4, 's-pot': 6, 's-set': 0 };
     const DEMO_SEED_TAKEN = { 'c-begin': [6, 2], 'c-adv': [3], 'c-kids': [12, 4], 'c-drop': [4, 10, 2] };
 
-    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000 });
+    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000 });
     function demoLoad() {
       try { const d = JSON.parse(localStorage.getItem(DEMO_KEY)); if (d && Array.isArray(d.bookings)) return { ...demoEmpty(), ...d }; } catch (e) {}
       return demoEmpty();
@@ -546,6 +569,53 @@
       return { data: row, error: null };
     }
 
+    // --- Ekonomi och bilder (steg 6, endast demo) ---
+    const PAY_METHODS = { swish: 'Swish', kort: 'Kort', kontant: 'Kontant' };
+    function demoPayments(db) {
+      const fromOrders = db.orders.map(o => ({ id: o.id, receipt: o.number, at: o.created_at, amount: o.total, method: o.payment, kind: 'shop',
+        text: o.items.map(i => i.qty + ' st ' + i.name).join(', '), items: o.items, customer_name: o.customer_name, customer_phone: o.customer_phone }));
+      return [...fromOrders, ...db.payments].sort((a, b) => new Date(b.at) - new Date(a.at));
+    }
+    function demoMarkPaid(p) {
+      const amount = Number(p.p_amount);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 100000) return fail('OGILTIGT_BELOPP');
+      if (!PAY_METHODS[p.p_method]) return fail('OGILTIGT_BETALSATT');
+      const db = demoLoad(), key = p.p_table === 'bookings' ? 'bookings' : p.p_table === 'course_bookings' ? 'courseBookings' : null;
+      const row = key && db[key].find(r => r.id === p.p_id);
+      if (!row || row.status !== 'bokad') return fail('OGILTIGT_BESOK');
+      if (row.paid) return fail('REDAN_BETALD');
+      db.receiptSeq = (db.receiptSeq || 1000) + 1;
+      const pay = { id: demoId(), receipt: 'K-' + db.receiptSeq, at: new Date().toISOString(), amount, method: p.p_method,
+        kind: key === 'bookings' ? 'frisor' : 'kurs', text: key === 'bookings' ? row.service_names : row.course_name + ' (' + (row.seats === 1 ? '1 plats' : row.seats + ' platser') + ')',
+        refId: row.id, customer_name: row.customer_name, customer_phone: row.customer_phone };
+      row.paid = { receipt: pay.receipt, amount, method: p.p_method, at: pay.at };
+      db.payments.push(pay);
+      demoSave(db);
+      return { data: pay, error: null };
+    }
+    const PHOTO_CATS = { frisor: 'Frisör', keramik: 'Keramik', workshop: 'Workshop' };
+    function demoAddPhoto(p) {
+      if (p.p_consent !== true) return fail('SAKNAR_GODKANNANDE');
+      const title = String(p.p_title || '').trim();
+      if (title.length < 2 || title.length > 80) return fail('OGILTIG_BILDTEXT');
+      if (!PHOTO_CATS[p.p_cat]) return fail('OGILTIG_KATEGORI');
+      const src = String(p.p_src || '');
+      if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(src) || src.length > 400000) return fail('OGILTIG_BILD');
+      const db = demoLoad();
+      if (db.photos.length >= 12) return fail('FOR_MANGA_BILDER');
+      const row = { id: demoId(), at: new Date().toISOString(), title, cat: p.p_cat, src, consent: true };
+      db.photos.unshift(row);
+      try { demoSave(db); } catch (e) { return fail('LAGRING_FULL'); }
+      return { data: row, error: null };
+    }
+    function demoDeletePhoto(p) {
+      const db = demoLoad(), n = db.photos.length;
+      db.photos = db.photos.filter(x => x.id !== p.p_id);
+      if (db.photos.length === n) return fail('OGILTIG_BILD');
+      demoSave(db);
+      return { data: true, error: null };
+    }
+
     function createDemoClient() {
       const wait = v => new Promise(r => setTimeout(() => r(v), 250));   // känns som ett nätverksanrop
       const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders' };
@@ -600,6 +670,12 @@
           if (fn === 'get_stock') return wait({ data: demoStock(demoLoad()), error: null });
           if (fn === 'place_order') return wait(demoPlaceOrder(p));
           if (fn === 'is_admin') return wait({ data: !!demoSession(), error: null });
+          if (fn === 'get_photos') return wait({ data: demoLoad().photos.map(({ consent, ...r }) => r), error: null });
+          if (['get_payments', 'mark_paid', 'add_photo', 'delete_photo'].includes(fn) && !demoSession()) return wait(fail('permission denied'));
+          if (fn === 'get_payments') return wait({ data: demoPayments(demoLoad()), error: null });
+          if (fn === 'mark_paid') return wait(demoMarkPaid(p));
+          if (fn === 'add_photo') return wait(demoAddPhoto(p));
+          if (fn === 'delete_photo') return wait(demoDeletePhoto(p));
           return wait(fail('okänd funktion'));
         },
         from: builder,
@@ -660,8 +736,8 @@
       const sms = demoLoad().sms;
       return (
         <section style={{ marginTop: '24px' }}>
-          <h2 style={{ color: COLORS.sand1, fontSize: '17px', fontFamily: T.font.heading, margin: '0 0 4px 0' }}>📱 Sms-logg (demo)</h2>
-          <p style={{ color: COLORS.sand1, opacity: 0.85, fontSize: '12px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats.</p>
+          <h2 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '17px', fontFamily: T.font.heading, margin: '0 0 4px 0' }}>Sms-logg (demo)</h2>
+          <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats.</p>
           {sms.length === 0
             ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
             : <div style={{ display: 'grid', gap: '8px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}
@@ -832,6 +908,16 @@
       SLUT_I_LAGER: 'En vara räcker inte i lager. Varukorgen har uppdaterats.',
       OGILTIG_VARUKORG: 'Varukorgen är tom eller ogiltig.',
       OGILTIG_BETALNING: 'Välj betalsätt.',
+      OGILTIGT_BELOPP: 'Skriv ett belopp i hela kronor (1–100 000).',
+      OGILTIGT_BETALSATT: 'Välj betalsätt.',
+      OGILTIGT_BESOK: 'Besöket finns inte längre eller är avbokat.',
+      REDAN_BETALD: 'Besöket är redan registrerat som betalt.',
+      SAKNAR_GODKANNANDE: 'Kryssa i att kunden har godkänt att bilden visas.',
+      OGILTIG_BILDTEXT: 'Skriv en bildtext (2–80 tecken).',
+      OGILTIG_KATEGORI: 'Välj kategori.',
+      OGILTIG_BILD: 'Bilden kunde inte läsas. Välj en annan bild (till exempel JPG eller PNG).',
+      FOR_MANGA_BILDER: 'Max 12 bilder i demoläget. Ta bort en bild först.',
+      LAGRING_FULL: 'Webbläsarens lagring är full. Ta bort en bild eller nollställ demon.',
     };
     function bookingErrorText(error) {
       const msg = (error && error.message) || '';
@@ -1707,9 +1793,12 @@
 
     function Gallery({ dispatch }) {
       const [cat, setCat] = useState('alla');
+      const [extra, setExtra] = useState([]);
+      useEffect(() => { if (!DEMO) return; let live = true; sb.rpc('get_photos').then(({ data, error }) => { if (live && !error && data) setExtra(data); }); return () => { live = false; }; }, []);
       const [open, setOpen] = useState(null);   // index i listan som visas
       const opener = useRef(null);
-      const list = GALLERY.filter(g => cat === 'alla' || g.cat === cat);
+      const all = [...extra.map(p => ({ id: 'foto-' + p.id, src: p.src, cat: p.cat, own: true, title: p.title, alt: 'Bild från Lias salong: ' + p.title })), ...GALLERY];
+      const list = all.filter(g => cat === 'alla' || g.cat === cat);
       const own = list.filter(g => g.own), insp = list.filter(g => !g.own);
       const ordered = [...own, ...insp];
       const cur = open !== null ? ordered[open] : null;
@@ -1806,6 +1895,313 @@
       } catch (e) { console.error('Ljud kunde inte spelas', e); return false; }
     }
 
+    // ---------- ADMIN: EKONOMI (steg 6) ----------
+    const DAY_MS = 86400000;
+    function dayKey(ms) { const t = tzParts(ms); return t.year + '-' + String(t.month).padStart(2, '0') + '-' + String(t.day).padStart(2, '0'); }
+    function dayKeyLabel(key) { const [y, m, d] = key.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('sv-SE', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''); return t.charAt(0).toUpperCase() + t.slice(1); }
+    function lastDays(n) { const t = tzParts(Date.now()); const out = []; for (let i = 0; i < n; i++) { const u = new Date(Date.UTC(t.year, t.month - 1, t.day - i, 12)); out.push(u.getUTCFullYear() + '-' + String(u.getUTCMonth() + 1).padStart(2, '0') + '-' + String(u.getUTCDate()).padStart(2, '0')); } return out; }
+    const KIND_LABEL = { shop: 'Shop', frisor: 'Frisör', kurs: 'Kurs' };
+    const kr = n => formatPrice(n).replace(/,00\s?kr$/, ' kr');
+    function csvCell(v) { const s = String(v == null ? '' : v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+    function AdminEconomy() {
+      const [pays, setPays] = useState(null);
+      const [visits, setVisits] = useState([]);
+      const [state, setState] = useState('loading');
+      const [q, setQ] = useState('');
+      const [sel, setSel] = useState(null);
+      const [forms, setForms] = useState({});
+      const [msg, setMsg] = useState(null);
+      const [month, setMonth] = useState(dayKey(Date.now()).slice(0, 7));
+      const opener = useRef(null);
+
+      const load = async () => {
+        const from = new Date(Date.now() - 7 * DAY_MS).toISOString();
+        const [p, b, c] = await Promise.all([
+          sb.rpc('get_payments'),
+          sb.from('bookings').select('*').eq('status', 'bokad').gte('starts_at', from).order('starts_at', { ascending: true }),
+          sb.from('course_bookings').select('*').eq('status', 'bokad').gte('starts_at', from).order('starts_at', { ascending: true }),
+        ]);
+        if (p.error || b.error || c.error) { setState('error'); return; }
+        const today = dayKey(Date.now());
+        const v = [...(b.data || []).map(r => ({ ...r, _t: 'bookings' })), ...(c.data || []).map(r => ({ ...r, _t: 'course_bookings' }))]
+          .filter(r => !r.paid && dayKey(new Date(r.starts_at).getTime()) <= today)
+          .sort((x, y) => new Date(x.starts_at) - new Date(y.starts_at));
+        setPays(p.data || []); setVisits(v); setState('ok');
+      };
+      useEffect(() => { load(); }, []);
+      useEffect(() => {
+        if (!sel) return;
+        const bt = document.querySelector('.lh-dialog__close button'); if (bt) bt.focus();
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+      }, [sel]);
+      const closeSel = () => { setSel(null); const el = opener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+
+      if (state === 'loading') return <Card><LoadingState text="Hämtar betalningar…" /></Card>;
+      if (state === 'error') return <Card><ErrorState text="Betalningarna kunde inte hämtas." onRetry={() => { setState('loading'); load(); }} /></Card>;
+
+      const now = Date.now(), today = dayKey(now);
+      const days = lastDays(14);
+      const perDay = {}; days.forEach(d => { perDay[d] = { n: 0, sum: 0 }; });
+      pays.forEach(p => { const k = dayKey(new Date(p.at).getTime()); if (perDay[k]) { perDay[k].n++; perDay[k].sum += p.amount; } });
+      const maxDay = Math.max(1, ...days.map(d => perDay[d].sum));
+      const last24 = pays.filter(p => new Date(p.at).getTime() >= now - DAY_MS);
+      const sum24 = last24.reduce((a, p) => a + p.amount, 0);
+      const qq = q.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+      const hits = qq.length < 2 ? [] : pays.filter(p => p.receipt.toLowerCase().includes(qq) || (p.customer_name || '').toLowerCase().includes(qq) || (qd.length >= 3 && (p.customer_phone || '').includes(qd)));
+      const months = [...new Set([month, today.slice(0, 7), ...pays.map(p => dayKey(new Date(p.at).getTime()).slice(0, 7))])].sort().reverse();
+      const monthLabel = m => { const [y, mo] = m.split('-').map(Number); const t = new Date(Date.UTC(y, mo - 1, 15)).toLocaleDateString('sv-SE', { timeZone: 'UTC', month: 'long', year: 'numeric' }); return t.charAt(0).toUpperCase() + t.slice(1); };
+      const monthPays = pays.filter(p => dayKey(new Date(p.at).getTime()).slice(0, 7) === month).sort((a, b) => new Date(a.at) - new Date(b.at));
+
+      const exportCsv = () => {
+        const head = ['Datum', 'Tid', 'Kvittonummer', 'Typ', 'Beskrivning', 'Kund', 'Betalsätt', 'Belopp (kr)'];
+        const rows = monthPays.map(p => { const ms = new Date(p.at).getTime(); return [dayKey(ms), fmtTime(ms), p.receipt, KIND_LABEL[p.kind], p.text, p.customer_name, PAY_METHODS[p.method], p.amount]; });
+        const total = monthPays.reduce((a, p) => a + p.amount, 0);
+        const csv = '﻿' + [head, ...rows, ['', '', '', '', '', '', 'Summa', total]].map(r => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
+        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a'); a.href = url; a.download = `lias-betalningar-${month}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      const setForm = (id, patch) => setForms(f => ({ ...f, [id]: { ...(f[id] || {}), ...patch } }));
+      const markPaid = async v => {
+        const f = forms[v.id] || {};
+        const amount = f.amount === undefined ? String(v.price) : f.amount;
+        const method = f.method || '';
+        if (!method) { setForm(v.id, { err: 'Välj betalsätt.' }); return; }
+        if (!/^\d+$/.test(amount.trim()) || +amount < 1 || +amount > 100000) { setForm(v.id, { err: 'Skriv ett belopp i hela kronor (1–100 000).' }); return; }
+        setForm(v.id, { err: null, saving: true });
+        const { data, error } = await sb.rpc('mark_paid', { p_table: v._t, p_id: v.id, p_amount: Number(amount), p_method: method });
+        if (error) { setForm(v.id, { saving: false, err: bookingErrorText(error).code === 'NATVERK' ? 'Betalningen kunde inte sparas. Försök igen.' : bookingErrorText(error).text }); return; }
+        setMsg(`Betalningen är registrerad – kvitto ${data.receipt}, ${kr(data.amount)} (${PAY_METHODS[data.method]}).`);
+        setForms(fs => { const n = { ...fs }; delete n[v.id]; return n; });
+        load();
+      };
+      const payRow = p => {
+        const ms = new Date(p.at).getTime();
+        return (
+          <button key={p.id} type="button" className="lh-opt" data-pay-row={p.receipt} onClick={e => { opener.current = e.currentTarget; setSel(p); }}>
+            <span className="lh-opt__main">
+              <span className="lh-opt__name">{p.receipt} · {p.customer_name}</span>
+              <span className="lh-opt__meta"><span>{dayKey(ms) === today ? 'Idag' : dayKeyLabel(dayKey(ms))} {fmtTime(ms)}</span><span>{KIND_LABEL[p.kind]}</span><span>{PAY_METHODS[p.method]}</span></span>
+            </span>
+            <span className="lh-opt__price">{kr(p.amount)}</span>
+          </button>
+        );
+      };
+
+      return (
+        <div className="lh-econ" data-section="ekonomi">
+          <p className="lh-econ__note"><Icon name="info" size={18} />Översikt för Lia – inte bokföring och inte ett kassaregister.{DEMO ? ' Demo: betalningarna är simulerade.' : ''}</p>
+          {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
+
+          <div className="lh-kpis">
+            <Card className="lh-kpi" data-kpi="idag"><span className="lh-kpi__label">Idag</span><span className="lh-kpi__value">{kr(perDay[today].sum)}</span><span className="lh-kpi__sub">{perDay[today].n} betalningar</span></Card>
+            <Card className="lh-kpi" data-kpi="dygn"><span className="lh-kpi__label">Senaste 24 timmarna</span><span className="lh-kpi__value">{kr(sum24)}</span><span className="lh-kpi__sub">{last24.length} betalningar</span></Card>
+          </div>
+
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Registrera betalning på plats</h2>
+            <p className="lh-econ__help">Frisörbesök och kurser som är bokade de senaste 7 dagarna eller idag och inte är betalda.</p>
+            {visits.length === 0 && <p className="lh-econ__help" data-visits="tom">Inga obetalda besök.</p>}
+            <div className="lh-visits">
+              {visits.map(v => {
+                const f = forms[v.id] || {}, ms = new Date(v.starts_at).getTime();
+                return (
+                  <div key={v.id} className="lh-visit" data-visit={v.id}>
+                    <div className="lh-visit__head"><strong>{v.customer_name}</strong><span>{dayKey(ms) === today ? 'Idag' : dayKeyLabel(dayKey(ms))} {fmtTime(ms)}</span></div>
+                    <div className="lh-visit__what">{v._t === 'bookings' ? v.service_names : v.course_name} · bokat pris {kr(v.price)}</div>
+                    <div className="lh-visit__form">
+                      <FormField id={'belopp-' + v.id} label="Belopp (kr)" inputMode="numeric" value={f.amount === undefined ? String(v.price) : f.amount} onChange={e => setForm(v.id, { amount: e.target.value, err: null })} />
+                      <div className="lh-field">
+                        <label htmlFor={'satt-' + v.id}>Betalsätt</label>
+                        <select id={'satt-' + v.id} className="lh-input" value={f.method || ''} onChange={e => setForm(v.id, { method: e.target.value, err: null })}>
+                          <option value="">Välj…</option><option value="swish">Swish</option><option value="kort">Kort</option><option value="kontant">Kontant</option>
+                        </select>
+                      </div>
+                    </div>
+                    {f.err && <div className="lh-err-inline" role="alert" data-err="true"><Icon name="alert" size={16} />{f.err}</div>}
+                    <Button variant="primary" block disabled={!!f.saving} onClick={() => markPaid(v)}>{f.saving ? 'Sparar…' : 'Markera som betald'}</Button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Betalningar senaste dygnet</h2>
+            {last24.length === 0 ? <p className="lh-econ__help">Inga betalningar de senaste 24 timmarna.</p> : <div className="lh-opts" data-list="dygn">{last24.map(payRow)}</div>}
+          </Card>
+
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Inkomst per dag</h2>
+            <table className="lh-hours lh-daytable" data-table="per-dag">
+              <caption className="lh-sr">Inkomst per dag de senaste 14 dagarna</caption>
+              <thead><tr><th scope="col">Dag</th><th scope="col" style={{ textAlign: 'right' }}>Antal</th><th scope="col" style={{ textAlign: 'right' }}>Summa</th></tr></thead>
+              <tbody>
+                {days.map(d => (
+                  <tr key={d} data-day={d} data-today={d === today ? 'true' : 'false'}>
+                    <th scope="row">{d === today ? 'Idag' : dayKeyLabel(d)}<span className="lh-bar" aria-hidden="true"><span style={{ width: (perDay[d].sum / maxDay * 100) + '%' }} /></span></th>
+                    <td>{perDay[d].n}</td><td>{kr(perDay[d].sum)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Sök kvitto</h2>
+            <FormField id="kvitto-sok" label="Kvittonummer, namn eller telefon" hint="Till exempel LH-1001, K-1001 eller 0701234567" type="search" value={q} onChange={e => setQ(e.target.value)} />
+            {qq.length >= 2 && (hits.length === 0
+              ? <p className="lh-econ__help" role="status" data-search="tom">Inga kvitton hittades.</p>
+              : <div className="lh-opts" data-list="sok" role="status">{hits.map(payRow)}</div>)}
+          </Card>
+
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Exportera till revisorn</h2>
+            <p className="lh-econ__help">En fil (CSV) med månadens betalningar. Den öppnas i Excel och kan skickas till revisorn.</p>
+            <div className="lh-field">
+              <label htmlFor="export-manad">Månad</label>
+              <select id="export-manad" className="lh-input" value={month} onChange={e => setMonth(e.target.value)}>{months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}</select>
+            </div>
+            <p className="lh-econ__help" data-export-info>{monthPays.length} betalningar · {kr(monthPays.reduce((a, p) => a + p.amount, 0))}</p>
+            <Button variant="secondary" block disabled={monthPays.length === 0} onClick={exportCsv}>Ladda ner {monthLabel(month).toLowerCase()} (CSV)</Button>
+            <p className="lh-econ__help" style={{ marginTop: '10px' }}>Direktkoppling till Fortnox eller liknande kräver Supabase och en server – planeras senare.</p>
+          </Card>
+
+          {sel && (
+            <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeSel(); }}>
+              <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="kvitto-rubrik" data-receipt={sel.receipt} onKeyDown={e => { if (e.key === 'Escape') closeSel(); }}>
+                <span className="lh-dialog__close"><IconButton icon="x" label="Stäng" onClick={closeSel} /></span>
+                <div className="lh-dialog__body" style={{ paddingTop: '20px' }}>
+                  <h2 id="kvitto-rubrik">Kvitto {sel.receipt}</h2>
+                  <InfoRow icon="calendar">{fmtDayLong(new Date(sel.at).getTime())} kl {fmtTime(new Date(sel.at).getTime())}</InfoRow>
+                  <InfoRow icon={sel.kind === 'shop' ? 'bag' : sel.kind === 'kurs' ? 'palette' : 'scissors'}>{KIND_LABEL[sel.kind]}: {sel.items ? sel.items.map(i => `${i.qty} st ${i.name} (${kr(i.qty * i.price)})`).join(', ') : sel.text}</InfoRow>
+                  <InfoRow icon="user">{sel.customer_name} · {sel.customer_phone}</InfoRow>
+                  <InfoRow icon={sel.method === 'swish' ? 'smartphone' : sel.method === 'kort' ? 'creditCard' : 'tag'}><strong>{kr(sel.amount)}</strong> · {PAY_METHODS[sel.method]}</InfoRow>
+                  <p style={{ fontSize: '15px', color: T.color.textMuted }}>Översikt – inte ett kassakvitto.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ---------- ADMIN: BILDER (steg 6) ----------
+    function shrinkImage(file) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onerror = () => reject(new Error('OGILTIG_BILD'));
+        fr.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('OGILTIG_BILD'));
+          img.onload = () => {
+            const tryAt = (max, q) => {
+              const s = Math.min(1, max / Math.max(img.width, img.height));
+              const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+              const ctx = c.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+              return c.toDataURL('image/jpeg', q);
+            };
+            let out = tryAt(1000, 0.82);
+            if (out.length > 380000) out = tryAt(800, 0.72);
+            if (out.length > 380000) out = tryAt(640, 0.65);
+            resolve(out);
+          };
+          img.src = fr.result;
+        };
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function AdminPhotos() {
+      const [photos, setPhotos] = useState(null);
+      const [state, setState] = useState('loading');
+      const [src, setSrc] = useState(null);
+      const [title, setTitle] = useState('');
+      const [cat, setCat] = useState('frisor');
+      const [consent, setConsent] = useState(false);
+      const [tried, setTried] = useState(false);
+      const [err, setErr] = useState(null);
+      const [saving, setSaving] = useState(false);
+      const [msg, setMsg] = useState(null);
+      const fileRef = useRef(null);
+      const load = async () => {
+        const { data, error } = await sb.rpc('get_photos');
+        if (error) { setState('error'); return; }
+        setPhotos(data || []); setState('ok');
+      };
+      useEffect(() => { load(); }, []);
+      const pick = async e => {
+        const file = e.target.files && e.target.files[0]; setErr(null); setMsg(null);
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { setErr(BOOKING_ERRORS.OGILTIG_BILD); return; }
+        try { setSrc(await shrinkImage(file)); } catch (x) { setErr(BOOKING_ERRORS.OGILTIG_BILD); }
+      };
+      const save = async () => {
+        setTried(true); setErr(null);
+        if (!src || title.trim().length < 2 || !consent) return;
+        setSaving(true);
+        const { error } = await sb.rpc('add_photo', { p_src: src, p_title: title.trim(), p_cat: cat, p_consent: consent });
+        setSaving(false);
+        if (error) { setErr(bookingErrorText(error).code === 'NATVERK' ? 'Bilden kunde inte sparas. Försök igen.' : bookingErrorText(error).text); return; }
+        setMsg(`Bilden "${title.trim()}" är sparad och visas nu i galleriet under Från Lias salong.`);
+        setSrc(null); setTitle(''); setConsent(false); setTried(false); if (fileRef.current) fileRef.current.value = '';
+        load();
+      };
+      const remove = async p => {
+        if (!window.confirm(`Ta bort bilden "${p.title}" från galleriet?`)) return;
+        const { error } = await sb.rpc('delete_photo', { p_id: p.id });
+        if (error) { setErr('Bilden kunde inte tas bort. Försök igen.'); return; }
+        setMsg(`Bilden "${p.title}" är borttagen.`); load();
+      };
+      return (
+        <div data-section="bilder">
+          <p className="lh-econ__note"><Icon name="info" size={18} />Bilder du laddar upp visas i galleriet under "Från Lias salong".{DEMO ? ' Demo: bilderna sparas bara i den här webbläsaren (max 12).' : ''}</p>
+          {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
+          <Card>
+            <h2 className="lh-cardtitle">Lägg till bild</h2>
+            <div className="lh-field">
+              <label htmlFor="bild-fil">Välj bild<span className="lh-req" aria-hidden="true"> *</span></label>
+              <input id="bild-fil" ref={fileRef} type="file" accept="image/*" className="lh-input" onChange={pick} aria-invalid={tried && !src ? 'true' : 'false'} />
+              {tried && !src && <div className="lh-err" role="alert" data-err="true"><Icon name="alert" size={16} />Välj en bild.</div>}
+            </div>
+            {src && <div style={{ maxWidth: '240px', marginBottom: '14px' }} data-preview><ResponsiveImage src={src} alt="Förhandsvisning av vald bild" ratio="4 / 5" eager /></div>}
+            <FormField id="bild-text" label="Bildtext" required value={title} onChange={e => setTitle(e.target.value)} maxLength={80} placeholder="Till exempel Balayage i honungsblont" error={tried && title.trim().length < 2 ? 'Skriv en bildtext (minst 2 tecken).' : null} />
+            <div className="lh-field">
+              <label htmlFor="bild-kat">Kategori</label>
+              <select id="bild-kat" className="lh-input" value={cat} onChange={e => setCat(e.target.value)}>{Object.entries(PHOTO_CATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+            </div>
+            <label className="lh-consent" htmlFor="bild-ok">
+              <input id="bild-ok" type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} aria-invalid={tried && !consent ? 'true' : 'false'} />
+              <span>Kunden har godkänt att bilden visas i appen.</span>
+            </label>
+            {tried && !consent && <div className="lh-err-inline" role="alert" data-err="true"><Icon name="alert" size={16} />{BOOKING_ERRORS.SAKNAR_GODKANNANDE}</div>}
+            {err && <ErrorBox text={err} />}
+            <Button variant="primary" block icon="image" disabled={saving} onClick={save}>{saving ? 'Sparar…' : 'Spara bild'}</Button>
+          </Card>
+          <Card style={{ marginTop: '14px' }}>
+            <h2 className="lh-cardtitle">Dina bilder ({photos ? photos.length : 0})</h2>
+            {state === 'loading' && <LoadingState text="Hämtar bilder…" />}
+            {state === 'error' && <ErrorState text="Bilderna kunde inte hämtas." onRetry={() => { setState('loading'); load(); }} />}
+            {state === 'ok' && photos.length === 0 && <p className="lh-econ__help">Inga uppladdade bilder än.</p>}
+            {state === 'ok' && photos.length > 0 && (
+              <div className="lh-ggrid">
+                {photos.map(p => (
+                  <div key={p.id} className="lh-card lh-gtile" data-photo={p.id} style={{ cursor: 'default' }}>
+                    <ResponsiveImage src={p.src} alt={p.title} ratio="4 / 5" radius={0} />
+                    <span className="lh-gtile__cap"><span className="lh-gtile__title">{p.title}</span><span className="lh-gtile__cat">{PHOTO_CATS[p.cat]} · {dayKeyLabel(dayKey(new Date(p.at).getTime()))}</span></span>
+                    <div style={{ padding: '0 10px 10px' }}><Button variant="secondary" block onClick={() => remove(p)}>Ta bort</Button></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      );
+    }
+
     function AdminPanel({ dispatch }) {
       const TABLES = DEMO ? ['bookings', 'course_bookings', 'orders'] : ['bookings'];
       const [session, setSession] = useState(undefined);   // undefined = kontrollerar
@@ -1820,6 +2216,7 @@
       const [alarmOn, setAlarmOn] = useState(false);
       const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
       const [newIds, setNewIds] = useState([]);
+      const [section, setSection] = useState('bokningar');
       const seen = useRef(new Set());
       const loadedOnce = useRef(false);
       const alarmRef = useRef(false);
@@ -1915,7 +2312,7 @@
       const wrap = { padding: '20px 16px', maxWidth: '800px', margin: '0 auto' };
       const btn = bg => ({ padding: '10px 16px', backgroundColor: bg, color: COLORS.sand1, border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' });
       const small = bg => ({ ...btn(bg), marginTop: '10px', padding: '8px 14px', fontSize: '13px' });
-      const H = { color: COLORS.sand1, fontSize: '19px', fontFamily: T.font.heading, margin: '22px 0 10px 0' };
+      const H = { color: 'var(--flow-fg, #F4EDE0)', fontSize: '19px', fontFamily: T.font.heading, margin: '22px 0 10px 0' };
       const card = id => ({ ...BOX, borderColor: newIds.includes(id) ? COLORS.sandBrown : COLORS.earthBrown, boxShadow: newIds.includes(id) ? '0 0 0 3px #E8B863' : 'none' });
       const nyBadge = id => newIds.includes(id) && <span style={{ backgroundColor: '#E8B863', color: COLORS.dark, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>NY</span>;
       const contact = r => (
@@ -1959,10 +2356,16 @@
       return (
         <div style={wrap}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-            <h1 style={{ color: COLORS.sand1, fontSize: '24px', fontFamily: T.font.heading, margin: 0 }}>⚙️ Admin</h1>
+            <h1 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '24px', fontFamily: T.font.heading, margin: 0 }}>Admin</h1>
             <button onClick={logout} style={{ ...btn(COLORS.rosemary), border: `2px solid ${COLORS.sand1}`, whiteSpace: 'nowrap' }}>Logga ut</button>
           </div>
 
+          <div className="lh-chips lh-admintabs" role="group" aria-label="Admin-delar">
+            {[['bokningar', 'Bokningar'], ['ekonomi', 'Ekonomi'], ['bilder', 'Bilder']].map(([id, label]) => <FilterChip key={id} selected={section === id} data-admintab={id} onClick={() => setSection(id)}>{label}</FilterChip>)}
+          </div>
+          {section === 'ekonomi' && (DEMO ? <AdminEconomy /> : <Card><h2 className="lh-cardtitle">Ekonomi</h2><p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kräver att Supabase kopplas in med tabeller för betalningar. Det är inte byggt än.</p></Card>)}
+          {section === 'bilder' && (DEMO ? <AdminPhotos /> : <Card><h2 className="lh-cardtitle">Bilder</h2><p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kräver att Supabase kopplas in med lagring för bilder (Storage). Det är inte byggt än.</p></Card>)}
+          {section === 'bokningar' && <>
           <div style={{ ...BOX, display: 'grid', gap: '10px' }}>
             <div style={{ fontSize: '14px', fontWeight: '700', color: COLORS.dark }}>
               {live ? '🟢 Live – nya bokningar dyker upp direkt' : '🟡 Ansluter… (listan uppdateras ändå varje minut)'}
@@ -1980,7 +2383,7 @@
             {lists.bookings.length === 0 && <div style={{ ...BOX, textAlign: 'center' }}>Inga kommande bokningar.</div>}
             {groups.map(g => (
               <section key={g.label} style={{ marginBottom: '14px' }}>
-                <h3 style={{ color: COLORS.sand1, fontSize: '15px', margin: '0 0 8px 0' }}>{g.label}</h3>
+                <h3 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '16px', margin: '0 0 8px 0' }}>{g.label}</h3>
                 <div style={{ display: 'grid', gap: '10px' }}>
                   {g.items.map(b => {
                     const s = new Date(b.starts_at).getTime(), e = new Date(b.ends_at).getTime();
@@ -2041,6 +2444,7 @@
               <DemoSmsLog />
             </>}
           </>}
+          </>}
         </div>
       );
     }
@@ -2068,7 +2472,7 @@
       useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
 
       if (!state.gdprOk) return <GDPRModal onOk={() => dispatch({ type: 'GDPR' })} />;
-      const REBUILT = ['home', 'booking', 'courses', 'shop', 'contact', 'gallery'];   // sidor med ny design (övriga byggs om i kommande steg)
+      const REBUILT = ['home', 'booking', 'courses', 'shop', 'contact', 'gallery', 'admin'];   // sidor med ny design (övriga byggs om i kommande steg)
       const pageBg = REBUILT.includes(state.tab) ? T.color.page : COLORS.primary;
 
       return (
