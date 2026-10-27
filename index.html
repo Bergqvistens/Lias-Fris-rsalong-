@@ -325,6 +325,24 @@
     .lh-footer__name { margin: 0 0 6px; font: 600 14px var(--font-body); color: #F4EDE0; }
     .lh-footer__place { margin: 0; font: 13px var(--font-body); color: #E8DCC8; }
     .lh-footer__admin { color: #E8DCC8; font: 13px var(--font-body); }
+    /* ===== Liggande mobil: lägre sidhuvud, meny och knappfält så att mer innehåll syns ===== */
+    @media (orientation: landscape) and (max-height: 500px) {
+      .lh-header { position: relative; min-height: 44px; padding-top: calc(4px + var(--safe-top)); padding-bottom: 4px; padding-left: calc(12px + env(safe-area-inset-left, 0px)); padding-right: calc(12px + env(safe-area-inset-right, 0px)); }
+      .lh-header__logo { width: 30px; height: 30px; border-radius: 8px; }
+      .lh-header__title { font-size: 17px; }
+      .lh-header__sub { display: none; }
+      .lh-demo { padding: 3px 12px; font-size: 12px; }
+      .lh-nav { padding: 3px calc(4px + env(safe-area-inset-right, 0px)) calc(3px + var(--safe-bottom)) calc(4px + env(safe-area-inset-left, 0px)); }
+      .lh-nav__item { flex-direction: row; gap: 6px; min-height: 44px; padding: 2px 4px; }
+      .lh-nav__item svg { width: 20px; height: 20px; }
+      .lh-actionbar { padding-top: 6px !important; padding-bottom: 6px !important; }
+      .lh-actionbar__btn { min-height: 44px !important; padding: 10px !important; }
+    }
+    /* ===== Surfplatta och dator: menyn samlas i mitten ===== */
+    @media (min-width: 700px) {
+      .lh-nav { justify-content: center; gap: 6px; }
+      .lh-nav__item { flex: 0 1 120px; }
+    }
   </style>
 </head>
 <body>
@@ -1424,14 +1442,18 @@
     // ---------- Gemensamma byggstenar för kurs- och shopflödet ----------
     function useNavHeight() {
       const [h, setH] = useState(72);
-      useEffect(() => { const n = document.querySelector('nav'); if (n) setH(n.offsetHeight); }, []);
+      useEffect(() => {
+        const m = () => { const n = document.querySelector('nav'); if (n) setH(n.offsetHeight); };
+        m(); window.addEventListener('resize', m); window.addEventListener('orientationchange', m);
+        return () => { window.removeEventListener('resize', m); window.removeEventListener('orientationchange', m); };
+      }, []);
       return h;
     }
     function ActionBar({ label, enabled, onClick, color, textColor }) {
       const navH = useNavHeight();
       return (
-        <div style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: 'var(--bar-bg, #4B9FA6)' }}>
-          <button disabled={!enabled} onClick={onClick} style={{ display: 'block', width: '100%', maxWidth: '568px', margin: '0 auto', padding: '15px', backgroundColor: enabled ? (color || T.color.champagne) : 'rgba(255,255,255,0.18)', color: enabled ? (textColor || T.color.forest) : '#F4EDE0', border: 'none', borderRadius: '14px', fontWeight: '700', fontSize: '16px', minHeight: '52px', fontFamily: T.font.body, cursor: enabled ? 'pointer' : 'not-allowed' }}>{label}</button>
+        <div className="lh-actionbar" style={{ position: 'sticky', bottom: navH, zIndex: 900, margin: '24px -16px 0', padding: '10px 16px', backgroundColor: 'var(--bar-bg, #4B9FA6)' }}>
+          <button className="lh-actionbar__btn" disabled={!enabled} onClick={onClick} style={{ display: 'block', width: '100%', maxWidth: '568px', margin: '0 auto', padding: '15px', backgroundColor: enabled ? (color || T.color.champagne) : 'rgba(255,255,255,0.18)', color: enabled ? (textColor || T.color.forest) : '#F4EDE0', border: 'none', borderRadius: '14px', fontWeight: '700', fontSize: '16px', minHeight: '52px', fontFamily: T.font.body, cursor: enabled ? 'pointer' : 'not-allowed' }}>{label}</button>
         </div>
       );
     }
