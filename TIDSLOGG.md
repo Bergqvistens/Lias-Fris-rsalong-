@@ -8,6 +8,6 @@ Aktiv arbetstid räknas från tidsstämplarna i Claudes arbetslogg: tiden mellan
 |---|---|---|---|
 | 2026-10-27 | 15:26–15:44 | 18 min | Ny länk, sms-rutorna i admin (tonad bakgrund, brun ram, kontrast) |
 | 2026-10-27 | 16:34–17:08 | 34 min | Cookie-rutan glimtade vid omstart, bilder visas direkt vid flikbyte |
-| 2026-10-27 | 17:53–18:36 | 43 min | Startbild med Lias originallogga, tidslogg |
+| 2026-10-27 | 17:53–18:55 | 63 min | Startbild med Lias originallogga, tidslogg, startbilden minst 2,5 s |
 
-**Summa mätt tid: 1 h 35 min** (från 27 okt 2026)
+**Summa mätt tid: 1 h 55 min** (från 27 okt 2026)
