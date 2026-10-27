@@ -70,3 +70,9 @@
 - 12 px mellan rutorna (sms-loggen och kundens sms-lista).
 - Samma ruta visas också i kundens bekräftelse efter bokning.
 - Test: tester/sms-ruta.js 33/33. Alla övriga sviter gröna, totalt 713.
+
+## 27 okt: Cookie-rutan glimtade förbi vid omstart
+- Orsak: App ritades först med gdprOk false och läste localStorage i en useEffect efteråt.
+- Rättat: useReducer(reducer, null, init) läser localStorage innan första ritningen, med try/catch. LOAD-effekten borttagen.
+- Bieffekt rättad: om telefonen blockerade lagring kraschade appen förut; nu visas cookie-rutan.
+- Test: tester/cookie-glimt.js 20/20 (gamla versionen 12 OK / 8 FEL). Alla sviter gröna, totalt 733.

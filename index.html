@@ -2649,18 +2649,16 @@
     }
 
     function App() {
-      const [state, dispatch] = useReducer(reducer, initialState);
-
-      useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          try {
-            dispatch({ type: 'LOAD', p: JSON.parse(stored) });
-          } catch (e) {
-            console.error('Load error', e);
-          }
+      // Sparat godkännande läses in INNAN första ritningen, så cookie-rutan inte glimtar förbi vid omstart
+      const [state, dispatch] = useReducer(reducer, null, () => {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) return reducer(initialState, { type: 'LOAD', p: JSON.parse(stored) });
+        } catch (e) {
+          console.warn('Kunde inte läsa sparat läge', e);
         }
-      }, []);
+        return initialState;
+      });
 
       useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ gdprOk: state.gdprOk }));
