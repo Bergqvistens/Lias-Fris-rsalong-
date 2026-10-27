@@ -40,8 +40,8 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `sms-ruta.js` | Sms-rutorna i admin: tonad sandbakgrund i stället för vitt, brun ram 2 px, rubrikrad och text kontrast ≥ 4,5, text 15/13 px, 12 px luft (390, 320, 130 % text) | 33/33 |
 | `cookie-glimt.js` | Cookie-rutan: visas och står kvar första gången; efter godkännande syns den aldrig vid omstart (inte ens en glimt, 3 omstarter); trasig/tom/"inte godkänt" sparad uppgift och blockerad lagring visar rutan utan krasch. Gamla versionen gav 8 FEL i samma test | 20/20 |
 | `bild-direkt.js` | Flikbyte: alla synliga bilder klara samtidigt inom 250 ms och ingen bild hämtas vid tryck (egen webbserver med cache och 600 ms fördröjning per bild). Gamla versionen: 8 FEL, bilder kom efter upp till 0,7 s | 11/11 |
-| `startbild.js` | Startbilden (Lias logga, skogsgrön #0E2619 + champagne): syns efter 0,7 s fast typsnitt tar 4 s och appen 3 s, får plats på 390, 320 och liggande, kontrast 7,24, försvinner när appen är klar, "tar längre tid"-text efter 15 s utan nät, ingen pulsering vid minskad rörelse | 24/24 |
+| `startbild.js` | Startbilden (Lias originallogga i champagne, skogsgrön #0E2619): syns efter 0,7 s fast typsnitt tar 4 s och appen 3 s, får plats på 390, 320 och liggande, loggan skarp vid 3× pixeltäthet, kontrast 7,24, försvinner när appen är klar, "tar längre tid"-text efter 15 s utan nät, ingen pulsering vid minskad rörelse | 27/27 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 768 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 771 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).

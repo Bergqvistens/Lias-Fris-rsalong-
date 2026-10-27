@@ -92,3 +92,8 @@
 - cookie-glimt.js: "första som ritas" räknas nu efter startbilden. s5check: splash-logga undantagen från bakgrundshämtningen.
 - Test: tester/startbild.js 24/24. Totalt 768.
 - Nästa steg (väntar på kör): 2a förhandsöversättning utan Babel.
+
+## 27 okt: Startbilden använder Lias originallogga
+- Källa: Tommys skärmklipp av originalloggan (grå båge, vit fågel/LH, mörk text på vitt), sparad som kalla/logga-original.png (811×901).
+- bilder/splash-logga.webp är omfärgad: mörka delar (båge + text) blir champagne med mild övergång #DEBF93 -> #B89262, vita delar blir genomskinliga så att skogsgrönt syns i fågel och LH. 811×901 px, 48 KB.
+- Ersätter den urklippta, mjuka versionen. Test: startbild.js 27/27 (ny kontroll: skarp vid 3× pixeltäthet). Totalt 771.

@@ -43,6 +43,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(s && s.img && /KVALITET I VARJE DETALJ/i.test(s.tag) && /Frisörsalong • Keramikverkstad • Karlskoga/i.test(s.foot), 'Startbilden visar Lias logga, "Kvalitet i varje detalj" och raden längst ner', JSON.stringify(s && { img: s.img, tag: s.tag }));
     ok(s && s.parts.every(r => r.t >= 0 && r.l >= 0 && r.r <= s.vw && r.b <= s.vh) && s.parts[0].b <= s.parts[1].t && s.parts[1].b <= s.parts[2].t && !s.clip, 'Logga och texter får plats, överlappar inte och klipps inte', s && s.parts.map(r => Math.round(r.t) + '–' + Math.round(r.b)).join(', '));
     ok(s && contrast(s.fg.match(/\d+/g).map(Number), s.bg.match(/\d+/g).map(Number)) >= 4.5, 'Champagnefärgad text har kontrast ≥ 4,5', s && contrast(s.fg.match(/\d+/g).map(Number), s.bg.match(/\d+/g).map(Number)).toFixed(2));
+    const sharp = await p.$eval('.lh-splash__logo', i => ({ nat: i.naturalWidth, shown: Math.round(i.getBoundingClientRect().width) }));
+    ok(sharp.nat >= sharp.shown * 3, 'Loggan är skarp även på mobilskärm med 3× pixeltäthet (originalet)', sharp.nat + ' px bild / ' + sharp.shown + ' px visad');
     ok(s && s.slow === 'hidden', '"Det tar längre tid än vanligt" visas inte i onödan');
     await p.waitForSelector('text=Jag förstår och accepterar', { timeout: 15000 }).catch(() => {});
     ok(!(await p.$('.lh-splash')) && !!(await p.$('text=Jag förstår och accepterar')), 'När appen är klar försvinner startbilden och appen visas');
