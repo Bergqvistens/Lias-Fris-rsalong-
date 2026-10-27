@@ -306,6 +306,19 @@
     .lh-catbtn__name { display: block; text-align: center; font: 600 16px var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
     .lh-opt__check--box { border-radius: 7px; }
     .lh-addperson { margin-bottom: 14px; }
+    /* ===== Lias schema: läge per klipptid (bara admin) ===== */
+    .lh-cut { padding: 14px 16px; border-radius: 14px; border: 2px solid #6B5138; background: #F4EDE0; color: #2C2C2C; }
+    .lh-cut__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .lh-cut__badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font: 700 14px var(--font-body); }
+    .lh-cut__title { font: 17px/1.35 var(--font-body); color: #1F3D32; }
+    .lh-cut__title strong { font-weight: 700; }
+    .lh-cut__svc { margin: 4px 0 8px; font: 15px/1.4 var(--font-body); color: #2C2C2C; }
+    .lh-cut--kommande .lh-cut__badge { background: #EADFC8; color: #4A382A; }
+    .lh-cut--pagar { background: #DCEFE2; border: 3px solid #1F3D32; padding: 13px 15px; }
+    .lh-cut--pagar .lh-cut__badge { background: #1F3D32; color: #FFFFFF; }
+    .lh-cut--klar { background: #E6E3DE; border-color: #A39C93; color: #3F3A35; }
+    .lh-cut--klar .lh-cut__title, .lh-cut--klar .lh-cut__svc { color: #3F3A35; }
+    .lh-cut--klar .lh-cut__badge { background: #CFCAC2; color: #2E2A26; }
   </style>
 </head>
 <body>
@@ -994,6 +1007,7 @@
     };
     function bookingErrorText(error) {
       const msg = (error && error.message) || '';
+      if (/deadlock/i.test(msg)) return { code: 'TIDEN_UPPTAGEN', text: BOOKING_ERRORS.TIDEN_UPPTAGEN };   // samtidig bokning: behandlas som upptagen tid
       const code = Object.keys(BOOKING_ERRORS).find(k => msg.includes(k));
       return code ? { code, text: BOOKING_ERRORS[code] } : { code: 'NATVERK', text: 'Bokningen kunde inte skickas. Kontrollera din internetanslutning och försök igen.' };
     }
@@ -2351,6 +2365,11 @@
       );
     }
 
+    function startOfToday() { const t = tzParts(Date.now()); return stockholmMs(t.year, t.month, t.day, 0, 0); }
+    // Läge för en klipptid i Lias schema: kommande / pågår nu / klar
+    function cutState(b, now) { const s = new Date(b.starts_at).getTime(), e = new Date(b.ends_at).getTime(); return now >= e ? 'klar' : now >= s ? 'pagar' : 'kommande'; }
+    const CUT_STATE = { pagar: 'Pågår nu', kommande: 'Kommande', klar: 'Klar' };
+
     function AdminPanel({ dispatch }) {
       const TABLES = DEMO ? ['bookings', 'course_bookings', 'orders'] : ['bookings'];
       const [session, setSession] = useState(undefined);   // undefined = kontrollerar
@@ -2366,6 +2385,8 @@
       const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
       const [newIds, setNewIds] = useState([]);
       const [section, setSection] = useState('bokningar');
+      const [, setTick] = useState(0);
+      useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 30000); return () => clearInterval(t); }, []);   // färgerna byter läge av sig själva
       const seen = useRef(new Set());
       const loadedOnce = useRef(false);
       const alarmRef = useRef(false);
@@ -2399,7 +2420,7 @@
       const sortBy = (table, arr) => [...arr].sort((a, b) => table === 'orders' ? new Date(a.created_at) - new Date(b.created_at) : new Date(a.starts_at) - new Date(b.starts_at));
       const query = t => t === 'orders'
         ? sb.from('orders').select('*').neq('status', 'hamtad').order('created_at', { ascending: true })
-        : sb.from(t).select('*').eq('status', 'bokad').gte('ends_at', new Date().toISOString()).order('starts_at', { ascending: true });
+        : sb.from(t).select('*').eq('status', 'bokad').gte('ends_at', new Date(startOfToday()).toISOString()).order('starts_at', { ascending: true });
 
       const load = async () => {
         if (!loadedOnce.current) setListState('loading');
@@ -2537,14 +2558,14 @@
                   {g.items.map(b => {
                     const s = new Date(b.starts_at).getTime(), e = new Date(b.ends_at).getTime();
                     return (
-                      <div key={b.id} data-booking={b.id} style={card(b.id)}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                          <strong style={{ fontSize: '18px', color: COLORS.earthBrown }}>{fmtTime(s)}–{fmtTime(e)}</strong>{nyBadge(b.id)}
+                      <div key={b.id} data-booking={b.id} data-state={cutState(b, Date.now())} className={'lh-cut lh-cut--' + cutState(b, Date.now())} style={newIds.includes(b.id) ? { boxShadow: '0 0 0 3px #E8B863' } : undefined}>
+                        <div className="lh-cut__top">
+                          <span className="lh-cut__badge" data-badge>{cutState(b, Date.now()) === 'pagar' && <Icon name="scissors" size={16} />}{cutState(b, Date.now()) === 'klar' && <Icon name="check" size={16} strokeWidth={3} />}{cutState(b, Date.now()) === 'kommande' && <Icon name="clock" size={16} />}{CUT_STATE[cutState(b, Date.now())]}</span>{nyBadge(b.id)}
                         </div>
-                        {b.person_name && <div data-person-name style={{ fontSize: '15px', color: COLORS.dark, marginTop: '4px' }}>Klipps: <strong>{b.person_name}</strong></div>}
-                        <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>{b.service_names} · {formatPrice(b.price)}</div>
+                        <div className="lh-cut__title" data-cut-title>Klippning: <strong>{b.person_name || b.customer_name}</strong> {fmtTime(s)}–{fmtTime(e)}</div>
+                        <div className="lh-cut__svc">{b.service_names} · {formatPrice(b.price)}</div>
                         {contact(b)}
-                        <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>
+                        {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.person_name || b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>}
                       </div>
                     );
                   })}

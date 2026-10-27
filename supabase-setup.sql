@@ -206,6 +206,10 @@ begin
     raise exception 'UTANFOR_OPPETTID';
   end if;
 
+  -- Bokningar sparas en i taget (låset släpps när anropet är klart). Då kan två samtidiga
+  -- bokningar aldrig låsa varandra; den som kommer sist får TIDEN_UPPTAGEN.
+  perform pg_advisory_xact_lock(hashtext('lias_bokning'));
+
   -- Andra genomgången: spara en rad per person. Krockspärren stoppar dubbelbokning;
   -- ett fel avbryter hela anropet, så inga halva grupper sparas.
   v_cursor := p_starts_at;

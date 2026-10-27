@@ -118,8 +118,8 @@ const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
   await lia.fill('input[type=email]', 'lia@demo.se'); await lia.fill('input[type=password]', 'demo1234'); await lia.click('button:has-text("Logga in")'); await lia.waitForTimeout(1200);
   const cards = await lia.$$eval('[data-booking]', cs => cs.map(c => c.innerText.replace(/\n/g, ' | ')));
   const group = cards.filter(c => c.includes('Eva Ek'));
-  ok(group.length === 3 && group[0].includes('Klipps: Kalle') && group[1].includes('Klipps: Anna') && group[2].includes('Klipps: Lisa'), 'Lia ser tre kort i tidsordning med vem som ska klippas', group.map(c => c.split(' | ').slice(0, 2).join(' ')).join(' || '));
-  await lia.locator('[data-booking]', { hasText: 'Klipps: Anna' }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(600);
+  ok(group.length === 3 && group[0].includes('Klippning: Kalle 11:45–12:05') && group[1].includes('Klippning: Anna 12:05–12:35') && group[2].includes('Klippning: Lisa 12:35–13:00'), 'Lia ser tre kort i tidsordning med vem som ska klippas', group.map(c => c.split(' | ').slice(0, 2).join(' ')).join(' || '));
+  await lia.locator('[data-booking]', { hasText: /Klippning: Anna \d/ }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(600);
   ok((await lia.$$eval('[data-booking]', cs => cs.filter(c => c.innerText.includes('Eva Ek')).length)) === 2, 'Lia kan avboka en person (Anna); övriga ligger kvar');
   await lia.screenshot({ path: '/tmp/t/g-admin.png', fullPage: true });
 

@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict TsgiNxX2mSxl4QKrEo8hoqozrpedG15ECoGDQw41eTN7qfv25ifitFZoYqqLNY7
+\restrict b7hea4Eh86XumgNeWtGpxo6bq3tfDSBooQyH2OlxMsnNJLEulXQpCRjke2L27B8
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -120,6 +120,10 @@ begin
   if v_open is null or v_local::time < v_open or v_local_end::date <> v_local::date or v_local_end::time > v_close then
     raise exception 'UTANFOR_OPPETTID';
   end if;
+
+  -- Bokningar sparas en i taget (låset släpps när anropet är klart). Då kan två samtidiga
+  -- bokningar aldrig låsa varandra; den som kommer sist får TIDEN_UPPTAGEN.
+  perform pg_advisory_xact_lock(hashtext('lias_bokning'));
 
   -- Andra genomgången: spara en rad per person. Krockspärren stoppar dubbelbokning;
   -- ett fel avbryter hela anropet, så inga halva grupper sparas.
@@ -417,13 +421,13 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict TsgiNxX2mSxl4QKrEo8hoqozrpedG15ECoGDQw41eTN7qfv25ifitFZoYqqLNY7
+\unrestrict b7hea4Eh86XumgNeWtGpxo6bq3tfDSBooQyH2OlxMsnNJLEulXQpCRjke2L27B8
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict MuF0v26SmGDMrduPV9aBZ11rMqyP3EVCCQfDk8ALC1aJpO6HRlgtiRVTBlFI1uT
+\restrict YQUkaYBNRf5GrrDCj32RK4OMfY5yWVKPFTejBL8lxLTBK0PZwmudpjM8UT9zts5
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -465,5 +469,5 @@ b-klipp	Barnklippning	25	295	Barn	klipp
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MuF0v26SmGDMrduPV9aBZ11rMqyP3EVCCQfDk8ALC1aJpO6HRlgtiRVTBlFI1uT
+\unrestrict YQUkaYBNRf5GrrDCj32RK4OMfY5yWVKPFTejBL8lxLTBK0PZwmudpjM8UT9zts5
 
