@@ -345,7 +345,8 @@
       .lh-nav__item { flex: 0 1 120px; }
     }
     /* ===== Startbild (Lias originallogga i champagne på skogsgrönt): syns direkt medan appen laddas, ersätts av appen ===== */
-    .lh-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #0E2619; color: #CDA87A; text-align: center; overflow: hidden; }
+    .lh-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #0E2619; color: #CDA87A; text-align: center; overflow: hidden; z-index: 10000; }
+    .lh-splash--out { opacity: 0; pointer-events: none; }
     .lh-splash__logo { display: block; height: min(265px, 44vh); width: auto; aspect-ratio: 811 / 901; }
     .lh-splash__tag { margin-top: min(36px, 5vh); font: 500 15px/1.6 Inter, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: .22em; text-transform: uppercase; }
     .lh-splash__line { width: 40px; height: 1px; background: #CDA87A; margin: 12px auto 0; }
@@ -355,6 +356,7 @@
     .lh-splash__slow { font: 500 15px/1.5 Inter, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #F4EDE0; max-width: 300px; margin-top: 14px; visibility: hidden; animation: lh-splash-slow 0s 15s forwards; }
     @keyframes lh-splash-slow { to { visibility: visible; } }
     @media (prefers-reduced-motion: no-preference) {
+      .lh-splash { transition: opacity .4s ease; }
       .lh-splash__dots span { animation: lh-splash-dot 1.2s ease-in-out infinite; }
       .lh-splash__dots span:nth-child(2) { animation-delay: .2s; }
       .lh-splash__dots span:nth-child(3) { animation-delay: .4s; }
@@ -363,16 +365,26 @@
   </style>
 </head>
 <body>
-  <div id="root">
-    <div class="lh-splash" role="status" aria-label="Lias Hantverkeri laddas">
-      <img class="lh-splash__logo" src="bilder/splash-logga.webp" alt="" width="811" height="901">
-      <div class="lh-splash__tag">Kvalitet<br>i varje detalj</div>
-      <div class="lh-splash__line" aria-hidden="true"></div>
-      <div class="lh-splash__dots" aria-hidden="true"><span></span><span></span><span></span></div>
-      <div class="lh-splash__foot">Frisörsalong • Keramikverkstad • Karlskoga</div>
-      <p class="lh-splash__slow">Det tar längre tid än vanligt. Kontrollera att du har internet och ladda om sidan.</p>
-    </div>
+  <div id="root"></div>
+  <div class="lh-splash" role="status" aria-label="Lias Hantverkeri laddas">
+    <img class="lh-splash__logo" src="bilder/splash-logga.webp" alt="" width="811" height="901">
+    <div class="lh-splash__tag">Kvalitet<br>i varje detalj</div>
+    <div class="lh-splash__line" aria-hidden="true"></div>
+    <div class="lh-splash__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="lh-splash__foot">Frisörsalong • Keramikverkstad • Karlskoga</div>
+    <p class="lh-splash__slow">Det tar längre tid än vanligt. Kontrollera att du har internet och ladda om sidan.</p>
   </div>
+  <script>
+  // Startbilden visas minst 2,5 s från att sidan öppnades och tonas sedan bort (appen anropar när den är klar)
+  window.__lhHideSplash = function () {
+    var el = document.querySelector('.lh-splash');
+    if (!el || el.__hiding) return; el.__hiding = true;
+    setTimeout(function () {
+      el.classList.add('lh-splash--out');
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
+    }, Math.max(0, 2500 - performance.now()));
+  };
+  </script>
 
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -2693,6 +2705,9 @@
       // Varje flik börjar längst upp (även efter omladdning)
       useEffect(() => { try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} }, []);
       useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
+
+      // Appen är ritad: startbilden får försvinna (tidigast 2,5 s efter start)
+      useEffect(() => { try { window.__lhHideSplash && window.__lhHideSplash(); } catch (e) {} }, []);
 
       // Alla appens bilder hämtas i bakgrunden när startsidan har visats, så att varje flik visar sina bilder direkt
       useEffect(() => {

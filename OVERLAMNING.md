@@ -100,3 +100,9 @@
 
 ## Tidslogg
 - TIDSLOGG.md: uppdatera i slutet av varje arbetspass. Räkna från tidsstämplarna i sessionsloggen (/root/.claude/projects/...jsonl), pauser > 15 min räknas bort. Tid före 27 okt 2026 är inte mätt.
+
+## 27 okt: Startbilden visas minst 2,5 s
+- .lh-splash ligger nu UTANFÖR #root (z-index 10000) och tas bort av window.__lhHideSplash(), som App anropar i en useEffect vid första ritningen.
+- Försvinner vid max(0, 2500 - performance.now()) ms, toning 0,4 s (ingen toning vid prefers-reduced-motion), tas ur sidan efter 450 ms.
+- Laddar appen längre än 2,5 s blir det ingen extra väntan. Visas aldrig vid flikbyte.
+- Test: startbild.js 41/41, cookie-glimt.js väntar nu 3,3 s efter omstart och läser #root. Totalt 785.

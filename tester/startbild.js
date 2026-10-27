@@ -46,9 +46,34 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const sharp = await p.$eval('.lh-splash__logo', i => ({ nat: i.naturalWidth, shown: Math.round(i.getBoundingClientRect().width) }));
     ok(sharp.nat >= sharp.shown * 3, 'Loggan är skarp även på mobilskärm med 3× pixeltäthet (originalet)', sharp.nat + ' px bild / ' + sharp.shown + ' px visad');
     ok(s && s.slow === 'hidden', '"Det tar längre tid än vanligt" visas inte i onödan');
-    await p.waitForSelector('text=Jag förstår och accepterar', { timeout: 15000 }).catch(() => {});
-    ok(!(await p.$('.lh-splash')) && !!(await p.$('text=Jag förstår och accepterar')), 'När appen är klar försvinner startbilden och appen visas');
+    await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 15000 }).catch(() => {});
+    const tGone = await p.evaluate(() => performance.now()), tApp = await p.evaluate(() => window.__appReady || null);
+    ok(!(await p.$('.lh-splash')) && !!(await p.$('text=Jag förstår och accepterar')), 'Appen långsam (3 s): startbilden försvinner när appen är klar, ingen extra väntan', 'borta efter ' + (tGone / 1000).toFixed(2) + ' s');
+    ok(tGone < 4300, 'Ingen onödig extra väntan när laddningen tar längre än 2,5 s', (tGone / 1000).toFixed(2) + ' s');
     ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | '));
+    await ctx.close();
+  }
+
+  for (const motion of ['no-preference', 'reduce']) {
+    console.log('--- Snabb app: startbilden ska synas minst 2,5 s' + (motion === 'reduce' ? ' (minskad rörelse)' : '') + ' ---');
+    const { ctx, p, errs } = await mk({ fontDelay: 0, motion });
+    await p.addInitScript(() => { window.__log = []; const tick = () => { const e = document.querySelector('.lh-splash'); const r = document.getElementById('root'); window.__log.push([performance.now(), e ? (e.classList.contains('lh-splash--out') ? 'tonar' : 'syns') : 'borta', !!(r && r.children.length), e ? +getComputedStyle(e).opacity : 0]); if (performance.now() < 5000) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+    await p.goto('https://lias.test/'); await sleep(5200);
+    const log = await p.evaluate(() => window.__log);
+    const appAt = (log.find(x => x[2]) || [])[0], fadeAt = (log.find(x => x[1] !== 'syns') || [])[0], goneAt = (log.find(x => x[1] === 'borta') || [])[0], invisAt = (log.find(x => x[0] >= fadeAt && x[3] < 0.02) || [])[0];
+    ok(fadeAt >= 2490 && fadeAt <= 2700, 'Startbilden börjar försvinna efter 2,5 s (inte före)', (fadeAt / 1000).toFixed(2) + ' s');
+    if (motion === 'reduce') ok(invisAt - fadeAt <= 50, 'Minskad rörelse: osynlig direkt, ingen toning', ((invisAt - fadeAt) / 1000).toFixed(2) + ' s');
+    else ok(invisAt - fadeAt >= 300 && invisAt - fadeAt <= 550 && goneAt - fadeAt <= 600, 'Tonas mjukt bort på cirka 0,4 s', ((invisAt - fadeAt) / 1000).toFixed(2) + ' s toning');
+    ok(appAt > 0 && appAt < fadeAt, 'Appen ritas bakom startbilden innan den försvinner', 'appen klar ' + (appAt / 1000).toFixed(2) + ' s');
+    ok(await p.evaluate(() => document.body.innerText.includes('Jag förstår och accepterar')), 'Efter startbilden visas appen (cookie-rutan första gången)');
+    ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | '));
+    if (motion === 'no-preference') {
+      await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(x => getComputedStyle(x).overflowY === 'auto'); d.scrollTop = 99999; d.dispatchEvent(new Event('scroll')); });
+      await sleep(150); await p.click('text=Jag förstår och accepterar'); await sleep(300);
+      let seen = false;
+      for (const tab of ['Boka', 'Kurser', 'Shop', 'Kontakt', 'Galleri', 'Start']) { await p.click('nav >> text=' + tab); await sleep(250); if (await p.$('.lh-splash')) seen = true; }
+      ok(!seen, 'Vid flikbyte visas startbilden aldrig igen');
+    }
     await ctx.close();
   }
 
