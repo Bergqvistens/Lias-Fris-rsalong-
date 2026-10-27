@@ -10,11 +10,11 @@ Testerna kördes i Claudes testmiljö (Linux med Node 22, Playwright/Chromium, e
 3. Bygg testsidan från appen (måste göras efter varje ändring i index.html):
    `node /tmp/t/test.js <sökväg till index.html>`
    Den kontrollerar också syntax, bildskriptet och att alla bildfiler i `bilder/` finns.
-4. Bara för `scenario.js` och `sqltest.sh`: starta PostgreSQL 16 på port 5433 (socket `/tmp/pg`), skapa databasen `lias` och läs in `lokal-testdatabas.sql`. Filen skapar rollerna anon/authenticated, en enkel ersättning för Supabases `auth`-schema samt tabeller, regler och funktioner från `supabase-setup.sql`.
+4. För `scenario.js`, `grupp-test.js`, `s5check.js`, `s6check.js` (Supabase-delen) och `sqltest.sh`: starta PostgreSQL 16 på port 5433 (socket `/tmp/pg`), skapa databasen `lias` och läs in `lokal-testdatabas.sql`. Filen skapar rollerna anon/authenticated, en enkel ersättning för Supabases `auth`-schema samt tabeller, regler och funktioner från `supabase-setup.sql`.
 
 Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändra sökvägen i filerna om mappen ligger någon annanstans.
 
-## Testsviter (resultat 26 okt 2026, alla gröna)
+## Testsviter (resultat 27 okt 2026, alla gröna)
 | Fil | Vad | Resultat |
 |---|---|---|
 | `sqltest.sh` | Databasregler: bokningsregler, dubbelbokning, behörigheter, flera personer (en klippning per person, förnamn, max 4, efter varandra, allt-eller-inget) | 41/41 |
