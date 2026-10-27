@@ -97,3 +97,6 @@
 - Källa: Tommys skärmklipp av originalloggan (grå båge, vit fågel/LH, mörk text på vitt), sparad som kalla/logga-original.png (811×901).
 - bilder/splash-logga.webp är omfärgad: mörka delar (båge + text) blir champagne med mild övergång #DEBF93 -> #B89262, vita delar blir genomskinliga så att skogsgrönt syns i fågel och LH. 811×901 px, 48 KB.
 - Ersätter den urklippta, mjuka versionen. Test: startbild.js 27/27 (ny kontroll: skarp vid 3× pixeltäthet). Totalt 771.
+
+## Tidslogg
+- TIDSLOGG.md: uppdatera i slutet av varje arbetspass. Räkna från tidsstämplarna i sessionsloggen (/root/.claude/projects/...jsonl), pauser > 15 min räknas bort. Tid före 27 okt 2026 är inte mätt.
