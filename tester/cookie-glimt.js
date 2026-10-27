@@ -6,7 +6,7 @@ const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'OK   ' : 'FEL  
 const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync('/tmp/t/react-shim.js', 'utf8'), app = fs.readFileSync('/tmp/t/app.js', 'utf8');
 const GDPR = /Jag förstår och accepterar/;
 // Registrerar från allra första början om cookie-rutans text någon gång finns i sidan
-const watch = () => { window.__gdprSeen = 0; window.__firstText = null; new MutationObserver(() => { const t = document.body && document.body.innerText; if (!t) return; if (window.__firstText === null && t.trim()) window.__firstText = t.slice(0, 200); if (/Jag förstår och accepterar/.test(t)) window.__gdprSeen++; }).observe(document, { childList: true, subtree: true, characterData: true }); };
+const watch = () => { window.__gdprSeen = 0; window.__firstText = null; new MutationObserver(() => { const t = document.body && document.body.innerText; if (!t) return; if (window.__firstText === null && t.trim() && !document.querySelector('.lh-splash')) window.__firstText = t.slice(0, 200); if (/Jag förstår och accepterar/.test(t)) window.__gdprSeen++; }).observe(document, { childList: true, subtree: true, characterData: true }); };
 (async () => {
   const browser = await chromium.launch();
   const mk = async () => {
@@ -39,7 +39,7 @@ const watch = () => { window.__gdprSeen = 0; window.__firstText = null; new Muta
     await p.reload(); await p.waitForTimeout(1200);
     const seen = await p.evaluate(() => window.__gdprSeen), first = await p.evaluate(() => window.__firstText);
     ok(seen === 0, `Omstart ${i}: cookie-rutan syntes inte ens ett ögonblick`, 'antal gånger i sidan: ' + seen);
-    ok(!GDPR.test(first || '') && /Skapa · Vårda · Inspireras/.test(first || ''), `Omstart ${i}: första som ritas är appen (sidhuvudet)`, (first || '').replace(/\s+/g, ' ').slice(0, 60));
+    ok(!GDPR.test(first || '') && /Skapa · Vårda · Inspireras/.test(first || ''), `Omstart ${i}: första som ritas efter startbilden är appen (sidhuvudet)`, (first || '').replace(/\s+/g, ' ').slice(0, 60));
   }
   ok(await p.evaluate(() => localStorage.getItem('lias_v1')) === '{"gdprOk":true}', 'Godkännandet ligger kvar efter omstarter (skrivs inte över med "false")');
   ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | '));

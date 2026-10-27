@@ -83,3 +83,12 @@
 - Två kontroller i s5check som krävde lazy-laddning är omskrivna till det nya kravet (startsidans bilder först, övriga i bakgrunden, var och en en gång).
 - Test: tester/bild-direkt.js 11/11 (gamla versionen 3 OK / 8 FEL). Totalt 744.
 - Nästa steg (väntar på kör): startbild i HTML (2b), sedan förhandsöversättning utan Babel (2a).
+
+## 27 okt: Startbild med Lias logga (punkt 2b)
+- I index.html ligger en statisk startbild i #root (.lh-splash) som React ersätter. Skogsgrön #0E2619, logga bilder/splash-logga.webp (526×580, genomskinlig runt, urklippt ur Tommys förslag Alternativ 2), texterna "Kvalitet i varje detalj" och "Frisörsalong • Keramikverkstad • Karlskoga" som riktig text i #CDA87A.
+- Loggan är urklippt ur en bild på 1024×1536 px, så den är 263×290 px i original (uppskalad 2×). Den blir något mjuk på skarpa skärmar. Byt filen mot originalloggan när den finns.
+- Google Fonts laddas inte längre blockerande (media=print + onload), så startbilden ritas direkt.
+- Efter 15 s utan app visas "Det tar längre tid än vanligt ..." (bara CSS).
+- cookie-glimt.js: "första som ritas" räknas nu efter startbilden. s5check: splash-logga undantagen från bakgrundshämtningen.
+- Test: tester/startbild.js 24/24. Totalt 768.
+- Nästa steg (väntar på kör): 2a förhandsöversättning utan Babel.

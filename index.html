@@ -11,7 +11,8 @@
   <meta name="apple-mobile-web-app-title" content="Lias Hantverkeri">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap"></noscript>
   <style>
     /* ===== Designtokens (Lias Hantverkeri – skogsgrön & champagne) ===== */
     :root {
@@ -343,10 +344,35 @@
       .lh-nav { justify-content: center; gap: 6px; }
       .lh-nav__item { flex: 0 1 120px; }
     }
+    /* ===== Startbild (Lias logga, skogsgrön & champagne): syns direkt medan appen laddas, ersätts av appen ===== */
+    .lh-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #0E2619; color: #CDA87A; text-align: center; overflow: hidden; }
+    .lh-splash__logo { display: block; height: min(265px, 44vh); width: auto; aspect-ratio: 526 / 580; }
+    .lh-splash__tag { margin-top: min(36px, 5vh); font: 500 15px/1.6 Inter, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: .22em; text-transform: uppercase; }
+    .lh-splash__line { width: 40px; height: 1px; background: #CDA87A; margin: 12px auto 0; }
+    .lh-splash__dots { display: flex; gap: 8px; margin-top: min(28px, 4vh); }
+    .lh-splash__dots span { width: 8px; height: 8px; border-radius: 50%; background: #CDA87A; opacity: .4; }
+    .lh-splash__foot { margin-top: min(32px, 5vh); font: 500 11px/1.5 Inter, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    .lh-splash__slow { font: 500 15px/1.5 Inter, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #F4EDE0; max-width: 300px; margin-top: 14px; visibility: hidden; animation: lh-splash-slow 0s 15s forwards; }
+    @keyframes lh-splash-slow { to { visibility: visible; } }
+    @media (prefers-reduced-motion: no-preference) {
+      .lh-splash__dots span { animation: lh-splash-dot 1.2s ease-in-out infinite; }
+      .lh-splash__dots span:nth-child(2) { animation-delay: .2s; }
+      .lh-splash__dots span:nth-child(3) { animation-delay: .4s; }
+      @keyframes lh-splash-dot { 0%, 100% { opacity: .4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.25); } }
+    }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div class="lh-splash" role="status" aria-label="Lias Hantverkeri laddas">
+      <img class="lh-splash__logo" src="bilder/splash-logga.webp" alt="" width="526" height="580">
+      <div class="lh-splash__tag">Kvalitet<br>i varje detalj</div>
+      <div class="lh-splash__line" aria-hidden="true"></div>
+      <div class="lh-splash__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="lh-splash__foot">Frisörsalong • Keramikverkstad • Karlskoga</div>
+      <p class="lh-splash__slow">Det tar längre tid än vanligt. Kontrollera att du har internet och ladda om sidan.</p>
+    </div>
+  </div>
 
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
