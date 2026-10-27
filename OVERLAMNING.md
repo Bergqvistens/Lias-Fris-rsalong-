@@ -106,3 +106,13 @@
 - Försvinner vid max(0, 2500 - performance.now()) ms, toning 0,4 s (ingen toning vid prefers-reduced-motion), tas ur sidan efter 450 ms.
 - Laddar appen längre än 2,5 s blir det ingen extra väntan. Visas aldrig vid flikbyte.
 - Test: startbild.js 41/41, cookie-glimt.js väntar nu 3,3 s efter omstart och läser #root. Totalt 785.
+
+## 27 okt: Appen översätts i förväg (punkt 2a) – NY ARBETSGÅNG
+- KÄLLFIL: /mnt/user-data/outputs/lias-hantverkeri-full.html (JSX, text/babel) = kalla/app-kalla.html i repot. Ändra ALLTID källfilen.
+- BYGG: node verktyg/bygg.js <källfil> github/index.html. esbuild (jsx, iife, minify, target es2019) ersätter text/babel med <script id="lh-app"> och tar bort Babel-raden från cdnjs.
+- Deploy: redigera källfil -> bygg till github/index.html -> kopiera källfilen till github/kalla/app-kalla.html -> test.js github/index.html -> push -> verifiera -> zip.
+- index.html: 186 KB (förut 231 KB), appkod 137 KB komprimerad. Babel laddas inte längre i telefonen.
+- test.js hanterar byggd fil (kräver att Babel inte finns kvar). s5check bygger sin felvariant från källfilen eftersom den byggda koden är komprimerad.
+- Starttid (starttid.js, CPU 4× långsammare, ingen nätfördröjning): appen ritad efter median 0,42 s. Före/efter-mätning med riktiga Babel/React gick INTE: cdnjs och npm blockeras i Claudes miljö.
+- Kvar som tidigare: testerna kör React 19 (react-shim.js), sidan använder React 18.2 från cdnjs – samma begränsning som innan.
+- Alla 785 kontroller gröna mot den byggda filen.

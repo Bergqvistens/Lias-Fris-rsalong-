@@ -11,8 +11,10 @@ Webbplats för Lias Hantverkeri – frisörsalong och keramikverkstad i Karlskog
 - Kontakt
 
 ## Teknik
-- `index.html` – hela webbplatsen. React 18 (cdnjs) och supabase-js 2 (jsdelivr). Ingen byggprocess.
-- `bilder/` – alla foton (WebP/JPG). Måste ligga i mappen `bilder` bredvid `index.html`. Ny bild: lägg filen i `bilder/` och ange sökvägen i `window.LH_IMG` överst i `index.html`.
+- `index.html` – hela webbplatsen, BYGGD från källfilen. React 18 (cdnjs) och supabase-js 2 (jsdelivr). Appens kod är översatt i förväg (ingen Babel i webbläsaren), så ändra inte appkoden direkt i `index.html`.
+- `kalla/app-kalla.html` – källfilen (läsbar JSX). Gör ändringar här och bygg om: `node verktyg/bygg.js kalla/app-kalla.html index.html` (kräver Node och esbuild).
+- `verktyg/bygg.js` – byggskriptet.
+- `bilder/` – alla foton (WebP/JPG). Måste ligga i mappen `bilder` bredvid `index.html`. Ny bild: lägg filen i `bilder/` och ange sökvägen i `window.LH_IMG` i källfilen och bygg om.
 - `supabase-setup.sql` – databas, regler och bokningsfunktioner för Supabase.
 - `INSTALLATION.md` – checklista för att koppla in Supabase.
 - `REDOVISNING.md` – slutredovisning av ombyggnaden (26 okt 2026).

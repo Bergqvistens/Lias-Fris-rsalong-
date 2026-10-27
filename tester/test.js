@@ -3,8 +3,17 @@ const esbuild = require('/opt/npm-tools/node_modules/esbuild');
 const fs = require('fs');
 (async () => {
   const src = fs.readFileSync(process.argv[2], 'utf8');
-  const m = src.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
+  // Förhandsöversatt index.html (script id=lh-app): testerna kör EXAKT den kod som ligger på GitHub
+  const pre = src.match(/<script id="lh-app">\n?([\s\S]*?)<\/script>/);
+  const m = pre || src.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
   let js;
+  if (pre) {
+    js = pre[1];
+    if (/babel/i.test(src.replace(/<!--[\s\S]*?-->/g, ''))) { console.log('FEL: Babel finns kvar i den byggda sidan'); process.exit(1); }
+    fs.writeFileSync('/tmp/t/strict.js', '"use strict";' + js);
+    try { require('child_process').execSync('node --check /tmp/t/strict.js', { stdio: 'pipe' }); console.log('Strikt syntax: OK (förhandsöversatt, ' + Math.round(js.length / 1024) + ' KB)'); }
+    catch (e) { console.log('STRIKT SYNTAXFEL: ' + e.stderr.toString().split('\n').filter(l => /Error/.test(l)).join(' ')); process.exit(1); }
+  } else {
   try {
     js = esbuild.transformSync(m[1], { loader: 'jsx', format: "iife" }).code;
   } catch (e) { console.log('SYNTAXFEL:\n' + e.errors.map(x => `rad ${x.location && x.location.line}: ${x.text}`).join('\n')); process.exit(1); }
@@ -12,6 +21,7 @@ const fs = require('fs');
   fs.writeFileSync('/tmp/t/strict.mjs', esm.replace(/ReactDOM\.createRoot[\s\S]*$/, ''));
   try { require('child_process').execSync('node --check /tmp/t/strict.mjs', { stdio: 'pipe' }); console.log('Strikt syntax: OK'); }
   catch (e) { console.log('STRIKT SYNTAXFEL: ' + e.stderr.toString().split('\n').filter(l => /Error/.test(l)).join(' ')); process.exit(1); }
+  }
   const shim = fs.readFileSync('/tmp/t/react-shim.js', 'utf8');
   const html = src.replace(/<script[^>]*cdnjs[^>]*><\/script>/g, '')
     .replace(m[0], () => `<script src="react-shim.js"></script><script src="app.js"></script>`);

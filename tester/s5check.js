@@ -5,11 +5,13 @@ let pass = 0, fail = 0;
 const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'OK   ' : 'FEL  ') + l + (x !== undefined ? '  ->  ' + x : '')); };
 const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync('/tmp/t/react-shim.js', 'utf8'), app = fs.readFileSync('/tmp/t/app.js', 'utf8');
 // Variant där demons dataanrop kan fås att misslyckas med window.__fail = { get_busy: true, ... }
-const appFail = app.replace(/if \(fn === "get_busy"\) \{/, 'if (window.__fail && window.__fail[fn]) return wait(fail("NATVERK")); if (fn === "get_busy") {');
+// Den byggda koden är komprimerad – felvarianten byggs från den läsbara källfilen (samma kod, oförminskad)
+const appSrc = /if \(fn === "get_busy"\) \{/.test(app) ? app : require('/opt/npm-tools/node_modules/esbuild').transformSync(fs.readFileSync('/mnt/user-data/outputs/lias-hantverkeri-full.html', 'utf8').match(/<script type="text\/babel">([\s\S]*?)<\/script>/)[1], { loader: 'jsx', format: 'iife', target: 'es2019' }).code;
+const appFail = appSrc.replace(/if \(fn === "get_busy"\) \{/, 'if (window.__fail && window.__fail[fn]) return wait(fail("NATVERK")); if (fn === "get_busy") {');
 const TABS = ['Start', 'Boka', 'Kurser', 'Shop', 'Kontakt', 'Galleri'];
 
 (async () => {
-  ok(appFail !== app, 'Testvarianten med fel kunde skapas');
+  ok(appFail !== appSrc, 'Testvarianten med fel kunde skapas');
   const browser = await chromium.launch();
   const errs = [];
   const open = async (w = 390, failing = false) => {

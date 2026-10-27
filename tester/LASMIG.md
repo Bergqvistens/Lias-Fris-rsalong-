@@ -7,9 +7,9 @@ Testerna kördes i Claudes testmiljö (Linux med Node 22, Playwright/Chromium, e
 2. Bygg React-paketet för testerna (React 19 + react-dom/client):
    `NODE_PATH=/opt/npm-tools/node_modules esbuild /tmp/t/shim.js --bundle --minify --define:process.env.NODE_ENV='"production"' --outfile=/tmp/t/react-shim.js`
    (`NODE_PATH` ska peka på mappen där react och react-dom finns. Kontrollerat 26 okt: ger samma fil, 193 256 byte, som testerna kördes med.)
-3. Bygg testsidan från appen (måste göras efter varje ändring i index.html):
+3. Bygg först index.html från källfilen: `node verktyg/bygg.js kalla/app-kalla.html index.html`. Bygg sedan testsidan (efter varje ändring):
    `node /tmp/t/test.js <sökväg till index.html>`
-   Den kontrollerar också syntax, bildskriptet och att alla bildfiler i `bilder/` finns.
+   Den kontrollerar också syntax, bildskriptet och att alla bildfiler i `bilder/` finns. Är index.html byggd (`<script id="lh-app">`) kör testerna exakt den koden; Babel får inte finnas kvar.
 Obs: en hel körning av alla sviter tar mer än 10 minuter (startbilden 2,5 s vid varje start) – kör dem i omgångar.
 4. För `scenario.js`, `grupp-test.js`, `s5check.js`, `s6check.js` (Supabase-delen) `sqltest.sh` och `krock-parallell.sh`: starta PostgreSQL 16 på port 5433 (socket `/tmp/pg`), skapa databasen `lias` och läs in `lokal-testdatabas.sql`. Filen skapar rollerna anon/authenticated, en enkel ersättning för Supabases `auth`-schema samt tabeller, regler och funktioner från `supabase-setup.sql`.
 
@@ -42,6 +42,7 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `cookie-glimt.js` | Cookie-rutan: visas och står kvar första gången; efter godkännande syns den aldrig vid omstart (inte ens en glimt, 3 omstarter); trasig/tom/"inte godkänt" sparad uppgift och blockerad lagring visar rutan utan krasch. Gamla versionen gav 8 FEL i samma test | 20/20 |
 | `bild-direkt.js` | Flikbyte: alla synliga bilder klara samtidigt inom 250 ms och ingen bild hämtas vid tryck (egen webbserver med cache och 600 ms fördröjning per bild). Gamla versionen: 8 FEL, bilder kom efter upp till 0,7 s | 11/11 |
 | `startbild.js` | Startbilden (Lias originallogga i champagne, skogsgrön #0E2619): syns efter 0,7 s fast typsnitt tar 4 s och appen 3 s, får plats på 390, 320 och liggande, loggan skarp vid 3× pixeltäthet, kontrast 7,24, försvinner när appen är klar, "tar längre tid"-text efter 15 s utan nät, ingen pulsering vid minskad rörelse; syns minst 2,5 s (börjar tona vid 2,50 s, toning ca 0,4 s, ingen toning vid minskad rörelse), ingen extra väntan när appen laddar längre, visas aldrig vid flikbyte | 41/41 |
+| `starttid.js` | Mätning (inte godkänt/underkänt): tid tills appen är ritad, processorn 4× långsammare, ingen nätfördröjning. 27 okt: median 0,42 s | – |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
 Totalt 785 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:

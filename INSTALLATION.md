@@ -31,7 +31,7 @@ Gå till **Project Settings → API** (kan heta **Data API** / **API Keys**):
 - **Project URL** – ser ut som `https://abcdefgh.supabase.co`
 - **anon public**-nyckeln – en lång text som börjar med `eyJ`. Om du bara ser en ny "publishable key", titta under fliken **Legacy API keys**.
 
-Skicka båda till Claude, så läggs de in i `index.html`. (Eller öppna `index.html` och byt ut `KLISTRA_IN_PROJECT_URL` och `KLISTRA_IN_ANON_PUBLIC_KEY`.) Nyckeln är gjord för att synas i webbsidor – skyddet ligger i databasens regler.
+Skicka båda till Claude, så läggs de in i källfilen `kalla/app-kalla.html` och `index.html` byggs om. (Det går också att öppna `index.html` och byta ut `KLISTRA_IN_PROJECT_URL` och `KLISTRA_IN_ANON_PUBLIC_KEY` direkt – texterna finns kvar i den byggda koden – men då måste samma ändring göras i källfilen, annars försvinner den vid nästa bygge.) Nyckeln är gjord för att synas i webbsidor – skyddet ligger i databasens regler.
 
 ## 5. Lägg upp på GitHub
 Ladda upp den nya `index.html` till repot. Sidan måste öppnas via GitHub Pages-adressen (https), annars fungerar inte skärmnotiserna.
@@ -49,6 +49,6 @@ Ladda upp den nya `index.html` till repot. Sidan måste öppnas via GitHub Pages
 
 ## Bra att veta
 - **Larmet** fungerar när admin-sidan är öppen i en flik och datorn är vaken. Tryck **Slå på larm** varje gång sidan öppnas – webbläsare tillåter inte ljud annars. Bokningar som kommer in när datorn är avstängd syns i listan nästa gång Lia öppnar den.
-- **Ändra pris eller längd** på en tjänst: ändra både i `index.html` (listan `SERVICES`) och i Supabase (**Table Editor → services**). Det är databasens pris som gäller vid bokning.
-- **Öppettider** finns på två ställen på samma sätt: `OPENING` i `index.html` och funktionen `create_booking` i SQL-koden.
+- **Ändra pris eller längd** på en tjänst: ändra både i källfilen `kalla/app-kalla.html` (listan `SERVICES`, bygg sedan om `index.html`) och i Supabase (**Table Editor → services**). Det är databasens pris som gäller vid bokning.
+- **Öppettider** finns på två ställen på samma sätt: `OPENING` i källfilen `kalla/app-kalla.html` och funktionen `create_booking` i SQL-koden.
 - Kunden får **ingen** bekräftelse via SMS eller e-post än – bara beskedet på skärmen. Det kan läggas till senare.
