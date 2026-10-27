@@ -19,7 +19,7 @@ for(const w of [320,390]){
  const step=await p.evaluate(()=>1);
  ok(errs.length===0,`${w}px inga JS-fel`,errs.join('|'));
  // Bannern bara i steg 1 av bokningen
- if(w===390){await p.click('nav >> text=Boka');await p.waitForTimeout(300);await p.click('text=Herr kort hår');await p.click('text=Fortsätt');await p.waitForTimeout(300);
+ if(w===390){await p.click('nav >> text=Boka');await p.waitForTimeout(300);await p.click('[data-cat="Herr"]');await p.click('text=Herr kort hår');await p.click('text=Fortsätt');await p.waitForTimeout(300);
   ok(!(await p.$('[data-banner=boka]')),'Bokningsbilden syns bara i steg 1');}
  await c.close();}
 console.log(`\nRESULTAT: ${pass} OK, ${fail} FEL`);fs.writeFileSync('/tmp/t/b4shots.json',JSON.stringify(shots));await b.close();})();

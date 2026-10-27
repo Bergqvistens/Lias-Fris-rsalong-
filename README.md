@@ -19,7 +19,7 @@ Webbplats för Lias Hantverkeri – frisörsalong och keramikverkstad i Karlskog
 - `tester/` – automatiska tester och instruktion (`tester/LASMIG.md`).
 
 ## Bokning
-Kunden bokar i tre steg. Bokningen sparas direkt i Supabase och är bokad; databasen stoppar dubbelbokningar. Lia ser nya bokningar direkt i admin-sidan med ljud och notis.
+Kunden bokar i tre steg, för 1–4 personer (en klippning per person + valfria tillägg). Personerna får tider efter varandra eftersom Lia är ensam frisör. Bokningen sparas direkt i Supabase och är bokad; databasen stoppar dubbelbokningar. Lia ser nya bokningar direkt i admin-sidan med ljud och notis.
 
 ## Demoläge
 Så länge Supabase inte är inkopplat körs sidan i demoläge (gul skylt högst upp). Allt går att prova – frisörbokning, kursbokning och köp i shopen – men sparas bara i den egna webbläsaren. Inga bokningar, betalningar eller sms görs; sms:en visas i stället på skärmen. Kursdatum, redan bokade kursplatser och lagersaldo är exempel. Admin i demo: lia@demo.se / demo1234. När Supabase är inkopplat kan demoläget öppnas med `?demo=1` i adressen.

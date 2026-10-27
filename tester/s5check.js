@@ -38,7 +38,7 @@ const TABS = ['Start', 'Boka', 'Kurser', 'Shop', 'Kontakt', 'Galleri'];
   console.log('--- Fel- och laddningsstatus ---');
   const f = await open(390, true);
   await f.evaluate(() => { window.__fail = { get_busy: true }; });
-  await go(f, 'Boka'); await f.click('[data-service="h-kort"]'); await f.click('text=Fortsätt'); await f.waitForTimeout(300);
+  await go(f, 'Boka'); await f.click('[data-cat="Herr"]'); await f.click('[data-service="h-kort"]'); await f.click('text=Fortsätt'); await f.waitForTimeout(300);
   await f.click('.lh-day >> nth=1');
   const loadingSeen = await f.evaluate(() => !!document.querySelector('main [role="status"]') && document.querySelector('main').innerText.includes('Hämtar lediga tider'));
   ok(loadingSeen, 'Boka: laddningsstatus "Hämtar lediga tider…" (role=status) visas');

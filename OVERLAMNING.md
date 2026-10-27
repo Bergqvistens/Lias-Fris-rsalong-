@@ -35,12 +35,13 @@
 - I Supabase-läge visar kurser och shop "öppnar snart" – SQL för kurser/beställningar är **inte** byggd än.
 - Tryck på en menyknapp startar alltid om den sidan (main har key).
 - **Appen öppnas alltid på startsidan** (26 okt): `lias_v1` sparar bara `{gdprOk}`, inte senaste flik. **Varje flik börjar längst upp:** App scrollar till toppen när `tab`/`nav` ändras, och `history.scrollRestoration = manual`. Test: start-topp.js 16/16.
-- Bokning i 3 steg: tjänst → dag/tid (14 öppna dagar, kvartstider, svensk tid oavsett telefonens tidszon) → uppgifter + Boka.
+- Bokning i 3 steg: personer och klippning → dag/tid (14 öppna dagar, kvartstider, svensk tid oavsett telefonens tidszon) → uppgifter + Boka.
+- **Flera personer (27 okt, Tommys beslut):** 1–4 personer per bokning. Varje person: kategori Herr/Dam/Barn, **exakt en klippning** (kort/medel/långt eller barnklippning) + valfria tillägg i samma kategori. Förnamn krävs för varje person när fler än en bokas. **En frisör:** personerna läggs efter varandra från vald starttid; bara starttider där hela kedjan är ledig och slutar före stängning visas. Databasen (`create_booking(p_people jsonb, …)`) gör samma kontroller och sparar en rad per person (`person_name`, `group_id`) – allt eller inget. Tjänster har `category` + `kind` (klipp/tillagg) i SQL och `cat` + `cut` i index.html. Lia ser ett kort per person ("Klipps: Kalle") och kan avboka/registrera betalning per person.
 - Admin: länk "Admin" i sidfoten. Supabase-inloggning, live-lista, larm (ljud + notis) när sidan är öppen, avbokning.
 - Bokningar bekräftas automatiskt. Databasen stoppar dubbelbokning (exclusion constraint) och räknar pris själv.
 
 ## Testat (allt grönt)
-- SQL: 27 regeltester + samtidig dubbelbokning i riktig PostgreSQL 16.
+- SQL: 41 regeltester (varav 14 för flera personer) + samtidig dubbelbokning i riktig PostgreSQL 16.
 - Supabase-läge mot simulerad Supabase → riktig PostgreSQL: 31/31.
 - Demoläge frisörbokning: 20/20. Kurser + shop: 44/44. Steg 3-design: 88/88 (s3check.js). Steg 4: 81/81 (s4check.js). Menyetiketter med varje flik aktiv: 24/24 (nav-alla.js). Inga nätverksanrop.
 - Ej testat: koppling till Supabases riktiga servrar (ingen internetåtkomst i testmiljön).
@@ -56,4 +57,4 @@
 ## Kända begränsningar
 - **Bilder ligger som filer i `bilder/` sedan 26 okt** (tidigare inbäddade; vid 2 000 004 byte visade Claude-appens förhandsvisning bara turkos skärm). Förhandsvisningen i chatten visar därför "Bild kommer" i stället för bilder; på GitHub Pages syns de. Bannrar och galleribilder är WebP kvalitet 80.
 - Larmet hos Lia hörs bara när admin-sidan är öppen; "Slå på larm" måste tryckas varje gång (webbläsarregel). Lös med sms/Pushover enligt steg 3.
-- Ändras pris/längd/öppettider måste det ändras både i `index.html` (`SERVICES`, `OPENING`) och i Supabase (`services`-tabellen, `create_booking`).
+- Ändras pris/längd/öppettider måste det ändras både i `index.html` (`SERVICES` med cat/cut, `OPENING`) och i Supabase (`services`-tabellen med category/kind, `create_booking`).

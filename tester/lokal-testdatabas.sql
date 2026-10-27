@@ -1,11 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 26 okt 2026.
--- Roller som Supabase har inbyggda (skapas om de saknas):
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict h0jMh37u5QIYncARfWvpKHhb1hMOwgh1MzolsaZwPBoMUZOp5TJAGEWgeN92PTU
+\restrict TsgiNxX2mSxl4QKrEo8hoqozrpedG15ECoGDQw41eTN7qfv25ifitFZoYqqLNY7
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -38,92 +37,121 @@ CREATE FUNCTION auth.uid() RETURNS uuid
 
 
 --
--- Name: create_booking(text[], timestamp with time zone, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: create_booking(jsonb, timestamp with time zone, text, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.create_booking(p_service_ids text[], p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) RETURNS json
+CREATE FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) RETURNS json
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $_$
 declare
-  v_ids      text[];
-  v_count    integer;
-  v_duration integer;
-  v_price    integer;
-  v_names    text;
-  v_ends_at  timestamptz;
-  v_local    timestamp;     -- starttid i svensk tid
+  v_n         integer;
+  v_person    jsonb;
+  v_cat       text;
+  v_pname     text;
+  v_ids       text[];
+  v_count     integer;
+  v_cuts      integer;
+  v_dur       integer;
+  v_price     integer;
+  v_names     text;
+  v_cursor    timestamptz;
+  v_end       timestamptz;
+  v_total     integer := 0;
+  v_total_dur integer := 0;
+  v_group     uuid := gen_random_uuid();
+  v_rows      jsonb := '[]'::jsonb;
+  v_local     timestamp;
   v_local_end timestamp;
-  v_dow      integer;
-  v_open     time;
-  v_close    time;
-  v_id       uuid;
+  v_dow       integer;
+  v_open      time;
+  v_close     time;
+  v_id        uuid;
+  v_all_names text := '';
 begin
-  -- Rensa och kontrollera uppgifter
+  -- Kontaktuppgifter
   p_name  := btrim(coalesce(p_name, ''));
   p_phone := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
   p_email := btrim(coalesce(p_email, ''));
+  if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
+  if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
+  if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
 
-  if length(p_name) < 2 or length(p_name) > 100 then
-    raise exception 'OGILTIGT_NAMN';
-  end if;
-  if p_phone !~ '^0[0-9]{9}$' then
-    raise exception 'OGILTIGT_TELEFON';
-  end if;
-  if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then
-    raise exception 'OGILTIG_EPOST';
-  end if;
-
-  -- Tjänster: pris och längd hämtas från tabellen, inte från webbsidan
-  select array_agg(distinct x) into v_ids from unnest(coalesce(p_service_ids, '{}')) x;
-  if v_ids is null or cardinality(v_ids) = 0 or cardinality(v_ids) > 6 then
-    raise exception 'OGILTIGA_TJANSTER';
-  end if;
-  select count(*), sum(duration), sum(price), string_agg(name, ', ' order by name)
-    into v_count, v_duration, v_price, v_names
-    from public.services where id = any(v_ids);
-  if v_count <> cardinality(v_ids) then
-    raise exception 'OGILTIGA_TJANSTER';
-  end if;
+  -- Personer
+  if p_people is null or jsonb_typeof(p_people) <> 'array' then raise exception 'OGILTIGA_TJANSTER'; end if;
+  v_n := jsonb_array_length(p_people);
+  if v_n < 1 or v_n > 4 then raise exception 'OGILTIGT_ANTAL_PERSONER'; end if;
 
   -- Tid: framåt i tiden, inom 60 dagar, på kvarten
-  v_ends_at := p_starts_at + make_interval(mins => v_duration);
-  if p_starts_at < now() + interval '30 minutes' or p_starts_at > now() + interval '60 days' then
+  if p_starts_at is null or p_starts_at < now() + interval '30 minutes' or p_starts_at > now() + interval '60 days' then
     raise exception 'OGILTIG_TID';
   end if;
   if extract(second from p_starts_at) <> 0 or extract(minute from p_starts_at)::int % 15 <> 0 then
     raise exception 'OGILTIG_TID';
   end if;
 
-  -- Öppettider (svensk tid). Söndag stängt.
+  -- Första genomgången: kontrollera varje person och räkna ut kedjan
+  v_cursor := p_starts_at;
+  for v_person in select value from jsonb_array_elements(p_people) loop
+    v_cat   := v_person->>'category';
+    v_pname := btrim(coalesce(v_person->>'name', ''));
+    if v_cat not in ('Herr', 'Dam', 'Barn') or jsonb_typeof(v_person->'service_ids') <> 'array' then
+      raise exception 'OGILTIGA_TJANSTER';
+    end if;
+    select array_agg(distinct x) into v_ids from jsonb_array_elements_text(v_person->'service_ids') x;
+    if v_ids is null or cardinality(v_ids) = 0 or cardinality(v_ids) > 5 then raise exception 'OGILTIGA_TJANSTER'; end if;
+    select count(*), count(*) filter (where kind = 'klipp'), sum(duration), sum(price)
+      into v_count, v_cuts, v_dur, v_price
+      from public.services where id = any(v_ids) and category = v_cat;
+    if v_count <> cardinality(v_ids) then raise exception 'OGILTIGA_TJANSTER'; end if;
+    if v_cuts <> 1 then raise exception 'EN_KLIPPNING_PER_PERSON'; end if;
+    if v_n > 1 and (length(v_pname) < 2 or length(v_pname) > 50) then raise exception 'OGILTIGT_PERSONNAMN'; end if;
+    v_cursor := v_cursor + make_interval(mins => v_dur);
+  end loop;
+  v_end := v_cursor;
+
+  -- Öppettider (svensk tid) för hela kedjan. Söndag stängt.
   v_local     := p_starts_at at time zone 'Europe/Stockholm';
-  v_local_end := v_ends_at   at time zone 'Europe/Stockholm';
+  v_local_end := v_end       at time zone 'Europe/Stockholm';
   v_dow := extract(isodow from v_local);   -- 1 = måndag … 7 = söndag
   v_open  := case when v_dow = 6 then time '09:00' when v_dow = 7 then null else time '10:00' end;
   v_close := case when v_dow = 4 then time '20:00' when v_dow = 6 then time '15:00'
                   when v_dow = 7 then null else time '18:00' end;
-  if v_open is null
-     or v_local::time < v_open
-     or v_local_end::date <> v_local::date
-     or v_local_end::time > v_close then
+  if v_open is null or v_local::time < v_open or v_local_end::date <> v_local::date or v_local_end::time > v_close then
     raise exception 'UTANFOR_OPPETTID';
   end if;
 
-  -- Spara. Krockspärren i tabellen stoppar dubbelbokning.
-  begin
-    insert into public.bookings
-      (service_ids, service_names, price, starts_at, ends_at,
-       customer_name, customer_phone, customer_email)
-    values
-      (v_ids, v_names, v_price, p_starts_at, v_ends_at, p_name, p_phone, p_email)
-    returning id into v_id;
-  exception when exclusion_violation then
-    raise exception 'TIDEN_UPPTAGEN';
-  end;
+  -- Andra genomgången: spara en rad per person. Krockspärren stoppar dubbelbokning;
+  -- ett fel avbryter hela anropet, så inga halva grupper sparas.
+  v_cursor := p_starts_at;
+  for v_person in select value from jsonb_array_elements(p_people) loop
+    v_cat   := v_person->>'category';
+    v_pname := nullif(btrim(coalesce(v_person->>'name', '')), '');
+    if v_n = 1 then v_pname := null; end if;
+    select array_agg(distinct x) into v_ids from jsonb_array_elements_text(v_person->'service_ids') x;
+    select sum(duration), sum(price), string_agg(name, ', ' order by (kind <> 'klipp'), name)
+      into v_dur, v_price, v_names
+      from public.services where id = any(v_ids) and category = v_cat;
+    begin
+      insert into public.bookings
+        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id)
+      values
+        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group)
+      returning id into v_id;
+    exception when exclusion_violation then
+      raise exception 'TIDEN_UPPTAGEN';
+    end;
+    v_rows := v_rows || jsonb_build_object('id', v_id, 'person_name', v_pname, 'service_names', v_names, 'price', v_price,
+      'starts_at', v_cursor, 'ends_at', v_cursor + make_interval(mins => v_dur));
+    v_all_names := v_all_names || case when v_all_names = '' then '' else '; ' end || coalesce(v_pname || ': ', '') || v_names;
+    v_total := v_total + v_price;
+    v_total_dur := v_total_dur + v_dur;
+    v_cursor := v_cursor + make_interval(mins => v_dur);
+  end loop;
 
   return json_build_object(
-    'id', v_id, 'starts_at', p_starts_at, 'ends_at', v_ends_at,
-    'service_names', v_names, 'price', v_price, 'duration', v_duration);
+    'id', (v_rows->0->>'id')::uuid, 'group_id', v_group, 'starts_at', p_starts_at, 'ends_at', v_end,
+    'service_names', v_all_names, 'price', v_total, 'duration', v_total_dur, 'items', v_rows);
 end;
 $_$;
 
@@ -197,6 +225,8 @@ CREATE TABLE public.bookings (
     customer_phone text NOT NULL,
     customer_email text NOT NULL,
     status text DEFAULT 'bokad'::text NOT NULL,
+    person_name text,
+    group_id uuid,
     CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['bokad'::text, 'avbokad'::text]))),
     CONSTRAINT tid_i_ordning CHECK ((ends_at > starts_at))
 );
@@ -211,6 +241,8 @@ CREATE TABLE public.services (
     name text NOT NULL,
     duration integer NOT NULL,
     price integer NOT NULL,
+    category text,
+    kind text,
     CONSTRAINT services_duration_check CHECK ((duration > 0)),
     CONSTRAINT services_price_check CHECK ((price >= 0))
 );
@@ -334,12 +366,12 @@ GRANT ALL ON FUNCTION auth.uid() TO authenticated;
 
 
 --
--- Name: FUNCTION create_booking(p_service_ids text[], p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text); Type: ACL; Schema: public; Owner: -
+-- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text); Type: ACL; Schema: public; Owner: -
 --
 
-REVOKE ALL ON FUNCTION public.create_booking(p_service_ids text[], p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.create_booking(p_service_ids text[], p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO anon;
-GRANT ALL ON FUNCTION public.create_booking(p_service_ids text[], p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO authenticated;
+REVOKE ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO anon;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO authenticated;
 
 
 --
@@ -385,13 +417,13 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict h0jMh37u5QIYncARfWvpKHhb1hMOwgh1MzolsaZwPBoMUZOp5TJAGEWgeN92PTU
+\unrestrict TsgiNxX2mSxl4QKrEo8hoqozrpedG15ECoGDQw41eTN7qfv25ifitFZoYqqLNY7
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict t86riQQDE3fLfviUuljr9omcqAFLamKGUnPbTvOuhgiAIY2PbcITnbuE2vlRkOT
+\restrict MuF0v26SmGDMrduPV9aBZ11rMqyP3EVCCQfDk8ALC1aJpO6HRlgtiRVTBlFI1uT
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -411,21 +443,21 @@ SET row_security = off;
 -- Data for Name: services; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.services (id, name, duration, price) FROM stdin;
-h-kort	Herr kort hår	20	395
-h-medel	Herr medel hår	30	495
-h-långt	Herr långt hår	40	595
-h-färg	Färgning herr	45	349
-h-skägg	Skäggtrim	15	149
-h-style	Styling herr	10	99
-d-kort	Dam kort hår	30	495
-d-medel	Dam medel hår	45	595
-d-långt	Dam långt hår	60	695
-d-färg	Färgning dam	45	449
-d-slingor	Slingor/highlights	60	549
-d-style	Styling dam	20	149
-d-fön	Fön	15	99
-b-klipp	Barnklippning	25	295
+COPY public.services (id, name, duration, price, category, kind) FROM stdin;
+h-kort	Herr kort hår	20	395	Herr	klipp
+h-medel	Herr medel hår	30	495	Herr	klipp
+h-långt	Herr långt hår	40	595	Herr	klipp
+h-färg	Färgning herr	45	349	Herr	tillagg
+h-skägg	Skäggtrim	15	149	Herr	tillagg
+h-style	Styling herr	10	99	Herr	tillagg
+d-kort	Dam kort hår	30	495	Dam	klipp
+d-medel	Dam medel hår	45	595	Dam	klipp
+d-långt	Dam långt hår	60	695	Dam	klipp
+d-färg	Färgning dam	45	449	Dam	tillagg
+d-slingor	Slingor/highlights	60	549	Dam	tillagg
+d-style	Styling dam	20	149	Dam	tillagg
+d-fön	Fön	15	99	Dam	tillagg
+b-klipp	Barnklippning	25	295	Barn	klipp
 \.
 
 
@@ -433,5 +465,5 @@ b-klipp	Barnklippning	25	295
 -- PostgreSQL database dump complete
 --
 
-\unrestrict t86riQQDE3fLfviUuljr9omcqAFLamKGUnPbTvOuhgiAIY2PbcITnbuE2vlRkOT
+\unrestrict MuF0v26SmGDMrduPV9aBZ11rMqyP3EVCCQfDk8ALC1aJpO6HRlgtiRVTBlFI1uT
 

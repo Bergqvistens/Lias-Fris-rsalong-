@@ -289,6 +289,23 @@
     .lh-lightbox__top { position: sticky; top: 0; z-index: 2; gap: 8px; background: rgba(12,24,19,0.96); }
     .lh-lightbox__top .lh-dbar__back { color: #FFFFFF; }
     .lh-lightbox__top .lh-dbar__back:active { background: rgba(255,255,255,0.12); }
+    /* ===== Flera personer i en bokning ===== */
+    .lh-person { margin-bottom: 14px; }
+    .lh-person__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .lh-person__head h3 { margin: 0; font: 600 20px/1.2 var(--font-heading); color: var(--forest); }
+    .lh-person__q { margin: 14px 0 8px; font: 700 16px var(--font-body); color: var(--text); }
+    .lh-person__sub { font-weight: 400; color: var(--text-muted); }
+    .lh-person__hint { margin: 8px 0 0; font: 14px var(--font-body); color: var(--text-muted); }
+    .lh-person .lh-opt { background: #FFFFFF; }
+    .lh-person .lh-opt[aria-pressed="true"] { background: #ECF2EE; }
+    .lh-cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .lh-catbtn { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-height: 44px; padding: 6px; background: #FFFFFF; color: var(--text); border: 1.5px solid rgba(74,56,42,0.18); border-radius: 14px; cursor: pointer; font: inherit; }
+    .lh-catbtn[aria-pressed="true"] { border: 2.5px solid var(--forest); background: #ECF2EE; padding: 5px; }
+    .lh-catbtn__img { position: relative; display: block; }
+    .lh-catbtn__chk { position: absolute; top: 4px; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--forest); color: #FFFFFF; box-shadow: 0 0 0 2px #FFFFFF; }
+    .lh-catbtn__name { display: block; text-align: center; font: 600 16px var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
+    .lh-opt__check--box { border-radius: 7px; }
+    .lh-addperson { margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -510,32 +527,60 @@
     const fail = code => ({ data: null, error: { message: code } });
 
     // --- Frisörbokning: samma kontroller som create_booking i supabase-setup.sql ---
+    // p_people: 1–4 personer, var och en exakt en klippning + tillägg i samma kategori; efter varandra (en frisör).
     function demoCreateBooking(p) {
       const c = demoCheckContact(p); if (c.err) return fail(c.err);
-      const ids = [...new Set(p.p_service_ids || [])];
-      if (!ids.length || ids.length > 6) return fail('OGILTIGA_TJANSTER');
-      const svcs = SERVICES.filter(s => ids.includes(s.id));
-      if (svcs.length !== ids.length) return fail('OGILTIGA_TJANSTER');
-      const dur = svcs.reduce((a, s) => a + s.dur, 0), price = svcs.reduce((a, s) => a + s.price, 0);
-      const names = svcs.map(s => s.name).sort((a, b) => a.localeCompare(b, 'sv')).join(', ');
+      const people = p.p_people;
+      if (!Array.isArray(people)) return fail('OGILTIGA_TJANSTER');
+      if (people.length < 1 || people.length > 4) return fail('OGILTIGT_ANTAL_PERSONER');
       const start = new Date(p.p_starts_at).getTime();
       if (!isFinite(start)) return fail('OGILTIG_TID');
-      const end = start + dur * 60000;
       if (start < Date.now() + 30 * 60000 || start > Date.now() + 60 * 86400000) return fail('OGILTIG_TID');
       if (start % 60000 !== 0 || new Date(start).getUTCMinutes() % 15 !== 0) return fail('OGILTIG_TID');
+      const multi = people.length > 1;
+      const plan = [];
+      let cursor = start;
+      for (const person of people) {
+        const cat = person && person.category;
+        if (!['Herr', 'Dam', 'Barn'].includes(cat) || !Array.isArray(person.service_ids)) return fail('OGILTIGA_TJANSTER');
+        const ids = [...new Set(person.service_ids)];
+        if (!ids.length || ids.length > 5) return fail('OGILTIGA_TJANSTER');
+        const svcs = SERVICES.filter(s => ids.includes(s.id) && s.cat === cat);
+        if (svcs.length !== ids.length) return fail('OGILTIGA_TJANSTER');
+        if (svcs.filter(s => s.cut).length !== 1) return fail('EN_KLIPPNING_PER_PERSON');
+        const pname = String(person.name || '').trim();
+        if (multi && (pname.length < 2 || pname.length > 50)) return fail('OGILTIGT_PERSONNAMN');
+        const dur = svcs.reduce((a, s) => a + s.dur, 0), price = svcs.reduce((a, s) => a + s.price, 0);
+        const names = svcs.slice().sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0) || a.name.localeCompare(b.name, 'sv')).map(s => s.name).join(', ');
+        plan.push({ ids, names, dur, price, pname: multi ? pname : null, s: cursor, e: cursor + dur * 60000 });
+        cursor += dur * 60000;
+      }
+      const end = cursor;
       const a = tzParts(start), z = tzParts(end);
       const hours = OPENING[new Date(Date.UTC(a.year, a.month - 1, a.day)).getUTCDay()];
       if (!hours || a.hour * 60 + a.minute < hours[0] * 60 || z.day !== a.day || z.hour * 60 + z.minute > hours[1] * 60) return fail('UTANFOR_OPPETTID');
       const db = demoLoad();
       if (db.bookings.some(b => b.status === 'bokad' && start < new Date(b.ends_at).getTime() && end > new Date(b.starts_at).getTime())) return fail('TIDEN_UPPTAGEN');
-      const row = { id: demoId(), created_at: new Date().toISOString(), service_ids: ids, service_names: names, price,
-        starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(),
-        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad' };
-      db.bookings.push(row);
-      demoAddSms(db, c.phone, 'bekraftelse', row.id, `Hej ${c.name.split(' ')[0]}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${names}). Avboka/ändra: ring 070-XXX XX XX. Välkommen!`);
-      demoAddSms(db, 'Lias mobil', 'till-lia', row.id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${names}, ${price} kr. Tel ${c.phone}`);
-      demoSave(db); demoEmit('bookings', row);
-      return { data: { id: row.id, starts_at: row.starts_at, ends_at: row.ends_at, service_names: names, price, duration: dur }, error: null };
+      const group = demoId(), created = new Date().toISOString();
+      const rows = plan.map(x => ({ id: demoId(), created_at: created, service_ids: x.ids, service_names: x.names, price: x.price,
+        starts_at: new Date(x.s).toISOString(), ends_at: new Date(x.e).toISOString(),
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad', person_name: x.pname, group_id: group }));
+      rows.forEach(r => db.bookings.push(r));
+      const total = plan.reduce((a2, x) => a2 + x.price, 0);
+      const first = c.name.split(' ')[0];
+      if (!multi) {
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Avboka/ändra: ring 070-XXX XX XX. Välkommen!`);
+        demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, ${total} kr. Tel ${c.phone}`);
+      } else {
+        const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Avboka/ändra: ring 070-XXX XX XX. Välkomna!`);
+        demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning (${plan.length} personer): ${c.name}, ${demoWhen(start).replace(/ kl .*/, '')}: ${list}, totalt ${total} kr. Tel ${c.phone}`);
+      }
+      demoSave(db);
+      rows.forEach(r => demoEmit('bookings', r));
+      return { data: { id: rows[0].id, group_id: group, starts_at: rows[0].starts_at, ends_at: new Date(end).toISOString(),
+        service_names: plan.map(x => (x.pname ? x.pname + ': ' : '') + x.names).join('; '), price: total, duration: (end - start) / 60000,
+        items: rows.map(r => ({ id: r.id, person_name: r.person_name, service_names: r.service_names, price: r.price, starts_at: r.starts_at, ends_at: r.ends_at })) }, error: null };
     }
 
     // --- Kurser ---
@@ -611,7 +656,7 @@
       if (row.paid) return fail('REDAN_BETALD');
       db.receiptSeq = (db.receiptSeq || 1000) + 1;
       const pay = { id: demoId(), receipt: 'K-' + db.receiptSeq, at: new Date().toISOString(), amount, method: p.p_method,
-        kind: key === 'bookings' ? 'frisor' : 'kurs', text: key === 'bookings' ? row.service_names : row.course_name + ' (' + (row.seats === 1 ? '1 plats' : row.seats + ' platser') + ')',
+        kind: key === 'bookings' ? 'frisor' : 'kurs', text: key === 'bookings' ? (row.person_name ? row.person_name + ': ' : '') + row.service_names : row.course_name + ' (' + (row.seats === 1 ? '1 plats' : row.seats + ' platser') + ')',
         refId: row.id, customer_name: row.customer_name, customer_phone: row.customer_phone };
       row.paid = { receipt: pay.receipt, amount, method: p.p_method, at: pay.at };
       db.payments.push(pay);
@@ -791,20 +836,20 @@
       hair2: 'bilder/galleri-lia-2.jpg'
     };
     const SERVICES = [
-      { id: 'h-kort', cat: 'Herr', name: 'Herr kort hår', dur: 20, price: 395 },
-      { id: 'h-medel', cat: 'Herr', name: 'Herr medel hår', dur: 30, price: 495 },
-      { id: 'h-långt', cat: 'Herr', name: 'Herr långt hår', dur: 40, price: 595 },
+      { id: 'h-kort', cat: 'Herr', name: 'Herr kort hår', dur: 20, price: 395, cut: true },
+      { id: 'h-medel', cat: 'Herr', name: 'Herr medel hår', dur: 30, price: 495, cut: true },
+      { id: 'h-långt', cat: 'Herr', name: 'Herr långt hår', dur: 40, price: 595, cut: true },
       { id: 'h-färg', cat: 'Herr', name: 'Färgning herr', dur: 45, price: 349 },
       { id: 'h-skägg', cat: 'Herr', name: 'Skäggtrim', dur: 15, price: 149 },
       { id: 'h-style', cat: 'Herr', name: 'Styling herr', dur: 10, price: 99 },
-      { id: 'd-kort', cat: 'Dam', name: 'Dam kort hår', dur: 30, price: 495 },
-      { id: 'd-medel', cat: 'Dam', name: 'Dam medel hår', dur: 45, price: 595 },
-      { id: 'd-långt', cat: 'Dam', name: 'Dam långt hår', dur: 60, price: 695 },
+      { id: 'd-kort', cat: 'Dam', name: 'Dam kort hår', dur: 30, price: 495, cut: true },
+      { id: 'd-medel', cat: 'Dam', name: 'Dam medel hår', dur: 45, price: 595, cut: true },
+      { id: 'd-långt', cat: 'Dam', name: 'Dam långt hår', dur: 60, price: 695, cut: true },
       { id: 'd-färg', cat: 'Dam', name: 'Färgning dam', dur: 45, price: 449 },
       { id: 'd-slingor', cat: 'Dam', name: 'Slingor/highlights', dur: 60, price: 549 },
       { id: 'd-style', cat: 'Dam', name: 'Styling dam', dur: 20, price: 149 },
       { id: 'd-fön', cat: 'Dam', name: 'Fön', dur: 15, price: 99 },
-      { id: 'b-klipp', cat: 'Barn', name: 'Barnklippning', dur: 25, price: 295 },
+      { id: 'b-klipp', cat: 'Barn', name: 'Barnklippning', dur: 25, price: 295, cut: true },
     ];
 
     const COURSES_DATA = [
@@ -933,6 +978,9 @@
       SLUT_I_LAGER: 'En vara räcker inte i lager. Varukorgen har uppdaterats.',
       OGILTIG_VARUKORG: 'Varukorgen är tom eller ogiltig.',
       OGILTIG_BETALNING: 'Välj betalsätt.',
+      EN_KLIPPNING_PER_PERSON: 'Varje person ska ha exakt en klippning.',
+      OGILTIGT_PERSONNAMN: 'Skriv förnamn för varje person.',
+      OGILTIGT_ANTAL_PERSONER: 'Högst 4 personer per bokning.',
       OGILTIGT_BELOPP: 'Skriv ett belopp i hela kronor (1–100 000).',
       OGILTIGT_BETALSATT: 'Välj betalsätt.',
       OGILTIGT_BESOK: 'Besöket finns inte längre eller är avbokat.',
@@ -1090,10 +1138,17 @@
 
     // Inspirationsbilder per kategori (AI-genererade tills Lia lägger in egna)
     const CAT_IMG = { Herr: IMG.galleriHerrklipp, Dam: IMG.galleriStyling, Barn: IMG.galleriBarnklipp };
+    const MAX_PERSONS = 4;
+    const newPerson = () => ({ cat: null, cut: null, addons: [], name: '' });
+    const personServices = p => SERVICES.filter(s => s.id === p.cut || p.addons.includes(s.id));
+    const personDur = p => personServices(p).reduce((a, s) => a + s.dur, 0);
+    const personPrice = p => personServices(p).reduce((a, s) => a + s.price, 0);
+    const personNames = p => personServices(p).sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0)).map(s => s.name).join(', ');
 
     function Booking({ dispatch }) {
       const [step, setStep] = useState(1);
-      const [ids, setIds] = useState([]);
+      const [people, setPeople] = useState([newPerson()]);
+      const [pTried, setPTried] = useState(false);
       const [day, setDay] = useState(null);
       const [busy, setBusy] = useState([]);
       const [busyState, setBusyState] = useState('idle');
@@ -1107,11 +1162,26 @@
 
       useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
 
-      const chosen = SERVICES.filter(s => ids.includes(s.id));
-      const totalDur = chosen.reduce((a, s) => a + s.dur, 0);
-      const totalPrice = chosen.reduce((a, s) => a + s.price, 0);
+      const multi = people.length > 1;
+      const totalDur = people.reduce((a, p) => a + personDur(p), 0);
+      const totalPrice = people.reduce((a, p) => a + personPrice(p), 0);
+      const allCuts = people.every(p => p.cut);
+      const nameOk = p => !multi || p.name.trim().length >= 2;
+      const label = (p, i) => multi ? (p.name.trim() || 'Person ' + (i + 1)) : null;
 
-      const toggle = id => { setIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); setSlot(null); };
+      const update = (i, patch) => { setPeople(ps => ps.map((p, j) => j === i ? { ...p, ...patch } : p)); setSlot(null); };
+      const pickCat = (i, cat) => update(i, people[i].cat === cat ? {} : { cat, cut: null, addons: [] });
+      const toggleAddon = (i, id) => update(i, { addons: people[i].addons.includes(id) ? people[i].addons.filter(x => x !== id) : [...people[i].addons, id] });
+      const addPerson = () => { if (people.length < MAX_PERSONS) { setPeople(ps => [...ps, newPerson()]); setSlot(null); setTimeout(() => { const el = document.querySelector(`[data-person="${people.length}"]`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50); } };
+      const removePerson = i => { setPeople(ps => ps.filter((_, j) => j !== i)); setSlot(null); };
+      const goStep2 = () => {
+        setPTried(true);
+        if (!allCuts || !people.every(nameOk)) {
+          setTimeout(() => { const el = document.querySelector('[data-person] [data-err]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 30);
+          return;
+        }
+        setStep(2); setError(null);
+      };
 
       const loadBusy = async d => {
         setBusyState('loading'); setBusy([]);
@@ -1124,17 +1194,19 @@
         } catch (e) { console.error(e); setBusyState('error'); }
       };
       const pickDay = d => { setDay(d); setSlot(null); setError(null); loadBusy(d); };
+      // En frisör: hela kedjan (alla personer efter varandra) måste vara ledig
       const slots = day && busyState === 'ok' ? daySlots(day, totalDur, busy) : [];
+      const chain = start => { let t = start; return people.map((p, i) => { const s = t; t += personDur(p) * 60000; return { p, i, s, e: t }; }); };
 
       const v = contactCheck(form);
-
       const submit = async () => {
         setTried(true);
         if (!v.all || sending) return;
         setSending(true); setError(null);
         try {
           const { data, error: err } = await sb.rpc('create_booking', {
-            p_service_ids: ids, p_starts_at: new Date(slot).toISOString(),
+            p_people: people.map(p => ({ category: p.cat, service_ids: [p.cut, ...p.addons], name: multi ? p.name.trim() : '' })),
+            p_starts_at: new Date(slot).toISOString(),
             p_name: form.name.trim(), p_phone: v.phoneDigits, p_email: form.email.trim(),
           });
           if (err) throw err;
@@ -1143,6 +1215,7 @@
           const r = bookingErrorText(e);
           setError(r.text);
           if (['TIDEN_UPPTAGEN', 'OGILTIG_TID', 'UTANFOR_OPPETTID'].includes(r.code)) { setSlot(null); setStep(2); if (day) loadBusy(day); }
+          if (['EN_KLIPPNING_PER_PERSON', 'OGILTIGT_PERSONNAMN', 'OGILTIGT_ANTAL_PERSONER', 'OGILTIGA_TJANSTER'].includes(r.code)) setStep(1);
         }
         setSending(false);
       };
@@ -1160,12 +1233,13 @@
 
       if (done) {
         const s = new Date(done.starts_at).getTime(), e = new Date(done.ends_at).getTime();
+        const items = done.items || [{ person_name: null, service_names: done.service_names, starts_at: done.starts_at, ends_at: done.ends_at }];
         return (
           <div className="lh-flow">
-            <DoneCard title="Din tid är bokad!" sub={`Välkommen, ${form.name.trim().split(' ')[0]}!`} onDone={() => dispatch({ type: 'TAB', p: 'home' })} lines={[
+            <DoneCard title={items.length > 1 ? `${items.length} tider är bokade!` : 'Din tid är bokad!'} sub={`Välkommen, ${form.name.trim().split(' ')[0]}!`} onDone={() => dispatch({ type: 'TAB', p: 'home' })} lines={[
               <InfoRow icon="calendar"><strong>{fmtDayLong(s)}</strong></InfoRow>,
-              <InfoRow icon="clock"><strong>{fmtTime(s)}–{fmtTime(e)}</strong></InfoRow>,
-              <InfoRow icon="scissors">{done.service_names}</InfoRow>,
+              ...items.map(it => <InfoRow icon="scissors"><strong>{fmtTime(new Date(it.starts_at).getTime())}–{fmtTime(new Date(it.ends_at).getTime())}</strong> {it.person_name ? it.person_name + ': ' : ''}{it.service_names}</InfoRow>),
+              ...(items.length > 1 ? [<InfoRow icon="clock">Totalt {fmtTime(s)}–{fmtTime(e)}</InfoRow>] : []),
               <InfoRow icon="tag"><strong>{formatPrice(done.price)}</strong> (betalas på plats)</InfoRow>,
             ]}>
               {DEMO && (
@@ -1180,44 +1254,79 @@
         );
       }
 
-      // ---------- STEG 1: tjänst ----------
+      // ---------- STEG 1: vem och vad ----------
       if (step === 1) {
         return (
           <div className="lh-flow">
             <div data-banner="boka" style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.bannerBoka} alt="Boka tid – för en stund som är din. Klippning, färgning, styling för herr, dam och barn. Bild från en salong med spegel och frisörstol." ratio="3 / 2" eager /></div>
-            <StepTitle n={1} total={3} title="Välj tjänst" sub="Du kan välja flera tjänster." />
-            {['Herr', 'Dam', 'Barn'].map(cat => (
-              <section key={cat} className="lh-cat" data-cat={cat} aria-labelledby={'kat-' + cat}>
-                <div className="lh-cat__head">
-                  <div className="lh-cat__img"><ResponsiveImage src={CAT_IMG[cat]} alt="" ratio="1 / 1" radius={14} fallbackLabel="" /></div>
-                  <div><h3 id={'kat-' + cat}>{cat}</h3><span className="lh-cat__note">Inspirationsbild</span></div>
-                </div>
-                <div className="lh-opts">
-                  {SERVICES.filter(s => s.cat === cat).map(svc => {
-                    const on = ids.includes(svc.id);
-                    return (
-                      <button key={svc.id} type="button" className="lh-opt" data-service={svc.id} aria-pressed={on ? 'true' : 'false'} onClick={() => toggle(svc.id)}>
-                        <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
-                        <span className="lh-opt__main">
-                          <span className="lh-opt__name">{svc.name}</span>
-                          <span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span>{on && <span className="lh-opt__vald">Vald</span>}</span>
-                        </span>
-                        <span className="lh-opt__price">{formatPrice(svc.price)}</span>
+            <StepTitle n={1} total={3} title="Välj klippning" sub={multi ? 'Varje person får en klippning och valfria tillägg. Personerna klipps efter varandra.' : 'Välj en klippning och eventuella tillägg. Fler personer kan läggas till.'} />
+            {people.map((p, i) => {
+              const cuts = p.cat ? SERVICES.filter(s => s.cat === p.cat && s.cut) : [];
+              const addons = p.cat ? SERVICES.filter(s => s.cat === p.cat && !s.cut) : [];
+              return (
+                <section key={i} className="lh-card lh-person" data-person={i} aria-labelledby={'person-' + i}>
+                  <div className="lh-person__head">
+                    <h3 id={'person-' + i}>{multi ? 'Person ' + (i + 1) : 'Vem ska klippas?'}</h3>
+                    {multi && <Button variant="ghost" icon="x" data-remove={i} onClick={() => removePerson(i)} aria-label={'Ta bort person ' + (i + 1)}>Ta bort</Button>}
+                  </div>
+                  {multi && <FormField id={'boka-p' + i + '-namn'} label="Förnamn" required autoComplete="off" value={p.name} onChange={e => update(i, { name: e.target.value })} error={pTried && !nameOk(p) ? 'Skriv förnamnet, så att Lia vet vem hon ska klippa.' : null} />}
+                  {multi && <div className="lh-person__q">Vem ska klippas?</div>}
+                  <div className="lh-cats" role="group" aria-label={'Kategori för ' + (multi ? 'person ' + (i + 1) : 'klippningen')}>
+                    {['Herr', 'Dam', 'Barn'].map(cat => (
+                      <button key={cat} type="button" className="lh-catbtn" data-cat={cat} aria-pressed={p.cat === cat ? 'true' : 'false'} onClick={() => pickCat(i, cat)}>
+                        <span className="lh-catbtn__img"><ResponsiveImage src={CAT_IMG[cat]} alt="" ratio="1 / 1" radius={12} fallbackLabel="" />{p.cat === cat && <span className="lh-catbtn__chk" aria-hidden="true"><Icon name="check" size={16} strokeWidth={3} /></span>}</span>
+                        <span className="lh-catbtn__name">{cat}</span>
                       </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-            {chosen.length > 0 && (
+                    ))}
+                  </div>
+                  {!p.cat && <p className="lh-person__hint">Bilderna är inspirationsbilder.</p>}
+                  {p.cat && <>
+                    <div className="lh-person__q" id={'klipp-' + i}>Klippning <span className="lh-person__sub">(välj en)</span></div>
+                    <div className="lh-opts" role="radiogroup" aria-labelledby={'klipp-' + i}>
+                      {cuts.map(svc => {
+                        const on = p.cut === svc.id;
+                        return (
+                          <button key={svc.id} type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-service={svc.id} onClick={() => update(i, { cut: svc.id })}>
+                            <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
+                            <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
+                            <span className="lh-opt__price">{formatPrice(svc.price)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {pTried && !p.cut && <div className="lh-err-inline" role="alert" data-err="true" style={{ marginTop: '8px' }}><Icon name="alert" size={16} />Välj en klippning.</div>}
+                    {addons.length > 0 && <>
+                      <div className="lh-person__q" id={'till-' + i}>Tillägg <span className="lh-person__sub">(valfritt)</span></div>
+                      <div className="lh-opts" role="group" aria-labelledby={'till-' + i}>
+                        {addons.map(svc => {
+                          const on = p.addons.includes(svc.id);
+                          return (
+                            <button key={svc.id} type="button" className="lh-opt" data-service={svc.id} aria-pressed={on ? 'true' : 'false'} onClick={() => toggleAddon(i, svc.id)}>
+                              <span className="lh-opt__check lh-opt__check--box" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
+                              <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
+                              <span className="lh-opt__price">{formatPrice(svc.price)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>}
+                  </>}
+                </section>
+              );
+            })}
+            {pTried && !allCuts && people.length > 1 && <div className="lh-ferr-page" role="alert" style={{ marginBottom: '8px' }}><Icon name="alert" size={18} />Välj en klippning för varje person.</div>}
+            {people.length < MAX_PERSONS
+              ? <Button variant="secondary" block icon="plus" data-add-person="true" onClick={addPerson} className="lh-addperson">Lägg till person ({people.length} av {MAX_PERSONS})</Button>
+              : <p className="lh-steph__sub" style={{ margin: '0 0 12px' }}><Icon name="info" size={18} />Högst {MAX_PERSONS} personer per bokning.</p>}
+            {people.some(p => p.cut) && (
               <Card className="lh-sum" data-summary="tjanster" aria-live="polite">
                 <h3 className="lh-cardtitle" style={{ fontSize: '18px', margin: 0 }}>Din bokning</h3>
-                <InfoRow icon="scissors">{chosen.map(s => s.name).join(', ')}</InfoRow>
-                <InfoRow icon="clock">Sammanlagt {totalDur} min</InfoRow>
+                {people.map((p, i) => p.cut && <InfoRow key={i} icon="scissors">{multi ? <strong>{label(p, i)}: </strong> : null}{personNames(p)} · {personDur(p)} min</InfoRow>)}
+                <InfoRow icon="clock">Sammanlagt {totalDur} min{multi ? ', efter varandra' : ''}</InfoRow>
                 <InfoRow icon="tag"><strong>{formatPrice(totalPrice)}</strong></InfoRow>
               </Card>
             )}
-            <ActionBar label={ids.length ? `Fortsätt · ${totalDur} min · ${formatPrice(totalPrice)}` : 'Välj minst en tjänst'} enabled={ids.length > 0} onClick={() => { setStep(2); setError(null); }} />
+            <ActionBar label={allCuts ? `Fortsätt · ${totalDur} min · ${formatPrice(totalPrice)}` : (multi ? 'Välj klippning för alla' : 'Välj en klippning')} enabled={allCuts} onClick={goStep2} />
           </div>
         );
       }
@@ -1226,7 +1335,7 @@
       if (step === 2) {
         return (
           <div className="lh-flow">
-            <StepTitle n={2} total={3} title="Välj dag och tid" sub={`${chosen.map(s => s.name).join(', ')} · ${totalDur} min`} onBack={() => { setStep(1); setError(null); }} />
+            <StepTitle n={2} total={3} title="Välj dag och tid" sub={multi ? `${people.length} personer efter varandra · ${totalDur} min` : `${personNames(people[0])} · ${totalDur} min`} onBack={() => { setStep(1); setError(null); }} />
             <ErrorBox text={error} />
             <div className="lh-label" id="dag-rubrik">Dag</div>
             <div className="lh-days" role="group" aria-labelledby="dag-rubrik" style={{ overflowX: 'auto' }}>
@@ -1248,15 +1357,20 @@
             {day && busyState === 'error' && <Card><ErrorState text="Lediga tider kunde inte hämtas. Kontrollera internet." onRetry={() => loadBusy(day)} /></Card>}
             {day && busyState === 'ok' && (
               <div>
-                <div className="lh-label">{fmtDayLong(d2ms(day))}</div>
+                <div className="lh-label">{fmtDayLong(d2ms(day))}{multi ? ' · starttid för första personen' : ''}</div>
                 {slots.length === 0
-                  ? <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Inga lediga tider den här dagen. Välj en annan dag.</p></Card>
+                  ? <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Inga lediga tider {multi ? `för ${totalDur} min i följd ` : ''}den här dagen. Välj en annan dag.</p></Card>
                   : <div className="lh-times">
                       {slots.map(s => {
                         const on = slot === s;
                         return <button key={s} type="button" className="lh-time" aria-pressed={on ? 'true' : 'false'} onClick={() => { setSlot(s); setError(null); }}>{on && <Icon name="check" size={16} strokeWidth={3} />}{fmtTime(s)}</button>;
                       })}
                     </div>}
+                {multi && slot && (
+                  <Card className="lh-sum" style={{ marginTop: '14px' }} data-chain="true">
+                    {chain(slot).map(c => <InfoRow key={c.i} icon="scissors"><strong>{fmtTime(c.s)}–{fmtTime(c.e)}</strong> {label(c.p, c.i)}: {personNames(c.p)}</InfoRow>)}
+                  </Card>
+                )}
               </div>
             )}
             <ActionBar label={slot ? `Fortsätt · ${fmtTime(slot)}` : 'Välj en tid'} enabled={!!slot} onClick={() => { setStep(3); setError(null); }} />
@@ -1271,11 +1385,16 @@
           <ErrorBox text={error} />
           <Card className="lh-sum" data-summary="bokning">
             <InfoRow icon="calendar"><strong>{fmtDayLong(slot)}</strong></InfoRow>
-            <InfoRow icon="clock"><strong>{fmtTime(slot)}–{fmtTime(slot + totalDur * 60000)}</strong></InfoRow>
-            <InfoRow icon="scissors">{chosen.map(s => s.name).join(', ')}</InfoRow>
+            {multi
+              ? chain(slot).map(c => <InfoRow key={c.i} icon="scissors"><strong>{fmtTime(c.s)}–{fmtTime(c.e)}</strong> {label(c.p, c.i)}: {personNames(c.p)}</InfoRow>)
+              : <>
+                  <InfoRow icon="clock"><strong>{fmtTime(slot)}–{fmtTime(slot + totalDur * 60000)}</strong></InfoRow>
+                  <InfoRow icon="scissors">{personNames(people[0])}</InfoRow>
+                </>}
             <InfoRow icon="tag"><strong>{formatPrice(totalPrice)}</strong> (betalas på plats)</InfoRow>
           </Card>
           <ContactFields form={form} setForm={setForm} tried={tried} idp="boka" />
+          {multi && <p className="lh-steph__sub" style={{ marginTop: '10px' }}><Icon name="info" size={18} />Kontaktuppgifterna gäller hela bokningen.</p>}
           <ActionBar label={sending ? 'Bokar…' : `Boka · ${formatPrice(totalPrice)}`} enabled={!sending} onClick={submit} />
         </div>
       );
@@ -2039,7 +2158,7 @@
                 const f = forms[v.id] || {}, ms = new Date(v.starts_at).getTime();
                 return (
                   <div key={v.id} className="lh-visit" data-visit={v.id}>
-                    <div className="lh-visit__head"><strong>{v.customer_name}</strong><span>{dayKey(ms) === today ? 'Idag' : dayKeyLabel(dayKey(ms))} {fmtTime(ms)}</span></div>
+                    <div className="lh-visit__head"><strong>{v.person_name ? `${v.person_name} (${v.customer_name})` : v.customer_name}</strong><span>{dayKey(ms) === today ? 'Idag' : dayKeyLabel(dayKey(ms))} {fmtTime(ms)}</span></div>
                     <div className="lh-visit__what">{v._t === 'bookings' ? v.service_names : v.course_name} · bokat pris {kr(v.price)}</div>
                     <div className="lh-visit__form">
                       <FormField id={'belopp-' + v.id} label="Belopp (kr)" inputMode="numeric" value={f.amount === undefined ? String(v.price) : f.amount} onChange={e => setForm(v.id, { amount: e.target.value, err: null })} />
@@ -2265,7 +2384,7 @@
         if (table === 'orders') return { title: `Ny beställning ${r.number}: ${r.customer_name}`, body: r.items.map(i => i.qty + ' st ' + i.name).join(', ') + ' · ' + r.total + ' kr' };
         const s = new Date(r.starts_at).getTime();
         if (table === 'course_bookings') return { title: 'Ny kursbokning: ' + r.customer_name, body: `${r.course_name}\n${fmtDayLong(s)} kl ${fmtTime(s)} · ${plats(r.seats)}` };
-        return { title: 'Ny bokning: ' + r.customer_name, body: fmtDayLong(s) + ' kl ' + fmtTime(s) + '\n' + r.service_names };
+        return { title: 'Ny bokning: ' + r.customer_name + (r.person_name ? ' (' + r.person_name + ')' : ''), body: fmtDayLong(s) + ' kl ' + fmtTime(s) + '\n' + (r.person_name ? r.person_name + ': ' : '') + r.service_names };
       };
       const alarm = (table, r) => {
         setNewIds(prev => [...prev, r.id]);
@@ -2422,6 +2541,7 @@
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
                           <strong style={{ fontSize: '18px', color: COLORS.earthBrown }}>{fmtTime(s)}–{fmtTime(e)}</strong>{nyBadge(b.id)}
                         </div>
+                        {b.person_name && <div data-person-name style={{ fontSize: '15px', color: COLORS.dark, marginTop: '4px' }}>Klipps: <strong>{b.person_name}</strong></div>}
                         <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>{b.service_names} · {formatPrice(b.price)}</div>
                         {contact(b)}
                         <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>

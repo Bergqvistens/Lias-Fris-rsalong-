@@ -17,8 +17,9 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 ## Testsviter (resultat 26 okt 2026, alla gröna)
 | Fil | Vad | Resultat |
 |---|---|---|
-| `sqltest.sh` | Databasregler: bokningsregler, dubbelbokning, behörigheter | 27/27 |
+| `sqltest.sh` | Databasregler: bokningsregler, dubbelbokning, behörigheter, flera personer (en klippning per person, förnamn, max 4, efter varandra, allt-eller-inget) | 41/41 |
 | `scenario.js` (+ `e2e.js`, `mock-supabase.js`) | Supabase-läge mot riktig PostgreSQL: kund bokar, Lia får larm, krock, avbokning | 31/31 |
+| `grupp-test.js` | Flerpersonsbokning i demo och mot riktig PostgreSQL: en klippning + tillägg, kategoribyte, förnamn, max 4, kedjan måste vara ledig, tider i följd, bekräftelse/sms, admin per person | 34/34 |
 | `demo-scenario.js` | Demoläge: frisörbokning, sms-logg, krock, avbokning, nollställ | 20/20 |
 | `kurs-shop.js` | Demoläge: kursbokning, platser, köp, lager, kvitto, Lias admin | 44/44 |
 | `s1check.js` | Steg 1: tokens, komponenter, header, meny, 320–430 px, 130 % text | 51/51 |
@@ -33,5 +34,5 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `start-topp.js` | Appen startar på startsidan, varje flik börjar längst upp | 16/16 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 556 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 604 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).

@@ -35,6 +35,8 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   };
   const book = async (p, svc, pickTime, name) => {
     await p.click('nav >> text=Boka'); await p.waitForTimeout(200);
+    const cat = svc[0].startsWith("Dam") ? "Dam" : svc[0].startsWith("Barn") ? "Barn" : "Herr";
+    await p.click(`[data-person="0"] [data-cat="${cat}"]`);
     for (const s of svc) await p.click(`text=${s}`);
     await p.click('text=Fortsätt'); await (await p.$$('main div[style*="overflow-x"] button'))[1].click(); await p.waitForTimeout(500);
     const t = await times(p); const chosen = pickTime(t);
@@ -89,7 +91,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok((await mainText(k2)).includes('Din tid är bokad!'), 'Första kunden får ' + tFree);
   ok((await mainText(k3)).includes('Någon hann boka den tiden') && (await mainText(k3)).includes('STEG 2 AV 3'), 'Andra kunden får besked och skickas till tidsvalet');
   const k4 = await open();
-  await book(k4, ['Fön'], t => t[0], 'D');
+  await book(k4, ['Dam kort hår'], t => t[0], 'D');
   await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(400);
   ok((await mainText(k4)).includes('Skriv ditt namn'), 'För kort namn stoppas');
 
@@ -100,7 +102,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok(!lt3.includes('👤 Anna Andersson') && lt3.includes('Bo Berg'), 'Avbokad bokning försvann, övriga kvar');
   ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'avbokning', 'Avboknings-sms till kunden syns i loggen');
   const k5 = await open();
-  await k5.click('nav >> text=Boka'); await k5.click('text=Herr kort hår'); await k5.click('text=Fortsätt');
+  await k5.click('nav >> text=Boka'); await k5.click('[data-cat="Herr"]'); await k5.click('text=Herr kort hår'); await k5.click('text=Fortsätt');
   await (await k5.$$('main div[style*="overflow-x"] button'))[1].click(); await k5.waitForTimeout(500);
   ok((await times(k5)).includes(t1), 'Den avbokade tiden ' + t1 + ' är ledig igen');
 

@@ -42,14 +42,18 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await go(b, 'Boka');
   ok(await pageBg(b) === 'rgb(95, 168, 168)', 'Bokningen har turkos bakgrund');
   const t1 = await mainText(b);
-  ok(t1.includes('STEG 1 AV 3') && t1.includes('Välj tjänst'), 'Stegräknare "Steg 1 av 3" och rubrik "Välj tjänst"');
+  ok(t1.includes('STEG 1 AV 3') && t1.includes('Välj klippning'), 'Stegräknare "Steg 1 av 3" och rubrik "Välj klippning"');
   ok(await b.$$eval('.lh-steph__bar span', s => s.map(x => x.getAttribute('data-on')).join(',')) === 'true,false,false', 'Stegstapel visar steg 1 av 3');
-  const cats = await b.$$eval('section[data-cat]', ss => ss.map(s => ({ c: s.getAttribute('data-cat'), h: s.querySelector('h3').innerText, img: !!s.querySelector('.lh-cat__img img'), note: s.querySelector('.lh-cat__note').innerText, n: s.querySelectorAll('[data-service]').length })));
-  ok(cats.map(c => c.h).join(',') === 'Herr,Dam,Barn' && cats.every(c => c.img && c.note === 'Inspirationsbild'), 'Kategorierna Herr, Dam, Barn har rubrik i text, bild och märkningen "Inspirationsbild"', cats.map(c => c.h + ':' + c.n).join(' '));
-  ok(cats.reduce((a, c) => a + c.n, 0) === 14, 'Alla 14 tjänster finns kvar');
+  const cats = await b.$$eval('[data-person="0"] .lh-catbtn', bs => bs.map(x => ({ c: x.getAttribute('data-cat'), t: x.innerText.trim(), img: !!x.querySelector('img') })));
+  ok(cats.map(c => c.t).join(',') === 'Herr,Dam,Barn' && cats.every(c => c.img) && t1.includes('Bilderna är inspirationsbilder.'), 'Kategorierna Herr, Dam, Barn med text, bild och märkningen inspirationsbilder', cats.map(c => c.t).join(' '));
   ok(!EMOJI.test(t1), 'Inga emojis i steg 1');
-  const prices = await b.$$eval('[data-service]', bs => bs.map(x => x.getAttribute('data-service') + '=' + x.querySelector('.lh-opt__price').innerText.replace(/\s/g, '')));
-  ok(prices.includes('d-färg=449,00kr') && prices.includes('h-kort=395,00kr') && prices.includes('b-klipp=295,00kr'), 'Priserna är oförändrade (bl.a. Färgning dam 449 kr)');
+  const all = [];
+  for (const cat of ['Dam', 'Barn', 'Herr']) {
+    await b.click(`[data-person="0"] [data-cat="${cat}"]`); await b.waitForTimeout(100);
+    all.push(...await b.$$eval('[data-service]', bs => bs.map(x => x.getAttribute('data-service') + '=' + x.querySelector('.lh-opt__price').innerText.replace(/\s/g, ''))));
+  }
+  ok(all.length === 14, 'Alla 14 tjänster finns kvar (fördelade på kategorierna)', all.length);
+  ok(all.includes('d-färg=449,00kr') && all.includes('h-kort=395,00kr') && all.includes('b-klipp=295,00kr'), 'Priserna är oförändrade (bl.a. Färgning dam 449 kr)');
   const svc = b.locator('[data-service="h-kort"]');
   const before = await svc.evaluate(x => ({ p: x.getAttribute('aria-pressed'), bw: getComputedStyle(x).borderTopWidth, t: x.innerText }));
   await svc.click(); await b.click('[data-service="h-skägg"]');
