@@ -31,10 +31,11 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `s5check.js` | Steg 5: felstatus, laddning, rubriker, alt-texter, tangentbord, tryckytor, prestanda, Supabase-läge | 45/45 |
 | `s6check.js` | Steg 6: admin – ekonomi (betalning på plats, kvittosök, CSV-export), bilder (förminskning, godkännande, galleri), larm på ekonomifliken, Supabase-läge | 52/52 |
 | `tillbaka.js` | Tillbaka överst och längst ner syns efter scroll i produktruta, bildvisning och kvitto; telefonens bakåtknapp stänger rutan (320×568, 390, 430, 130 % text) | 40/40 |
+| `fade-test.js` | Sidfoten: mjuk övergång från sidans turkos till brunt utan glapp, text bara på brun yta, kontrast ≥ 4,5 (alla sidor, 320/390/430, 130 % text) | 29/29 |
 | `nav-alla.js` | Menyetiketter klipps inte, med varje flik aktiv | 24/24 |
 | `b4check.js` | Bannerbilder och galleribilder laddas och visas hela | 21/21 |
 | `start-topp.js` | Appen startar på startsidan, varje flik börjar längst upp | 16/16 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 635 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 664 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).
