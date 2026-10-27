@@ -823,8 +823,8 @@
     function DemoSmsBubble({ sms }) {
       const label = /till-lia$/.test(sms.kind) ? 'Till Lia' : (SMS_LABELS[sms.kind] || 'Sms') + ' till ' + sms.to;
       return (
-        <div data-sms={sms.kind} style={{ backgroundColor: '#FFFFFF', border: `1px solid ${COLORS.sand2}`, borderRadius: '14px 14px 14px 4px', padding: '10px 12px', fontSize: '13px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
-          <div style={{ fontSize: '11px', fontWeight: '700', color: COLORS.sandBrown, marginBottom: '4px' }}>Från {sms.from} · {label}</div>
+        <div data-sms={sms.kind} style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderRadius: '14px 14px 14px 4px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
+          <div data-sms-head style={{ fontSize: '13px', fontWeight: '700', color: T.color.textMuted, marginBottom: '4px' }}>Från {sms.from} · {label}</div>
           {sms.text}
         </div>
       );
@@ -835,7 +835,7 @@
       return (
         <div style={{ marginTop: '16px', textAlign: 'left' }}>
           <div style={{ fontSize: '12px', fontWeight: '700', color: COLORS.earthBrown, marginBottom: '6px' }}>🧪 Sms som skulle ha skickats till dig:</div>
-          {list.map(m => <DemoSmsBubble key={m.id} sms={m} />)}
+          <div style={{ display: 'grid', gap: '12px' }}>{list.map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>
         </div>
       );
     }
@@ -847,7 +847,7 @@
           <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats.</p>
           {sms.length === 0
             ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
-            : <div style={{ display: 'grid', gap: '8px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}
+            : <div style={{ display: 'grid', gap: '12px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}
         </section>
       );
     }

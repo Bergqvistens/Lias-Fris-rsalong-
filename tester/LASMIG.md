@@ -37,7 +37,8 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `nav-alla.js` | Menyetiketter klipps inte, med varje flik aktiv | 24/24 |
 | `b4check.js` | Bannerbilder och galleribilder laddas och visas hela | 21/21 |
 | `start-topp.js` | Appen startar på startsidan, varje flik börjar längst upp | 16/16 |
+| `sms-ruta.js` | Sms-rutorna i admin: tonad sandbakgrund i stället för vitt, brun ram 2 px, rubrikrad och text kontrast ≥ 4,5, text 15/13 px, 12 px luft (390, 320, 130 % text) | 33/33 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 680 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 713 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).

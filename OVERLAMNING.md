@@ -62,3 +62,11 @@
 - **Bilder ligger som filer i `bilder/` sedan 26 okt** (tidigare inbäddade; vid 2 000 004 byte visade Claude-appens förhandsvisning bara turkos skärm). Förhandsvisningen i chatten visar därför "Bild kommer" i stället för bilder; på GitHub Pages syns de. Bannrar och galleribilder är WebP kvalitet 80.
 - Larmet hos Lia hörs bara när admin-sidan är öppen; "Slå på larm" måste tryckas varje gång (webbläsarregel). Lös med sms/Pushover enligt steg 3.
 - Ändras pris/längd/öppettider måste det ändras både i `index.html` (`SERVICES` med cat/cut, `OPENING`) och i Supabase (`services`-tabellen med category/kind, `create_booking`).
+
+
+## 27 okt: Sms-rutorna i admin lättare att läsa
+- DemoSmsBubble: bakgrund COLORS.sand1 (#F4EDE0) i stället för vitt, ram 2 px COLORS.sandBrown (#91744A), padding 12/14 px, text 15 px.
+- Rubrikraden ("Från … · …") 13 px i T.color.textMuted (#6E5B4A). Förut #91744A på vitt = kontrast ca 4,4 (under 4,5), nu 5,54.
+- 12 px mellan rutorna (sms-loggen och kundens sms-lista).
+- Samma ruta visas också i kundens bekräftelse efter bokning.
+- Test: tester/sms-ruta.js 33/33. Alla övriga sviter gröna, totalt 713.
