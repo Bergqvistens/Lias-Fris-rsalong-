@@ -445,7 +445,7 @@
       return (
         <div className="lh-img" style={{ aspectRatio: ratio, borderRadius: radius, ...style }}>
           {show
-            ? <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} style={position ? { objectPosition: position } : undefined} />
+            ? <img src={src} alt={alt} loading="eager" decoding="async" onError={() => setFailed(true)} style={position ? { objectPosition: position } : undefined} />
             : <div className="lh-img__fallback" {...(alt === '' ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': alt || fallbackLabel })}><Icon name="image" size={28} />{fallbackLabel && <span>{fallbackLabel}</span>}</div>}
         </div>
       );
@@ -2667,6 +2667,17 @@
       // Varje flik börjar längst upp (även efter omladdning)
       useEffect(() => { try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} }, []);
       useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
+
+      // Alla appens bilder hämtas i bakgrunden när startsidan har visats, så att varje flik visar sina bilder direkt
+      useEffect(() => {
+        const t = setTimeout(() => {
+          try {
+            const urls = [...new Set([...Object.values(window.LH_IMG || {}), ...Object.values(IMAGES)])];
+            window.__lhPreload = urls.map(u => { const im = new Image(); im.decoding = 'async'; im.src = u; return im; });
+          } catch (e) {}
+        }, 400);
+        return () => clearTimeout(t);
+      }, []);
 
       if (!state.gdprOk) return <GDPRModal onOk={() => dispatch({ type: 'GDPR' })} />;
       const REBUILT = ['home', 'booking', 'courses', 'shop', 'contact', 'gallery', 'admin'];   // sidor med ny design (övriga byggs om i kommande steg)

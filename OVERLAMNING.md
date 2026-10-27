@@ -76,3 +76,10 @@
 - Rättat: useReducer(reducer, null, init) läser localStorage innan första ritningen, med try/catch. LOAD-effekten borttagen.
 - Bieffekt rättad: om telefonen blockerade lagring kraschade appen förut; nu visas cookie-rutan.
 - Test: tester/cookie-glimt.js 20/20 (gamla versionen 12 OK / 8 FEL). Alla sviter gröna, totalt 733.
+
+## 27 okt: Bilderna visas direkt vid flikbyte
+- Förut: loading=lazy, så varje flik hämtade sina bilder först när den öppnades och de kom en och en.
+- Nu: App hämtar alla bilder (LH_IMG + IMAGES, 18 st, ca 1,5 MB) i bakgrunden 400 ms efter start; ResponsiveImage har loading=eager.
+- Två kontroller i s5check som krävde lazy-laddning är omskrivna till det nya kravet (startsidans bilder först, övriga i bakgrunden, var och en en gång).
+- Test: tester/bild-direkt.js 11/11 (gamla versionen 3 OK / 8 FEL). Totalt 744.
+- Nästa steg (väntar på kör): startbild i HTML (2b), sedan förhandsöversättning utan Babel (2a).

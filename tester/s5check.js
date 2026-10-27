@@ -109,12 +109,14 @@ const TABS = ['Start', 'Boka', 'Kurser', 'Shop', 'Kontakt', 'Galleri'];
   ok(html < 250000, 'index.html är liten', Math.round(html / 1024) + ' KB');
   const pp = await open(390);
   const loaded = [];
-  pp.on('requestfinished', r => { if (r.url().includes('/bilder/')) loaded.push(r.url().split('/bilder/')[1]); });
-  await pp.reload(); await pp.waitForTimeout(1200);
-  const bytes = loaded.reduce((s, n) => s + fs.statSync('/mnt/user-data/outputs/github/bilder/' + decodeURIComponent(n)).size, 0);
-  ok(loaded.length <= 5, 'Startsidan hämtar bara sina egna bilder', loaded.length + ' bilder, ' + Math.round(bytes / 1024) + ' KB: ' + loaded.join(', '));
-  const lazy = await pp.$$eval('main img', is => is.map(i => i.getAttribute('loading')));   // loggan i headern räknas inte
-  ok(lazy[0] === 'eager' && lazy.slice(1).every(l => l === 'lazy'), 'Hero laddas direkt, övriga bilder lazy', lazy.join(','));
+  pp.on('request', r => { if (r.url().includes('/bilder/')) loaded.push(decodeURIComponent(r.url().split('/bilder/')[1])); });
+  await pp.reload(); await pp.waitForTimeout(1500);
+  // Ändrat 27 okt på Tommys begäran: alla bilder hämtas i bakgrunden efter startsidan, så att flikarna visar bilderna direkt
+  const own = [...new Set(await pp.$$eval('main img', is => is.map(i => decodeURIComponent(i.getAttribute('src').split('bilder/')[1]))))];
+  const firstOwn = own.map(n => loaded.indexOf(n));
+  ok(own.length > 0 && firstOwn.every(i => i >= 0 && i < own.length), 'Startsidans egna bilder hämtas först, före bakgrundshämtningen', 'startsidan: ' + own.join(', ') + ' | ordning: ' + loaded.slice(0, own.length).join(', '));
+  const allImgs = fs.readdirSync('/mnt/user-data/outputs/github/bilder').filter(f => f !== 'ikon-192.png');
+  ok(allImgs.every(f => loaded.includes(f)) && loaded.filter(f => f !== 'ikon-192.png').length === new Set(loaded.filter(f => f !== 'ikon-192.png')).size, 'Alla övriga bilder hämtas i bakgrunden, var och en bara en gång', loaded.length + ' hämtningar av ' + allImgs.length + ' bilder');
   const shift = await pp.$$eval('.lh-img', es => es.every(e => getComputedStyle(e).aspectRatio !== 'auto'));
   ok(shift, 'Alla bildytor har bestämd aspect-ratio (ingen layoutförskjutning)');
   const allImg = fs.readdirSync('/mnt/user-data/outputs/github/bilder').map(n => fs.statSync('/mnt/user-data/outputs/github/bilder/' + n).size);
