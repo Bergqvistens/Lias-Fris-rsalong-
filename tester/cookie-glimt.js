@@ -36,7 +36,7 @@ const watch = () => { window.__gdprSeen = 0; window.__firstText = null; new Muta
 
   console.log('--- Omstart efter godkännande (3 gånger) ---');
   for (let i = 1; i <= 3; i++) {
-    await p.reload(); await p.waitForTimeout(3300);
+    await p.reload(); await p.waitForTimeout(4300);
     const seen = await p.evaluate(() => window.__gdprSeen), first = await p.evaluate(() => window.__firstText);
     ok(seen === 0, `Omstart ${i}: cookie-rutan syntes inte ens ett ögonblick`, 'antal gånger i sidan: ' + seen);
     ok(!GDPR.test(first || '') && /Skapa · Vårda · Inspireras/.test(first || ''), `Omstart ${i}: första som appen ritar (bakom startbilden) är sidhuvudet, inte cookie-rutan`, (first || '').replace(/\s+/g, ' ').slice(0, 60));

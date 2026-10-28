@@ -30,8 +30,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const notWhite = c => !(c[0] > 240 && c[1] > 240 && c[2] > 240);
 
   for (const [w, h] of [[390, 844], [320, 568], [844, 390]]) {
-    console.log(`--- ${w}×${h}: typsnitt tar 4 s, appen tar 3 s ---`);
-    const { ctx, p, errs } = await mk({ w, h, appDelay: 3000 });
+    console.log(`--- ${w}×${h}: typsnitt tar 4 s, appen tar 4,5 s ---`);
+    const { ctx, p, errs } = await mk({ w, h, appDelay: 4500 });
     p.goto('https://lias.test/').catch(() => {});
     await sleep(700);
     await shot(p, `/tmp/t/startbild-${w}x${h}.png`);
@@ -48,20 +48,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(s && s.slow === 'hidden', '"Det tar längre tid än vanligt" visas inte i onödan');
     await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 15000 }).catch(() => {});
     const tGone = await p.evaluate(() => performance.now()), tApp = await p.evaluate(() => window.__appReady || null);
-    ok(!(await p.$('.lh-splash')) && !!(await p.$('text=Jag förstår och accepterar')), 'Appen långsam (3 s): startbilden försvinner när appen är klar, ingen extra väntan', 'borta efter ' + (tGone / 1000).toFixed(2) + ' s');
-    ok(tGone < 4300, 'Ingen onödig extra väntan när laddningen tar längre än 2,5 s', (tGone / 1000).toFixed(2) + ' s');
+    ok(!(await p.$('.lh-splash')) && !!(await p.$('text=Jag förstår och accepterar')), 'Appen långsam (4,5 s): startbilden försvinner när appen är klar, ingen extra väntan', 'borta efter ' + (tGone / 1000).toFixed(2) + ' s');
+    ok(tGone < 5800, 'Ingen onödig extra väntan när laddningen tar längre än 3,5 s', (tGone / 1000).toFixed(2) + ' s');
     ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | '));
     await ctx.close();
   }
 
   for (const motion of ['no-preference', 'reduce']) {
-    console.log('--- Snabb app: startbilden ska synas minst 2,5 s' + (motion === 'reduce' ? ' (minskad rörelse)' : '') + ' ---');
+    console.log('--- Snabb app: startbilden ska synas minst 3,5 s' + (motion === 'reduce' ? ' (minskad rörelse)' : '') + ' ---');
     const { ctx, p, errs } = await mk({ fontDelay: 0, motion });
-    await p.addInitScript(() => { window.__log = []; const tick = () => { const e = document.querySelector('.lh-splash'); const r = document.getElementById('root'); window.__log.push([performance.now(), e ? (e.classList.contains('lh-splash--out') ? 'tonar' : 'syns') : 'borta', !!(r && r.children.length), e ? +getComputedStyle(e).opacity : 0]); if (performance.now() < 5000) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
-    await p.goto('https://lias.test/'); await sleep(5200);
+    await p.addInitScript(() => { window.__log = []; const tick = () => { const e = document.querySelector('.lh-splash'); const r = document.getElementById('root'); window.__log.push([performance.now(), e ? (e.classList.contains('lh-splash--out') ? 'tonar' : 'syns') : 'borta', !!(r && r.children.length), e ? +getComputedStyle(e).opacity : 0]); if (performance.now() < 6000) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+    await p.goto('https://lias.test/'); await sleep(6200);
     const log = await p.evaluate(() => window.__log);
     const appAt = (log.find(x => x[2]) || [])[0], fadeAt = (log.find(x => x[1] !== 'syns') || [])[0], goneAt = (log.find(x => x[1] === 'borta') || [])[0], invisAt = (log.find(x => x[0] >= fadeAt && x[3] < 0.02) || [])[0];
-    ok(fadeAt >= 2490 && fadeAt <= 2700, 'Startbilden börjar försvinna efter 2,5 s (inte före)', (fadeAt / 1000).toFixed(2) + ' s');
+    ok(fadeAt >= 3490 && fadeAt <= 3700, 'Startbilden börjar försvinna efter 3,5 s (inte före)', (fadeAt / 1000).toFixed(2) + ' s');
     if (motion === 'reduce') ok(invisAt - fadeAt <= 50, 'Minskad rörelse: osynlig direkt, ingen toning', ((invisAt - fadeAt) / 1000).toFixed(2) + ' s');
     else ok(invisAt - fadeAt >= 300 && invisAt - fadeAt <= 550 && goneAt - fadeAt <= 600, 'Tonas mjukt bort på cirka 0,4 s', ((invisAt - fadeAt) / 1000).toFixed(2) + ' s toning');
     ok(appAt > 0 && appAt < fadeAt, 'Appen ritas bakom startbilden innan den försvinner', 'appen klar ' + (appAt / 1000).toFixed(2) + ' s');

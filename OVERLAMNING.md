@@ -119,3 +119,6 @@
 
 ## 28 okt: Startlista inför officiell start
 - Delbar checklista (artefakt på claude.ai): https://claude.ai/artifact/SBouZFbtgHmCLVuaKkEV7E – avsnitt Redan klart, Uppgifter, Avtal och regler, Tekniskt, Provperiod och start. Bockarna sparas i sidan själv (artifact-kapaciteten).
+
+## 28 okt: Startbilden visas minst 3,5 s (förut 2,5 s)
+- Math.max(0, 3500 - performance.now()) i det vanliga skriptet efter .lh-splash. startbild.js: appen 4,5 s i långsam-testet, toning vid 3,50 s. cookie-glimt.js väntar 4,3 s efter omstart. Alla 785 kontroller gröna.

@@ -375,14 +375,14 @@
     <p class="lh-splash__slow">Det tar längre tid än vanligt. Kontrollera att du har internet och ladda om sidan.</p>
   </div>
   <script>
-  // Startbilden visas minst 2,5 s från att sidan öppnades och tonas sedan bort (appen anropar när den är klar)
+  // Startbilden visas minst 3,5 s från att sidan öppnades och tonas sedan bort (appen anropar när den är klar)
   window.__lhHideSplash = function () {
     var el = document.querySelector('.lh-splash');
     if (!el || el.__hiding) return; el.__hiding = true;
     setTimeout(function () {
       el.classList.add('lh-splash--out');
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
-    }, Math.max(0, 2500 - performance.now()));
+    }, Math.max(0, 3500 - performance.now()));
   };
   </script>
 

@@ -375,14 +375,14 @@
     <p class="lh-splash__slow">Det tar längre tid än vanligt. Kontrollera att du har internet och ladda om sidan.</p>
   </div>
   <script>
-  // Startbilden visas minst 2,5 s från att sidan öppnades och tonas sedan bort (appen anropar när den är klar)
+  // Startbilden visas minst 3,5 s från att sidan öppnades och tonas sedan bort (appen anropar när den är klar)
   window.__lhHideSplash = function () {
     var el = document.querySelector('.lh-splash');
     if (!el || el.__hiding) return; el.__hiding = true;
     setTimeout(function () {
       el.classList.add('lh-splash--out');
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
-    }, Math.max(0, 2500 - performance.now()));
+    }, Math.max(0, 3500 - performance.now()));
   };
   </script>
 
@@ -2706,7 +2706,7 @@
       useEffect(() => { try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} }, []);
       useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
 
-      // Appen är ritad: startbilden får försvinna (tidigast 2,5 s efter start)
+      // Appen är ritad: startbilden får försvinna (tidigast 3,5 s efter start)
       useEffect(() => { try { window.__lhHideSplash && window.__lhHideSplash(); } catch (e) {} }, []);
 
       // Alla appens bilder hämtas i bakgrunden när startsidan har visats, så att varje flik visar sina bilder direkt
