@@ -116,3 +116,6 @@
 - Starttid (starttid.js, CPU 4× långsammare, ingen nätfördröjning): appen ritad efter median 0,42 s. Före/efter-mätning med riktiga Babel/React gick INTE: cdnjs och npm blockeras i Claudes miljö.
 - Kvar som tidigare: testerna kör React 19 (react-shim.js), sidan använder React 18.2 från cdnjs – samma begränsning som innan.
 - Alla 785 kontroller gröna mot den byggda filen.
+
+## 28 okt: Startlista inför officiell start
+- Delbar checklista (artefakt på claude.ai): https://claude.ai/artifact/SBouZFbtgHmCLVuaKkEV7E – avsnitt Redan klart, Uppgifter, Avtal och regler, Tekniskt, Provperiod och start. Bockarna sparas i sidan själv (artifact-kapaciteten).
