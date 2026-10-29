@@ -14,5 +14,6 @@ Aktiv arbetstid räknas från tidsstämplarna i Claudes arbetslogg: tiden mellan
 | 2026-10-28 | 17:08 | under 1 min | Genomgång av Lias uppgifter från bilder |
 | 2026-10-29 | 10:53–11:42 | 49 min | Lias kontaktuppgifter och öppettider, tjänstelistan, brun ram runt rutorna |
 | 2026-10-29 | 12:16–13:26 | 70 min | Instagram, instruktion i bokningen (ljus ruta), knappen visas först efter vald dag |
+| 2026-10-29 | 14:20–15:03 (två pass) | 26 min | Lias 17 tjänster i bokningen med Mer info-rutor (långa testkörningar utan aktivitet räknas som paus enligt regeln) |
 
-**Summa mätt tid: 5 h 2 min** (från 27 okt 2026)
+**Summa mätt tid: 5 h 28 min** (från 27 okt 2026)
