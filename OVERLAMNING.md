@@ -139,3 +139,7 @@
 ## 29 okt: Instagram
 - CONTACT.instagram = lias_hantverkeri, instagramUrl https://www.instagram.com/lias_hantverkeri/. Ny rad i kontaktkortet (data-contact=instagram) och länk i sidfoten (data-footer=instagram, 44 px tryckyta). Ikon Lucide "instagram". Att kontot finns är INTE kontrollerat (Instagram kräver inloggning) – Tommy testar länken.
 - Tester: kontakt-info 12/12, s4check räknar 4 kontaktrader. Totalt 807.
+
+## 29 okt: Instruktion i bokningens steg 2
+- Testpersoner visste inte vad de skulle göra. Ovanför datumrutorna: "Så här bokar du" 1. Tryck på den dag som passar dig. 2. Välj sedan en ledig tid. Tiderna visas under dagarna. + "Svep åt sidan på datumrutorna för fler förslag på datum." (Tommys formulering). Rutan under dagarna: "Tryck på en dag ovan, så visas de lediga tiderna här." Tidsrubrik: "Välj en tid · <dag>".
+- Test: instruktion-test.js 26/26. Totalt 833.

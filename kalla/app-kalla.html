@@ -187,6 +187,11 @@
     .lh-steph__title { margin: 0; font: 600 24px/1.2 var(--font-heading); color: var(--flow-fg, #F4EDE0); }
     .lh-steph__sub { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 0; font: 16px/1.45 var(--font-body); color: var(--flow-fg, #F4EDE0); }
     .lh-label { margin: 18px 0 8px; font: 700 16px var(--font-body); color: var(--flow-fg, #F4EDE0); }
+    /* Instruktion ovanför datumrutorna (testpersoner visste inte vad de skulle göra) */
+    .lh-howto { margin: 16px 0 4px; color: var(--flow-fg, #F4EDE0); }
+    .lh-howto__title { margin: 0 0 6px; font: 600 19px/1.25 var(--font-heading); color: var(--flow-fg, #F4EDE0); }
+    .lh-howto__steps { margin: 0; padding-left: 24px; display: grid; gap: 4px; font: 16px/1.45 var(--font-body); }
+    .lh-howto__swipe { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 0; font: 500 15px/1.45 var(--font-body); }
     .lh-opts { display: grid; gap: 8px; }
     .lh-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 12px 14px; text-align: left; background: var(--surface); color: var(--text); border: 1.5px solid rgba(74,56,42,0.18); border-radius: 16px; cursor: pointer; font: 16px var(--font-body); }
     .lh-opt[aria-pressed="true"] { border: 2.5px solid var(--forest); background: #ECF2EE; padding: 11px 13px; }
@@ -1420,6 +1425,14 @@
           <div className="lh-flow">
             <StepTitle n={2} total={3} title="Välj dag och tid" sub={multi ? `${people.length} personer efter varandra · ${totalDur} min` : `${personNames(people[0])} · ${totalDur} min`} onBack={() => { setStep(1); setError(null); }} />
             <ErrorBox text={error} />
+            <div className="lh-howto" data-howto="true">
+              <h3 className="lh-howto__title">Så här bokar du</h3>
+              <ol className="lh-howto__steps">
+                <li>Tryck på den dag som passar dig.</li>
+                <li>Välj sedan en ledig tid. Tiderna visas under dagarna.</li>
+              </ol>
+              <p className="lh-howto__swipe"><Icon name="chevronRight" size={18} />Svep åt sidan på datumrutorna för fler förslag på datum.</p>
+            </div>
             <div className="lh-label" id="dag-rubrik">Dag</div>
             <div className="lh-days" role="group" aria-labelledby="dag-rubrik" style={{ overflowX: 'auto' }}>
               {days.map(d => {
@@ -1435,12 +1448,12 @@
               })}
             </div>
 
-            {!day && <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Välj en dag för att se lediga tider.</p></Card>}
+            {!day && <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Tryck på en dag ovan, så visas de lediga tiderna här.</p></Card>}
             {day && busyState === 'loading' && <Card><LoadingState text="Hämtar lediga tider…" /></Card>}
             {day && busyState === 'error' && <Card><ErrorState text="Lediga tider kunde inte hämtas. Kontrollera internet." onRetry={() => loadBusy(day)} /></Card>}
             {day && busyState === 'ok' && (
               <div>
-                <div className="lh-label">{fmtDayLong(d2ms(day))}{multi ? ' · starttid för första personen' : ''}</div>
+                <div className="lh-label" data-times-title="true">Välj en tid · {fmtDayLong(d2ms(day))}{multi ? ' · starttid för första personen' : ''}</div>
                 {slots.length === 0
                   ? <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Inga lediga tider {multi ? `för ${totalDur} min i följd ` : ''}den här dagen. Välj en annan dag.</p></Card>
                   : <div className="lh-times">
