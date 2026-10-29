@@ -38,6 +38,10 @@ const built = fs.readFileSync('/mnt/user-data/outputs/github/index.html', 'utf8'
   ok(/073-642 30 18/.test(c.tel) && c.telHref === 'tel:+46736423018', 'Telefon 073-642 30 18, går att trycka för att ringa', c.telHref);
   ok(/lias\.hantverkeri@gmail\.com/.test(c.mail) && c.mailHref === 'mailto:lias.hantverkeri@gmail.com', 'E-post lias.hantverkeri@gmail.com', c.mailHref);
   ok(/Sandviksvägen 10/.test(c.adr) && /691 52 Karlskoga/.test(c.adr), 'Adress Sandviksvägen 10, 691 52 Karlskoga', c.adr.replace(/\n/g, ' | '));
+  const ig = await p.evaluate(() => { const r = document.querySelector('[data-contact="instagram"]'); const a = r && r.querySelector('a'); return r ? { t: r.innerText.replace(/\n/g, ' | '), href: a && a.href, target: a && a.target, rel: a && a.rel, svg: !!r.querySelector('svg') } : null; });
+  ok(ig && /@lias_hantverkeri/.test(ig.t) && ig.href === 'https://www.instagram.com/lias_hantverkeri/' && ig.target === '_blank' && /noopener/.test(ig.rel) && ig.svg, 'Instagram @lias_hantverkeri i kontaktkortet, länk öppnas separat', JSON.stringify(ig));
+  const fig = await p.$eval('[data-footer="instagram"]', a => ({ t: a.innerText.trim(), href: a.href, h: a.getBoundingClientRect().height })).catch(() => null);
+  ok(fig && fig.t === '@lias_hantverkeri' && fig.href === 'https://www.instagram.com/lias_hantverkeri/' && fig.h >= 44, 'Instagram-länk i sidfoten (tryckyta minst 44 px)', JSON.stringify(fig));
   const want = ['Måndag (idag) Stängt', 'Tisdag 09–17', 'Onsdag 09–17', 'Torsdag 09–17', 'Fredag 09–17', 'Lördag Öppet vid förfrågan', 'Söndag Stängt'];
   ok(JSON.stringify(c.hours) === JSON.stringify(want), 'Öppettiderna: mån stängt, tis–fre 09–17, lör vid förfrågan, sön stängt', c.hours.join(' / '));
 

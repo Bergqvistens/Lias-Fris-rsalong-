@@ -134,7 +134,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await go(c, 'Kontakt');
   ok(await pageBg(c) === 'rgb(95, 168, 168)', 'Kontakt har turkos bakgrund');
   const ci = await c.$$eval('[data-contact]', rs => rs.map(r => ({ k: r.getAttribute('data-contact'), t: r.innerText.replace(/\n/g, ' '), href: (r.querySelector('a') || {}).href || '', svg: !!r.querySelector('svg') })));
-  ok(ci.length === 3 && ci.every(r => r.svg), 'Telefon, e-post och adress i kontaktkort med linjeikoner', ci.map(r => r.t).join(' | '));
+  ok(ci.length === 4 && ci.every(r => r.svg), 'Telefon, e-post, adress och Instagram i kontaktkort med linjeikoner (Instagram tillagd 29 okt)', ci.map(r => r.t).join(' | '));
   // Ändrat 29 okt: Lias riktiga uppgifter (förut platshållare)
   ok(ci[1].href === 'mailto:lias.hantverkeri@gmail.com', 'E-posten är en mailto-länk (lias.hantverkeri@gmail.com)', ci[1].href);
   ok(ci[0].t.includes('073-642 30 18') && ci[0].href === 'tel:+46736423018', 'Telefon 073-642 30 18 med ring-länk', ci[0].href);

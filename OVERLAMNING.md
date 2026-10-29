@@ -135,3 +135,7 @@
 - Token --frame: #91744A. .lh-card och .lh-entry: border 1px solid var(--frame) (förut 1px rgba(74,56,42,0.08)). 1,5 px provades men Chromium avrundar till 1 px medan Safari ritar halva pixlar – därför 1 px för samma utseende överallt.
 - Knappar, menyn, inmatningsfält, .lh-opt (val), .lh-cut (Lias schema) och admin-rutorna (BOX, redan 2 px brun) är oförändrade.
 - Före/efter-bild: ram-fore-efter.png (outputs). Test: ram-test.js 8/8. Totalt 805 gröna.
+
+## 29 okt: Instagram
+- CONTACT.instagram = lias_hantverkeri, instagramUrl https://www.instagram.com/lias_hantverkeri/. Ny rad i kontaktkortet (data-contact=instagram) och länk i sidfoten (data-footer=instagram, 44 px tryckyta). Ikon Lucide "instagram". Att kontot finns är INTE kontrollerat (Instagram kräver inloggning) – Tommy testar länken.
+- Tester: kontakt-info 12/12, s4check räknar 4 kontaktrader. Totalt 807.

@@ -43,9 +43,9 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `bild-direkt.js` | Flikbyte: alla synliga bilder klara samtidigt inom 250 ms och ingen bild hämtas vid tryck (egen webbserver med cache och 600 ms fördröjning per bild). Gamla versionen: 8 FEL, bilder kom efter upp till 0,7 s | 11/11 |
 | `startbild.js` | Startbilden (Lias originallogga i champagne, skogsgrön #0E2619): syns efter 0,7 s fast typsnitt tar 4 s och appen 3 s, får plats på 390, 320 och liggande, loggan skarp vid 3× pixeltäthet, kontrast 7,24, försvinner när appen är klar, "tar längre tid"-text efter 15 s utan nät, ingen pulsering vid minskad rörelse; syns minst 3,5 s (börjar tona vid 3,50 s, toning ca 0,4 s, ingen toning vid minskad rörelse), ingen extra väntan när appen laddar längre, visas aldrig vid flikbyte | 41/41 |
 | `starttid.js` | Mätning (inte godkänt/underkänt): tid tills appen är ritad, processorn 4× långsammare, ingen nätfördröjning. 27 okt: median 0,42 s | – |
-| `kontakt-info.js` | Lias riktiga uppgifter: telefon 073-642 30 18 med ring-länk, lias.hantverkeri@gmail.com, Sandviksvägen 10, öppettider i tabellen, bokning bara tis–fre 09–17, inga gamla platshållare kvar | 10/10 |
+| `kontakt-info.js` | Lias riktiga uppgifter: telefon 073-642 30 18 med ring-länk, lias.hantverkeri@gmail.com, Sandviksvägen 10, öppettider i tabellen, bokning bara tis–fre 09–17, inga gamla platshållare kvar , Instagram @lias_hantverkeri i kontaktkort och sidfot | 12/12 |
 | `ram-test.js` | Brun ram 1 px (#91744A) på alla innehållsrutor (.lh-card, .lh-entry) på fem sidor, mätt som mobilskärm 3×; knappar, menyn och inmatningsfält oförändrade | 8/8 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 805 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 807 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).
