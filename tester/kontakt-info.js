@@ -47,7 +47,7 @@ const built = fs.readFileSync('/mnt/user-data/outputs/github/index.html', 'utf8'
 
   // Boka: vilka dagar och tider erbjuds?
   await p.click('nav >> text=Boka'); await p.waitForTimeout(400);
-  await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]'); await p.click('text=Fortsätt'); await p.waitForTimeout(600);
+  await p.click('[data-cat="Klippning"]'); await p.click('[data-service="klipp-30"]'); await p.click('text=Fortsätt'); await p.waitForTimeout(600);
   const days = await p.$$eval('.lh-day', ds => ds.map(d => d.innerText.replace(/\s+/g, ' ').trim()));
   const daysOk = days.length > 0 && days.every(d => /^(tis|ons|tors|fre)/i.test(d));
   ok(daysOk, 'Bokningsbara dagar är bara tisdag–fredag (inte mån, lör, sön)', days.slice(0, 8).join(' / ') || '(hittade inga dagknappar)');

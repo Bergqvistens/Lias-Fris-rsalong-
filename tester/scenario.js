@@ -30,8 +30,8 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok((await mainText(k1)).includes('STEG 1 AV 3'), 'Steg 1 visas');
   const bar = () => k1.evaluate(() => { const b = [...document.querySelectorAll('main button')].pop(); const r = b.getBoundingClientRect(); const n = document.querySelector('nav').getBoundingClientRect(); return { text: b.innerText, disabled: b.disabled, visible: r.bottom <= n.top + 1 && r.top > 0 }; });
   let a = await bar(); ok(a.disabled && a.visible, 'Knappen längst ner syns ovanför menyn och är avstängd utan tjänst', a.text);
-  await k1.click('[data-cat="Herr"]'); await k1.click('text=Herr kort hår'); await k1.click('text=Skäggtrim');
-  a = await bar(); ok(!a.disabled && a.text.includes('35 min') && a.text.includes('544'), 'Två tjänster: summa längd och pris', a.text);
+  await k1.click('[data-cat="Klippning"]'); await k1.click('[data-service="klipp-45"]');   // Lias tjänster sedan 29 okt (förut Herr kort + Skäggtrim)
+  a = await bar(); ok(!a.disabled && a.text.includes('45 min') && a.text.includes('från') && a.text.includes('600'), 'Vald tjänst: längd och från-pris', a.text);
   await k1.screenshot({ path: '/tmp/t/s1.png' });
   await k1.click('text=Fortsätt'); await k1.waitForTimeout(200);
   ok((await mainText(k1)).includes('STEG 2 AV 3'), 'Steg 2 visas');
@@ -72,12 +72,12 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok((await lia.title()).includes('Ny bokning'), 'Fliktiteln visar ny bokning', await lia.title());
   await lia.screenshot({ path: '/tmp/t/s5.png', fullPage: true });
   const row = admin("select price || ' kr, ' || customer_phone || ', ' || service_names || ', ' || to_char(starts_at at time zone 'Europe/Stockholm', 'HH24:MI') from bookings");
-  ok(row.startsWith('544 kr, 0701234567') && row.endsWith(chosenTime), 'Databasen har rätt pris, telefon och tid', row);
+  ok(row.startsWith('600 kr, 0701234567') && row.includes('Klippning 45 min.') && row.endsWith(chosenTime), 'Databasen har rätt pris, telefon och tid', row);
 
   // ===== KUND 2 med New York-tid ser inte den bokade tiden =====
   console.log('--- Kund 2 (telefon på New York-tid) ---');
   const k2 = await newCtx(browser, 'America/New_York');
-  await k2.click('nav >> text=Boka'); await k2.click('[data-cat="Herr"]'); await k2.click('text=Herr kort hår'); await k2.click('text=Fortsätt');
+  await k2.click('nav >> text=Boka'); await k2.click('[data-cat="Frans och/eller brynfärg"]'); await k2.click('[data-service="bryn"]'); await k2.click('text=Fortsätt');   // bryn 30 min: ryms 09:00–09:30 före kund 1:s tid
   await (await k2.$$('main div[style*="overflow-x"] button'))[1].click(); await k2.waitForTimeout(500);
   const t2 = await times(k2);
   ok(t2[0] === t1[0], 'Samma svenska tider trots annan tidszon', 'första tid ' + t2[0]);
@@ -88,7 +88,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   const k3 = await newCtx(browser), k4 = await newCtx(browser);
   const freeT = t2[t2.length - 1];
   for (const k of [k3, k4]) {
-    await k.click('nav >> text=Boka'); await k.click('[data-cat="Dam"]'); await k.click('text=Dam kort hår'); await k.click('text=Fortsätt');
+    await k.click('nav >> text=Boka'); await k.click('[data-cat="Frans och/eller brynfärg"]'); await k.click('[data-service="bryn"]'); await k.click('text=Fortsätt');
     await (await k.$$('main div[style*="overflow-x"] button'))[1].click(); await k.waitForTimeout(500);
     await k.click(`main button:text-is("${freeT}")`); await k.click('text=Fortsätt');
     await k.fill('input[type=text]', 'Kund ' + (k === k3 ? 'Tre' : 'Fyra')); await k.fill('input[type=tel]', '0709999999'); await k.fill('input[type=email]', 'k@test.se');

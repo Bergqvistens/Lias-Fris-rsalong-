@@ -314,6 +314,20 @@
     .lh-catbtn__chk { position: absolute; top: 4px; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--forest); color: #FFFFFF; box-shadow: 0 0 0 2px #FFFFFF; }
     .lh-catbtn__name { display: block; text-align: center; font: 600 16px var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
     .lh-opt__check--box { border-radius: 7px; }
+    /* Lias tjänster: kategoriknappar med text, tjänst + "Mer info" */
+    .lh-cats--text { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lh-catbtn--text { flex-direction: row; align-items: center; justify-content: center; gap: 6px; min-height: 52px; padding: 8px 10px; }
+    .lh-catbtn--text[aria-pressed="true"] { padding: 7px 9px; }
+    .lh-catbtn--text svg { color: var(--forest); flex-shrink: 0; }
+    .lh-svc { display: grid; gap: 4px; }
+    .lh-svc__info { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 12px; background: none; border: 0; color: var(--forest); font: 600 15px var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .lh-opt__from { font-weight: 700; color: var(--text); }
+    .lh-svcinfo__cat { margin: 0; font: 700 13px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+    .lh-svcinfo__meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0; font: 17px var(--font-body); color: var(--text); }
+    .lh-svcinfo__meta > span { display: inline-flex; align-items: center; gap: 6px; }
+    .lh-svcinfo__desc { margin: 0; font: 16px/1.55 var(--font-body); color: var(--text); white-space: pre-line; }
+    .lh-svcinfo__who { display: flex; align-items: center; gap: 6px; margin: 0; font: 15px var(--font-body); color: var(--text-muted); }
+    .lh-svcinfo__chosen { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; min-height: 48px; border-radius: 14px; background: #ECF2EE; color: var(--forest); font: 700 16px var(--font-body); }
     .lh-addperson { margin-bottom: 14px; }
     /* ===== Lias schema: läge per klipptid (bara admin) ===== */
     .lh-cut { padding: 14px 16px; border-radius: 14px; border: 2px solid #6B5138; background: #F4EDE0; color: #2C2C2C; }
@@ -626,7 +640,7 @@
       let cursor = start;
       for (const person of people) {
         const cat = person && person.category;
-        if (!['Herr', 'Dam', 'Barn'].includes(cat) || !Array.isArray(person.service_ids)) return fail('OGILTIGA_TJANSTER');
+        if (!SERVICE_CATS.includes(cat) || !Array.isArray(person.service_ids)) return fail('OGILTIGA_TJANSTER');
         const ids = [...new Set(person.service_ids)];
         if (!ids.length || ids.length > 5) return fail('OGILTIGA_TJANSTER');
         const svcs = SERVICES.filter(s => ids.includes(s.id) && s.cat === cat);
@@ -654,7 +668,7 @@
       const first = c.name.split(' ')[0];
       if (!multi) {
         demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Avboka/ändra: ring ${CONTACT.phone}. Välkommen!`);
-        demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, ${total} kr. Tel ${c.phone}`);
+        demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, från ${total} kr. Tel ${c.phone}`);
       } else {
         const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
         demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Avboka/ändra: ring ${CONTACT.phone}. Välkomna!`);
@@ -919,21 +933,46 @@
       hair1: 'bilder/galleri-lia-1.jpg',
       hair2: 'bilder/galleri-lia-2.jpg'
     };
+    // Lias tjänster (källa: kalla/tjanster-lia.md, från hennes bokningssida 28–29 okt 2026). Alla priser är "från"-priser.
+    // cut: true = huvudtjänst (exakt en per person). Inga tillägg just nu – varje tjänst bokas för sig, som i Valei.
+    // Visningsnamn: mjukt bindestreck så att långa ord bryts snyggt på smala knappar (Hårbotten-massage)
+    const CAT_LABEL = { 'Hårbottenmassage': 'Hårbotten\u00admassage' };
+    const SERVICE_CATS = ['Klippning', 'Färgbehandling', 'Permanent', 'Styling, tvätt & föning', 'Hårbottenmassage', 'Frans och/eller brynfärg'];
     const SERVICES = [
-      { id: 'h-kort', cat: 'Herr', name: 'Herr kort hår', dur: 20, price: 395, cut: true },
-      { id: 'h-medel', cat: 'Herr', name: 'Herr medel hår', dur: 30, price: 495, cut: true },
-      { id: 'h-långt', cat: 'Herr', name: 'Herr långt hår', dur: 40, price: 595, cut: true },
-      { id: 'h-färg', cat: 'Herr', name: 'Färgning herr', dur: 45, price: 349 },
-      { id: 'h-skägg', cat: 'Herr', name: 'Skäggtrim', dur: 15, price: 149 },
-      { id: 'h-style', cat: 'Herr', name: 'Styling herr', dur: 10, price: 99 },
-      { id: 'd-kort', cat: 'Dam', name: 'Dam kort hår', dur: 30, price: 495, cut: true },
-      { id: 'd-medel', cat: 'Dam', name: 'Dam medel hår', dur: 45, price: 595, cut: true },
-      { id: 'd-långt', cat: 'Dam', name: 'Dam långt hår', dur: 60, price: 695, cut: true },
-      { id: 'd-färg', cat: 'Dam', name: 'Färgning dam', dur: 45, price: 449 },
-      { id: 'd-slingor', cat: 'Dam', name: 'Slingor/highlights', dur: 60, price: 549 },
-      { id: 'd-style', cat: 'Dam', name: 'Styling dam', dur: 20, price: 149 },
-      { id: 'd-fön', cat: 'Dam', name: 'Fön', dur: 15, price: 99 },
-      { id: 'b-klipp', cat: 'Barn', name: 'Barnklippning', dur: 25, price: 295, cut: true },
+      { id: 'klipp-45', cat: 'Klippning', name: 'Klippning 45 min.', dur: 45, price: 600, cut: true,
+        desc: 'Inklusive tvätt, fön och lättare styling. För dig som har normalt till tjockt hår. Vid extra långt eller tjockt hår, boka 60 min klippning.' },
+      { id: 'klipp-lyx', cat: 'Klippning', name: 'Klippning lyx', dur: 60, price: 850, cut: true,
+        desc: 'Klippning tvätt och fön. För dig med lite tjockare & längre hår. Här ingår konsultation, schamponering med inpackning och skalpmassage.' },
+      { id: 'klipp-30', cat: 'Klippning', name: 'Klippning/Herrklippning 30 min', dur: 30, price: 500, cut: true,
+        desc: 'Klippning. Kort hår, tunt till normalt, max längd till nyckelbenen, ej schamponering eller längre konsultation. För dig som inte vill göra en större förändring av frisyren.' },
+      { id: 'putsning', cat: 'Klippning', name: 'Putsning, kort hår med maskinklippn. sidor & nacke.', dur: 15, price: 250, cut: true,
+        desc: 'En uppfräschning mellan en hel, vanlig klippning, fokus på nacke och sidor enbart.' },
+      { id: 'farg-botten', cat: 'Färgbehandling', name: 'Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.', dur: 90, price: 1000, cut: true,
+        desc: 'Passar dig som har en utväxt på max 2-4 cm och kort hår. du vill göra en färgförändring eller uppfräschning. Materialkostnad tillkommer beroende på hårets tjocklek. Tvätt och fön ingår. Klippning eller slingor ingår ej.' },
+      { id: 'farg-150', cat: 'Färgbehandling', name: 'Färgbehandling 2.5 timmar Klippning ingår.', dur: 150, price: 2000, cut: true,
+        desc: 'Passar dig som vill göra färgning, slingor och/eller -Balayage eller folieslingor i hela håret. -Långt hår! Klippning ingår.' },
+      { id: 'farg-180', cat: 'Färgbehandling', name: 'Färgbehandling 3 timmar, klippning ingår.', dur: 180, price: 2500, cut: true,
+        desc: 'Passar dig som vill göra en extra avancerad färgning eller har väldigt långt och tjockt hår. Materialkostnad kan tillkomma. Om du känner dig osäker på vad du ska boka, kontakta mig.' },
+      { id: 'klipp-farg-kort', cat: 'Färgbehandling', name: 'Klipp & färg, kort hår. Som längst till nyckelbenen.', dur: 135, price: 1350, cut: true,
+        desc: 'För dig som bara vill färga utväxten (ca.2 cm)och klippa topparna (Puts) Ingår: tvätt och lättare styling. Tillägg kan förekomma vid tjockt hår. om du är osäker kontakta mig så löser vi det. 073-6423018' },
+      { id: 'nyansering', cat: 'Färgbehandling', name: 'Nyansering', dur: 60, price: 1100, cut: true,
+        desc: 'Utjämning av utväxt eller lättare färgförändring! I behandlingen ingår också tvätt och lättare styling/föning!' },
+      { id: 'perm-kort', cat: 'Permanent', name: 'Permanent inkl. klippning kort hår.', dur: 120, price: 1650, cut: true,
+        desc: 'Permanent på kort hår, max 10 cm. Hårets tjocklek och längd avgör prisnivån.' },
+      { id: 'perm-mellan', cat: 'Permanent', name: 'Permanent inkl. klippning mellanlångt hår.', dur: 150, price: 1900, cut: true,
+        desc: 'Permanent på hår med 10-20 cm längd. Hårets tjocklek och längd avgör prisnivån.' },
+      { id: 'perm-lang', cat: 'Permanent', name: 'Permanent inkl. klippning långt hår.', dur: 180, price: 3000, cut: true,
+        desc: 'Permanent på hår längre än 20 cm' },
+      { id: 'tvatt-fon', cat: 'Styling, tvätt & föning', name: 'Tvätt & fön', dur: 30, price: 400, cut: true,
+        desc: 'Tvätt & enklare fön/ styling' },
+      { id: 'tvatt-fon-60', cat: 'Styling, tvätt & föning', name: 'Tvätt & fön/ styling 1 timma', dur: 60, price: 800, cut: true,
+        desc: 'Tvätt & fön/ styling inkl. produkt tips.' },
+      { id: 'harbotten', cat: 'Hårbottenmassage', name: 'Hårbottenmassage', dur: 45, price: 750, cut: true,
+        desc: 'Djupgående massage med utvalda produkter och lättare föning/ styling efteråt. Om fler behandlingar önskas, t ex klippning,så bokas detta separat.' },
+      { id: 'bryn', cat: 'Frans och/eller brynfärg', name: 'Färg och form av bryn.', dur: 30, price: 200, cut: true,
+        desc: 'Färgning & plockning av bryn.' },
+      { id: 'frans-bryn', cat: 'Frans och/eller brynfärg', name: 'Ögonfransfärgning & brynfärg + formning', dur: 30, price: 250, cut: true,
+        desc: 'Få dina bryn & fransar färgade & fixade. -färgning av fransar -färgning av bryn -plockning av bryn' },
     ];
 
     const COURSES_DATA = [
@@ -1065,7 +1104,7 @@
       SLUT_I_LAGER: 'En vara räcker inte i lager. Varukorgen har uppdaterats.',
       OGILTIG_VARUKORG: 'Varukorgen är tom eller ogiltig.',
       OGILTIG_BETALNING: 'Välj betalsätt.',
-      EN_KLIPPNING_PER_PERSON: 'Varje person ska ha exakt en klippning.',
+      EN_KLIPPNING_PER_PERSON: 'Varje person ska ha exakt en tjänst.',
       OGILTIGT_PERSONNAMN: 'Skriv förnamn för varje person.',
       OGILTIGT_ANTAL_PERSONER: 'Högst 4 personer per bokning.',
       OGILTIGT_BELOPP: 'Skriv ett belopp i hela kronor (1–100 000).',
@@ -1224,14 +1263,13 @@
       );
     }
 
-    // Inspirationsbilder per kategori (AI-genererade tills Lia lägger in egna)
-    const CAT_IMG = { Herr: IMG.galleriHerrklipp, Dam: IMG.galleriStyling, Barn: IMG.galleriBarnklipp };
     const MAX_PERSONS = 4;
     const newPerson = () => ({ cat: null, cut: null, addons: [], name: '' });
     const personServices = p => SERVICES.filter(s => s.id === p.cut || p.addons.includes(s.id));
     const personDur = p => personServices(p).reduce((a, s) => a + s.dur, 0);
     const personPrice = p => personServices(p).reduce((a, s) => a + s.price, 0);
     const personNames = p => personServices(p).sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0)).map(s => s.name).join(', ');
+    const fromPrice = n => 'från ' + formatPrice(n);   // Lias priser är "från"-priser
 
     function Booking({ dispatch }) {
       const [step, setStep] = useState(1);
@@ -1247,6 +1285,25 @@
       const [error, setError] = useState(null);
       const [done, setDone] = useState(null);
       const days = React.useMemo(() => upcomingDays(14), []);
+      // "Mer info"-ruta för en tjänst: { id, i } (i = vilken person rutan öppnades för)
+      const [info, setInfo] = useState(null);
+      const infoOpener = useRef(null);
+      const openInfo = (id, i, el) => { infoOpener.current = el; setInfo({ id, i }); };
+      const closeInfo = () => { setInfo(null); const el = infoOpener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useBackClose(!!info, closeInfo);
+      useEffect(() => {
+        if (!info) return;
+        const b = document.querySelector('[data-dialog="tjanst"] .lh-dbar [aria-label="Stäng"]'); if (b) b.focus();
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+      }, [info]);
+      const infoKey = e => {
+        if (e.key === 'Escape') { closeInfo(); return; }
+        if (e.key !== 'Tab') return;
+        const fs = [...e.currentTarget.querySelectorAll('button:not([disabled])')]; if (!fs.length) return;
+        if (e.shiftKey && document.activeElement === fs[0]) { e.preventDefault(); fs[fs.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === fs[fs.length - 1]) { e.preventDefault(); fs[0].focus(); }
+      };
 
       useEffect(() => { window.scrollTo(0, 0); }, [step, done]);
 
@@ -1328,7 +1385,7 @@
               <InfoRow icon="calendar"><strong>{fmtDayLong(s)}</strong></InfoRow>,
               ...items.map(it => <InfoRow icon="scissors"><strong>{fmtTime(new Date(it.starts_at).getTime())}–{fmtTime(new Date(it.ends_at).getTime())}</strong> {it.person_name ? it.person_name + ': ' : ''}{it.service_names}</InfoRow>),
               ...(items.length > 1 ? [<InfoRow icon="clock">Totalt {fmtTime(s)}–{fmtTime(e)}</InfoRow>] : []),
-              <InfoRow icon="tag"><strong>{formatPrice(done.price)}</strong> (betalas på plats)</InfoRow>,
+              <InfoRow icon="tag"><strong>{fromPrice(done.price)}</strong> (betalas på plats)</InfoRow>,
             ]}>
               {DEMO && (
                 <div style={{ textAlign: 'left' }}>
@@ -1347,62 +1404,47 @@
         return (
           <div className="lh-flow">
             <div data-banner="boka" style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.bannerBoka} alt="Boka tid – för en stund som är din. Klippning, färgning, styling för herr, dam och barn. Bild från en salong med spegel och frisörstol." ratio="3 / 2" eager /></div>
-            <StepTitle n={1} total={3} title="Välj klippning" sub={multi ? 'Varje person får en klippning och valfria tillägg. Personerna klipps efter varandra.' : 'Välj en klippning och eventuella tillägg. Fler personer kan läggas till.'} />
+            <StepTitle n={1} total={3} title="Välj tjänst" sub={multi ? 'Varje person väljer en tjänst. Personerna tas emot efter varandra.' : 'Välj vad du vill boka. Tryck på "Mer info" för att läsa mer om en tjänst. Fler personer kan läggas till.'} />
             {people.map((p, i) => {
-              const cuts = p.cat ? SERVICES.filter(s => s.cat === p.cat && s.cut) : [];
-              const addons = p.cat ? SERVICES.filter(s => s.cat === p.cat && !s.cut) : [];
+              const list = p.cat ? SERVICES.filter(s => s.cat === p.cat) : [];
               return (
                 <section key={i} className="lh-card lh-person" data-person={i} aria-labelledby={'person-' + i}>
                   <div className="lh-person__head">
-                    <h3 id={'person-' + i}>{multi ? 'Person ' + (i + 1) : 'Vem ska klippas?'}</h3>
+                    <h3 id={'person-' + i}>{multi ? 'Person ' + (i + 1) : 'Vad vill du boka?'}</h3>
                     {multi && <Button variant="ghost" icon="x" data-remove={i} onClick={() => removePerson(i)} aria-label={'Ta bort person ' + (i + 1)}>Ta bort</Button>}
                   </div>
-                  {multi && <FormField id={'boka-p' + i + '-namn'} label="Förnamn" required autoComplete="off" value={p.name} onChange={e => update(i, { name: e.target.value })} error={pTried && !nameOk(p) ? 'Skriv förnamnet, så att Lia vet vem hon ska klippa.' : null} />}
-                  {multi && <div className="lh-person__q">Vem ska klippas?</div>}
-                  <div className="lh-cats" role="group" aria-label={'Kategori för ' + (multi ? 'person ' + (i + 1) : 'klippningen')}>
-                    {['Herr', 'Dam', 'Barn'].map(cat => (
-                      <button key={cat} type="button" className="lh-catbtn" data-cat={cat} aria-pressed={p.cat === cat ? 'true' : 'false'} onClick={() => pickCat(i, cat)}>
-                        <span className="lh-catbtn__img"><ResponsiveImage src={CAT_IMG[cat]} alt="" ratio="1 / 1" radius={12} fallbackLabel="" />{p.cat === cat && <span className="lh-catbtn__chk" aria-hidden="true"><Icon name="check" size={16} strokeWidth={3} /></span>}</span>
-                        <span className="lh-catbtn__name">{cat}</span>
+                  {multi && <FormField id={'boka-p' + i + '-namn'} label="Förnamn" required autoComplete="off" value={p.name} onChange={e => update(i, { name: e.target.value })} error={pTried && !nameOk(p) ? 'Skriv förnamnet, så att Lia vet vem som kommer.' : null} />}
+                  <div className="lh-person__q" id={'kat-' + i}>{multi ? 'Vad ska personen boka?' : 'Välj kategori'}</div>
+                  <div className="lh-cats lh-cats--text" role="group" aria-labelledby={'kat-' + i}>
+                    {SERVICE_CATS.map(cat => (
+                      <button key={cat} type="button" className="lh-catbtn lh-catbtn--text" data-cat={cat} aria-pressed={p.cat === cat ? 'true' : 'false'} onClick={() => pickCat(i, cat)}>
+                        {p.cat === cat && <Icon name="check" size={16} strokeWidth={3} />}<span className="lh-catbtn__name">{CAT_LABEL[cat] || cat}</span>
                       </button>
                     ))}
                   </div>
-                  {!p.cat && <p className="lh-person__hint">Bilderna är inspirationsbilder.</p>}
                   {p.cat && <>
-                    <div className="lh-person__q" id={'klipp-' + i}>Klippning <span className="lh-person__sub">(välj en)</span></div>
-                    <div className="lh-opts" role="radiogroup" aria-labelledby={'klipp-' + i}>
-                      {cuts.map(svc => {
+                    <div className="lh-person__q" id={'tjanst-' + i}>{p.cat} <span className="lh-person__sub">(välj en)</span></div>
+                    <div className="lh-opts" role="radiogroup" aria-labelledby={'tjanst-' + i}>
+                      {list.map(svc => {
                         const on = p.cut === svc.id;
                         return (
-                          <button key={svc.id} type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-service={svc.id} onClick={() => update(i, { cut: svc.id })}>
-                            <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
-                            <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
-                            <span className="lh-opt__price">{formatPrice(svc.price)}</span>
-                          </button>
+                          <div key={svc.id} className="lh-svc" data-svc-row={svc.id}>
+                            <button type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-service={svc.id} onClick={() => update(i, { cut: svc.id })}>
+                              <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
+                              <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span><span className="lh-opt__from">{fromPrice(svc.price)}</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
+                            </button>
+                            <button type="button" className="lh-svc__info" data-info={svc.id} aria-label={'Mer info om ' + svc.name} onClick={e => openInfo(svc.id, i, e.currentTarget)}><Icon name="info" size={18} />Mer info</button>
+                          </div>
                         );
                       })}
                     </div>
-                    {pTried && !p.cut && <div className="lh-err-inline" role="alert" data-err="true" style={{ marginTop: '8px' }}><Icon name="alert" size={16} />Välj en klippning.</div>}
-                    {addons.length > 0 && <>
-                      <div className="lh-person__q" id={'till-' + i}>Tillägg <span className="lh-person__sub">(valfritt)</span></div>
-                      <div className="lh-opts" role="group" aria-labelledby={'till-' + i}>
-                        {addons.map(svc => {
-                          const on = p.addons.includes(svc.id);
-                          return (
-                            <button key={svc.id} type="button" className="lh-opt" data-service={svc.id} aria-pressed={on ? 'true' : 'false'} onClick={() => toggleAddon(i, svc.id)}>
-                              <span className="lh-opt__check lh-opt__check--box" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
-                              <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
-                              <span className="lh-opt__price">{formatPrice(svc.price)}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>}
+                    {pTried && !p.cut && <div className="lh-err-inline" role="alert" data-err="true" style={{ marginTop: '8px' }}><Icon name="alert" size={16} />Välj en tjänst.</div>}
                   </>}
+                  {pTried && !p.cat && <div className="lh-err-inline" role="alert" data-err="true" style={{ marginTop: '8px' }}><Icon name="alert" size={16} />Välj en kategori och en tjänst.</div>}
                 </section>
               );
             })}
-            {pTried && !allCuts && people.length > 1 && <div className="lh-ferr-page" role="alert" style={{ marginBottom: '8px' }}><Icon name="alert" size={18} />Välj en klippning för varje person.</div>}
+            {pTried && !allCuts && people.length > 1 && <div className="lh-ferr-page" role="alert" style={{ marginBottom: '8px' }}><Icon name="alert" size={18} />Välj en tjänst för varje person.</div>}
             {people.length < MAX_PERSONS
               ? <Button variant="secondary" block icon="plus" data-add-person="true" onClick={addPerson} className="lh-addperson">Lägg till person ({people.length} av {MAX_PERSONS})</Button>
               : <p className="lh-steph__sub" style={{ margin: '0 0 12px' }}><Icon name="info" size={18} />Högst {MAX_PERSONS} personer per bokning.</p>}
@@ -1411,10 +1453,33 @@
                 <h3 className="lh-cardtitle" style={{ fontSize: '18px', margin: 0 }}>Din bokning</h3>
                 {people.map((p, i) => p.cut && <InfoRow key={i} icon="scissors">{multi ? <strong>{label(p, i)}: </strong> : null}{personNames(p)} · {personDur(p)} min</InfoRow>)}
                 <InfoRow icon="clock">Sammanlagt {totalDur} min{multi ? ', efter varandra' : ''}</InfoRow>
-                <InfoRow icon="tag"><strong>{formatPrice(totalPrice)}</strong></InfoRow>
+                <InfoRow icon="tag"><strong>{fromPrice(totalPrice)}</strong></InfoRow>
+                <p className="lh-sum__note" style={{ margin: '4px 0 0', fontSize: '15px', color: T.color.textMuted }}>Priserna är "från"-priser. Slutpriset kan bli högre beroende på hårets längd och tjocklek samt material.</p>
               </Card>
             )}
-            <ActionBar label={allCuts ? `Fortsätt · ${totalDur} min · ${formatPrice(totalPrice)}` : (multi ? 'Välj klippning för alla' : 'Välj en klippning')} enabled={allCuts} onClick={goStep2} />
+            {info && (() => {
+              const svc = SERVICES.find(x => x.id === info.id); if (!svc) return null;
+              const chosen = people[info.i] && people[info.i].cut === svc.id;
+              return (
+                <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeInfo(); }}>
+                  <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="tjanst-rubrik" data-dialog="tjanst" data-svc={svc.id} onKeyDown={infoKey}>
+                    <DialogBar onBack={closeInfo} />
+                    <div className="lh-dialog__body">
+                      <p className="lh-svcinfo__cat">{svc.cat}</p>
+                      <h2 id="tjanst-rubrik">{svc.name}</h2>
+                      <p className="lh-svcinfo__meta"><span><Icon name="clock" size={18} />{svc.dur} min</span><strong>{fromPrice(svc.price)}</strong></p>
+                      <p className="lh-svcinfo__desc">{svc.desc}</p>
+                      <p className="lh-svcinfo__who"><Icon name="user" size={18} />Utförs av Lia</p>
+                      {chosen
+                        ? <p className="lh-svcinfo__chosen" data-chosen="true"><Icon name="check" size={18} strokeWidth={3} />Vald{multi ? ' för ' + label(people[info.i], info.i) : ''}</p>
+                        : <Button block data-valj={svc.id} onClick={() => { update(info.i, { cat: svc.cat, cut: svc.id }); closeInfo(); }}>Välj den här tjänsten</Button>}
+                      <Button variant="secondary" block icon="chevronLeft" className="lh-dialog__bottom" data-tillbaka="botten" onClick={closeInfo}>Tillbaka</Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            {!info && <ActionBar label={allCuts ? `Fortsätt · ${totalDur} min · ${fromPrice(totalPrice)}` : (multi ? 'Välj tjänst för alla' : 'Välj en tjänst')} enabled={allCuts} onClick={goStep2} />}
           </div>
         );
       }
@@ -1488,11 +1553,11 @@
                   <InfoRow icon="clock"><strong>{fmtTime(slot)}–{fmtTime(slot + totalDur * 60000)}</strong></InfoRow>
                   <InfoRow icon="scissors">{personNames(people[0])}</InfoRow>
                 </>}
-            <InfoRow icon="tag"><strong>{formatPrice(totalPrice)}</strong> (betalas på plats)</InfoRow>
+            <InfoRow icon="tag"><strong>{fromPrice(totalPrice)}</strong> (betalas på plats)</InfoRow>
           </Card>
           <ContactFields form={form} setForm={setForm} tried={tried} idp="boka" />
           {multi && <p className="lh-steph__sub" style={{ marginTop: '10px' }}><Icon name="info" size={18} />Kontaktuppgifterna gäller hela bokningen.</p>}
-          <ActionBar label={sending ? 'Bokar…' : `Boka · ${formatPrice(totalPrice)}`} enabled={!sending} onClick={submit} />
+          <ActionBar label={sending ? 'Bokar…' : `Boka · ${fromPrice(totalPrice)}`} enabled={!sending} onClick={submit} />
         </div>
       );
     }

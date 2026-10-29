@@ -1,4 +1,4 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås). Öppettider i create_booking ändrade 29 okt 2026 (tis–fre 9–17).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås). Öppettider i create_booking ändrade 29 okt 2026 (tis–fre 9–17). Lias 17 tjänster och kategorikontroll mot services-tabellen 29 okt 2026.
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
@@ -95,7 +95,7 @@ begin
   for v_person in select value from jsonb_array_elements(p_people) loop
     v_cat   := v_person->>'category';
     v_pname := btrim(coalesce(v_person->>'name', ''));
-    if v_cat not in ('Herr', 'Dam', 'Barn') or jsonb_typeof(v_person->'service_ids') <> 'array' then
+    if v_cat is null or not exists (select 1 from public.services where category = v_cat) or jsonb_typeof(v_person->'service_ids') <> 'array' then
       raise exception 'OGILTIGA_TJANSTER';
     end if;
     select array_agg(distinct x) into v_ids from jsonb_array_elements_text(v_person->'service_ids') x;
@@ -448,20 +448,23 @@ SET row_security = off;
 --
 
 COPY public.services (id, name, duration, price, category, kind) FROM stdin;
-h-kort	Herr kort hår	20	395	Herr	klipp
-h-medel	Herr medel hår	30	495	Herr	klipp
-h-långt	Herr långt hår	40	595	Herr	klipp
-h-färg	Färgning herr	45	349	Herr	tillagg
-h-skägg	Skäggtrim	15	149	Herr	tillagg
-h-style	Styling herr	10	99	Herr	tillagg
-d-kort	Dam kort hår	30	495	Dam	klipp
-d-medel	Dam medel hår	45	595	Dam	klipp
-d-långt	Dam långt hår	60	695	Dam	klipp
-d-färg	Färgning dam	45	449	Dam	tillagg
-d-slingor	Slingor/highlights	60	549	Dam	tillagg
-d-style	Styling dam	20	149	Dam	tillagg
-d-fön	Fön	15	99	Dam	tillagg
-b-klipp	Barnklippning	25	295	Barn	klipp
+klipp-45	Klippning 45 min.	45	600	Klippning	klipp
+klipp-lyx	Klippning lyx	60	850	Klippning	klipp
+klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
+putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
+farg-botten	Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.	90	1000	Färgbehandling	klipp
+farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
+farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
+klipp-farg-kort	Klipp & färg, kort hår. Som längst till nyckelbenen.	135	1350	Färgbehandling	klipp
+nyansering	Nyansering	60	1100	Färgbehandling	klipp
+perm-kort	Permanent inkl. klippning kort hår.	120	1650	Permanent	klipp
+perm-mellan	Permanent inkl. klippning mellanlångt hår.	150	1900	Permanent	klipp
+perm-lang	Permanent inkl. klippning långt hår.	180	3000	Permanent	klipp
+tvatt-fon	Tvätt & fön	30	400	Styling, tvätt & föning	klipp
+tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	klipp
+harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
+bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
+frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
 \.
 
 

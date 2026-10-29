@@ -42,26 +42,30 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await go(b, 'Boka');
   ok(await pageBg(b) === 'rgb(95, 168, 168)', 'Bokningen har turkos bakgrund');
   const t1 = await mainText(b);
-  ok(t1.includes('STEG 1 AV 3') && t1.includes('Välj klippning'), 'Stegräknare "Steg 1 av 3" och rubrik "Välj klippning"');
+  ok(t1.includes('STEG 1 AV 3') && t1.includes('Välj tjänst'), 'Stegräknare "Steg 1 av 3" och rubrik "Välj tjänst"');
   ok(await b.$$eval('.lh-steph__bar span', s => s.map(x => x.getAttribute('data-on')).join(',')) === 'true,false,false', 'Stegstapel visar steg 1 av 3');
-  const cats = await b.$$eval('[data-person="0"] .lh-catbtn', bs => bs.map(x => ({ c: x.getAttribute('data-cat'), t: x.innerText.trim(), img: !!x.querySelector('img') })));
-  ok(cats.map(c => c.t).join(',') === 'Herr,Dam,Barn' && cats.every(c => c.img) && t1.includes('Bilderna är inspirationsbilder.'), 'Kategorierna Herr, Dam, Barn med text, bild och märkningen inspirationsbilder', cats.map(c => c.t).join(' '));
+  // Ändrat 29 okt: Lias sex kategorier som textknappar (förut Herr/Dam/Barn med inspirationsbilder)
+  const { SERVICES, CATS } = require('/tmp/t/tjanster-data.js');
+  const cats = await b.$$eval('[data-person="0"] .lh-catbtn', bs => bs.map(x => ({ c: x.getAttribute('data-cat'), t: x.innerText.replace(/\u00ad/g, '').trim() })));
+  ok(cats.map(c => c.t).join('|') === CATS.join('|') && cats.every(c => c.c === c.t), 'Lias sex kategorier som textknappar', cats.map(c => c.t).join(' | '));
   ok(!EMOJI.test(t1), 'Inga emojis i steg 1');
   const all = [];
-  for (const cat of ['Dam', 'Barn', 'Herr']) {
+  for (const cat of CATS) {
     await b.click(`[data-person="0"] [data-cat="${cat}"]`); await b.waitForTimeout(100);
-    all.push(...await b.$$eval('[data-service]', bs => bs.map(x => x.getAttribute('data-service') + '=' + x.querySelector('.lh-opt__price').innerText.replace(/\s/g, ''))));
+    all.push(...await b.$$eval('[data-service]', bs => bs.map(x => x.getAttribute('data-service') + '=' + x.querySelector('.lh-opt__from').innerText.replace(/\s/g, ''))));
   }
-  ok(all.length === 14, 'Alla 14 tjänster finns kvar (fördelade på kategorierna)', all.length);
-  ok(all.includes('d-färg=449,00kr') && all.includes('h-kort=395,00kr') && all.includes('b-klipp=295,00kr'), 'Priserna är oförändrade (bl.a. Färgning dam 449 kr)');
-  const svc = b.locator('[data-service="h-kort"]');
+  ok(all.length === 17, 'Alla 17 tjänster finns (fördelade på kategorierna)', all.length);
+  const wantP = SERVICES.map(x => x.id + '=från' + x.price.toLocaleString('sv-SE', { style: 'currency', currency: 'SEK' }).replace(/\s/g, ''));
+  ok(wantP.every(w => all.includes(w)), 'Alla priser är Lias "från"-priser (t.ex. Klippning 45 min från 600 kr, Permanent långt från 3 000 kr)', wantP.filter(w => !all.includes(w)).join(', ') || 'alla 17 rätt');
+  await b.click('[data-person="0"] [data-cat="Klippning"]'); await b.waitForTimeout(100);
+  const svc = b.locator('[data-service="klipp-45"]');
   const before = await svc.evaluate(x => ({ p: x.getAttribute('aria-pressed'), bw: getComputedStyle(x).borderTopWidth, t: x.innerText }));
-  await svc.click(); await b.click('[data-service="h-skägg"]');
+  await svc.click();
   const after = await svc.evaluate(x => ({ p: x.getAttribute('aria-pressed'), bw: getComputedStyle(x).borderTopWidth, t: x.innerText, chk: !!x.querySelector('.lh-opt__check svg') }));
   ok(before.p === 'false' && after.p === 'true', 'Vald tjänst anges med aria-pressed');
   ok(after.chk && after.t.includes('Vald') && parseFloat(after.bw) > parseFloat(before.bw), 'Vald tjänst visas med bock, texten "Vald" och tjockare ram (inte bara färg)', before.bw + ' → ' + after.bw);
   const sum = await b.$eval('[data-summary="tjanster"]', x => x.innerText.replace(/\u00a0/g, ' '));
-  ok(sum.includes('Herr kort hår, Skäggtrim') && sum.includes('35 min') && sum.includes('544'), 'Sammanfattning: tjänster, sammanlagd tid och pris', sum.replace(/\n/g, ' | '));
+  ok(sum.includes('Klippning 45 min.') && sum.includes('Sammanlagt 45 min') && sum.includes('från 600'), 'Sammanfattning: tjänst, sammanlagd tid och "från"-pris', sum.replace(/\n/g, ' | '));
   await b.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 2)); await b.waitForTimeout(200);
   const cover = await b.evaluate(() => { const last = document.querySelector('[data-summary="tjanster"]').getBoundingClientRect(); const bar = [...document.querySelectorAll('main div')].find(d => getComputedStyle(d).position === 'sticky').getBoundingClientRect(); return { last: Math.round(last.bottom), bar: Math.round(bar.top) }; });
   ok(cover.last <= cover.bar, 'Fortsätt-knappen täcker inte sista innehållet', JSON.stringify(cover));

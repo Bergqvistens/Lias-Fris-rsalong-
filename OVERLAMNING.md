@@ -147,3 +147,12 @@
 
 ## 29 okt: Knappen i bokningens steg 2 visas först när en dag är vald
 - {day && <ActionBar …/>}. scenario.js kontrollerar nu att ingen Fortsätt-knapp finns innan dag är vald. knapp-test.js 12/12. Totalt 847.
+
+## 29 okt: Lias riktiga tjänster i bokningen (enkla flödet)
+- SERVICES = Lias 17 tjänster i 6 kategorier (SERVICE_CATS, Klippning först), alla cut:true (huvudtjänst), desc = hennes text. Källa kalla/tjanster-lia.md; data även i tester/tjanster-data.js (kontrollerad ord för ord mot listan).
+- Steg 1: kategori (textknappar, CAT_LABEL ger mjukt bindestreck i Hårbottenmassage) → en tjänst per person (radio) + "Mer info"-knapp → ruta med kategori, namn, tid, från-pris, beskrivning, "Utförs av Lia", "Välj den här tjänsten", Tillbaka överst/nederst, bakåtgest och Escape. Inga tillägg.
+- Priser visas som "från X kr" (fromPrice) i steg 1–3, bekräftelsen och sms till Lia. Formatet är appens vanliga (600,00 kr).
+- Databasen: services ersatt (gamla tas bort med delete), kategorikontrollen mot services-tabellen i stället för Herr/Dam/Barn. lokal-testdatabas.sql uppdaterad och verifierad.
+- Lias schema i admin säger fortfarande "Klippning: namn tid" för alla bokningar, även bryn/massage – fråga Tommy om det ska ändras.
+- Väntar på Lia: tillägg (t.ex. Bottenfärg + klippning), slutpris i admin, Valei.
+- Tester: 14 sviter omskrivna till Lias tjänster, krock-parallell skärpt, ny tjanster-test 34/34. Totalt 884.

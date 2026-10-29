@@ -131,7 +131,7 @@ const H = 3600000, D = 86400000;
   console.log('--- Larmet fungerar på ekonomifliken ---');
   const ch0 = await lia.evaluate(() => window.__chimes);
   const k = await open();
-  await k.click('nav >> text=Boka'); await k.click('[data-cat="Dam"]'); await k.click('text=Dam kort hår'); await k.click('text=Fortsätt');
+  await k.click('nav >> text=Boka'); await k.click('[data-cat="Klippning"]'); await k.click('[data-service="klipp-30"]'); await k.click('text=Fortsätt');
   await (await k.$$('.lh-day'))[1].click(); await k.waitForTimeout(500);
   await k.click('.lh-time >> nth=0'); await k.click('text=Fortsätt');
   await k.fill('input[type=text]', 'Nils Nyman'); await k.fill('input[type=tel]', '0701231231'); await k.fill('input[type=email]', 'n@b.se');

@@ -7,7 +7,7 @@ const run = async (file, label) => {
  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
  await p.goto('https://lias.test/'); await p.waitForTimeout(700);
  const acc = await p.$('text=Jag förstår och accepterar'); if (acc) { await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(x => getComputedStyle(x).overflowY === 'auto'); d.scrollTop = 99999; d.dispatchEvent(new Event('scroll')); }); await p.waitForTimeout(150); await acc.click(); await p.waitForTimeout(200); }
- await p.click('nav >> text=Boka'); await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]');
+ await p.click('nav >> text=Boka'); await p.click('[data-cat="Klippning"]'); await p.click('[data-service="klipp-30"]');
  const m = () => p.evaluate(() => { const n = document.querySelector('nav').getBoundingClientRect(), h = document.querySelector('header').getBoundingClientRect(); const bar = document.querySelector('.lh-actionbar') || [...document.querySelectorAll('main div')].find(d => getComputedStyle(d).position === 'sticky'); const br = bar.getBoundingClientRect(); const items = [...document.querySelectorAll('nav button')].map(x => x.getBoundingClientRect()); return { free: Math.round(n.top - Math.max(0, h.bottom) - br.height), gap: Math.round(n.top - br.bottom), navH: Math.round(n.height), minTap: Math.round(Math.min(...items.map(i => Math.min(i.width, i.height)))) }; });
  await p.setViewportSize({ width: 844, height: 390 }); await p.waitForTimeout(400);
  await p.evaluate(() => window.scrollTo(0, 300)); await p.waitForTimeout(200);

@@ -5,7 +5,9 @@
 -- =====================================================================
 
 -- ---------- 1. Tjänster (pris och längd bestäms här, inte i webbsidan) ----------
--- category: Herr / Dam / Barn.  kind: 'klipp' = klippning (exakt en per person), 'tillagg' = valfritt tillägg.
+-- category: Lias kategorier (Klippning, Färgbehandling, Permanent, Styling, tvätt & föning, Hårbottenmassage, Frans och/eller brynfärg).
+-- kind: 'klipp' = huvudtjänst (exakt en per person), 'tillagg' = valfritt tillägg (används inte just nu).
+-- Priserna är Lias "från"-priser (från hennes bokningssida 28–29 okt 2026).
 create table if not exists public.services (
   id        text primary key,
   name      text    not null,
@@ -16,23 +18,27 @@ alter table public.services add column if not exists category text;
 alter table public.services add column if not exists kind     text;
 
 insert into public.services (id, name, duration, price, category, kind) values
-  ('h-kort',    'Herr kort hår',      20, 395, 'Herr', 'klipp'),
-  ('h-medel',   'Herr medel hår',     30, 495, 'Herr', 'klipp'),
-  ('h-långt',   'Herr långt hår',     40, 595, 'Herr', 'klipp'),
-  ('h-färg',    'Färgning herr',      45, 349, 'Herr', 'tillagg'),
-  ('h-skägg',   'Skäggtrim',          15, 149, 'Herr', 'tillagg'),
-  ('h-style',   'Styling herr',       10,  99, 'Herr', 'tillagg'),
-  ('d-kort',    'Dam kort hår',       30, 495, 'Dam',  'klipp'),
-  ('d-medel',   'Dam medel hår',      45, 595, 'Dam',  'klipp'),
-  ('d-långt',   'Dam långt hår',      60, 695, 'Dam',  'klipp'),
-  ('d-färg',    'Färgning dam',       45, 449, 'Dam',  'tillagg'),
-  ('d-slingor', 'Slingor/highlights', 60, 549, 'Dam',  'tillagg'),
-  ('d-style',   'Styling dam',        20, 149, 'Dam',  'tillagg'),
-  ('d-fön',     'Fön',                15,  99, 'Dam',  'tillagg'),
-  ('b-klipp',   'Barnklippning',      25, 295, 'Barn', 'klipp')
+  ('klipp-45', 'Klippning 45 min.', 45, 600, 'Klippning', 'klipp'),
+  ('klipp-lyx', 'Klippning lyx', 60, 850, 'Klippning', 'klipp'),
+  ('klipp-30', 'Klippning/Herrklippning 30 min', 30, 500, 'Klippning', 'klipp'),
+  ('putsning', 'Putsning, kort hår med maskinklippn. sidor & nacke.', 15, 250, 'Klippning', 'klipp'),
+  ('farg-botten', 'Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.', 90, 1000, 'Färgbehandling', 'klipp'),
+  ('farg-150', 'Färgbehandling 2.5 timmar Klippning ingår.', 150, 2000, 'Färgbehandling', 'klipp'),
+  ('farg-180', 'Färgbehandling 3 timmar, klippning ingår.', 180, 2500, 'Färgbehandling', 'klipp'),
+  ('klipp-farg-kort', 'Klipp & färg, kort hår. Som längst till nyckelbenen.', 135, 1350, 'Färgbehandling', 'klipp'),
+  ('nyansering', 'Nyansering', 60, 1100, 'Färgbehandling', 'klipp'),
+  ('perm-kort', 'Permanent inkl. klippning kort hår.', 120, 1650, 'Permanent', 'klipp'),
+  ('perm-mellan', 'Permanent inkl. klippning mellanlångt hår.', 150, 1900, 'Permanent', 'klipp'),
+  ('perm-lang', 'Permanent inkl. klippning långt hår.', 180, 3000, 'Permanent', 'klipp'),
+  ('tvatt-fon', 'Tvätt & fön', 30, 400, 'Styling, tvätt & föning', 'klipp'),
+  ('tvatt-fon-60', 'Tvätt & fön/ styling 1 timma', 60, 800, 'Styling, tvätt & föning', 'klipp'),
+  ('harbotten', 'Hårbottenmassage', 45, 750, 'Hårbottenmassage', 'klipp'),
+  ('bryn', 'Färg och form av bryn.', 30, 200, 'Frans och/eller brynfärg', 'klipp'),
+  ('frans-bryn', 'Ögonfransfärgning & brynfärg + formning', 30, 250, 'Frans och/eller brynfärg', 'klipp')
 on conflict (id) do update
   set name = excluded.name, duration = excluded.duration, price = excluded.price,
       category = excluded.category, kind = excluded.kind;
+delete from public.services where id not in ('klipp-45', 'klipp-lyx', 'klipp-30', 'putsning', 'farg-botten', 'farg-150', 'farg-180', 'klipp-farg-kort', 'nyansering', 'perm-kort', 'perm-mellan', 'perm-lang', 'tvatt-fon', 'tvatt-fon-60', 'harbotten', 'bryn', 'frans-bryn');
 
 -- ---------- 2. Bokningar ----------
 create table if not exists public.bookings (
@@ -110,9 +116,9 @@ $$;
 
 -- ---------- 6. Skapa bokning (all kontroll sker här, på servern) ----------
 -- p_people: lista med 1–4 personer, t.ex.
---   [{"category":"Herr","service_ids":["h-kort","h-skägg"],"name":"Kalle"},
---    {"category":"Barn","service_ids":["b-klipp"],"name":"Lisa"}]
--- Varje person: exakt en klippning + valfria tillägg i samma kategori.
+--   [{"category":"Klippning","service_ids":["klipp-45"],"name":"Kalle"},
+--    {"category":"Frans och/eller brynfärg","service_ids":["bryn"],"name":"Lisa"}]
+-- Varje person: exakt en huvudtjänst (kind = klipp) + ev. tillägg i samma kategori.
 -- Förnamn krävs för varje person när fler än en bokas.
 -- Personerna klipps efter varandra (en frisör): person 2 börjar när person 1 är klar osv.
 -- Allt eller inget: krockar någon del sparas ingenting.
@@ -180,7 +186,7 @@ begin
   for v_person in select value from jsonb_array_elements(p_people) loop
     v_cat   := v_person->>'category';
     v_pname := btrim(coalesce(v_person->>'name', ''));
-    if v_cat not in ('Herr', 'Dam', 'Barn') or jsonb_typeof(v_person->'service_ids') <> 'array' then
+    if v_cat is null or not exists (select 1 from public.services where category = v_cat) or jsonb_typeof(v_person->'service_ids') <> 'array' then
       raise exception 'OGILTIGA_TJANSTER';
     end if;
     select array_agg(distinct x) into v_ids from jsonb_array_elements_text(v_person->'service_ids') x;

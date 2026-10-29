@@ -24,7 +24,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
     await p.waitForTimeout(150); await p.click('text=Jag förstår och accepterar');
     await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 10000 }).catch(() => {});
     if (zoom > 1) await p.evaluate(z => { document.documentElement.style.zoom = z; }, zoom);
-    await p.click('nav >> text=Boka'); await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]'); await p.click('text=Fortsätt'); await p.waitForTimeout(500);
+    await p.click('nav >> text=Boka'); await p.click('[data-cat="Klippning"]'); await p.click('[data-service="klipp-30"]'); await p.click('text=Fortsätt'); await p.waitForTimeout(500);
     const h = await p.evaluate(() => { const e = document.querySelector('[data-howto]'); if (!e) return null; const days = document.querySelector('.lh-days');
       return { title: e.querySelector('h3').innerText, steps: [...e.querySelectorAll('li')].map(li => li.innerText), swipe: e.querySelector('.lh-howto__swipe').innerText.trim(),
         above: e.getBoundingClientRect().bottom <= days.getBoundingClientRect().top, fg: getComputedStyle(e.querySelector('li')).color, tfg: getComputedStyle(e.querySelector('h3')).color, boxbg: getComputedStyle(e).backgroundColor, bw: getComputedStyle(e).borderTopWidth, bc: getComputedStyle(e).borderTopColor, fs: parseFloat(getComputedStyle(e.querySelector('li')).fontSize),

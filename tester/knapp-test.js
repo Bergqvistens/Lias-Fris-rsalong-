@@ -21,8 +21,8 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
     await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(x => getComputedStyle(x).overflowY === 'auto'); d.scrollTop = 99999; d.dispatchEvent(new Event('scroll')); });
     await p.waitForTimeout(150); await p.click('text=Jag förstår och accepterar');
     await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 10000 }).catch(() => {});
-    await p.click('nav >> text=Boka'); await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]');
-    if (flera) { await p.click('text=Lägg till person'); await p.waitForTimeout(200); await (await p.$$('[data-person]'))[1].$('[data-cat="Herr"]').then(b => b.click()); await (await p.$$('[data-person]'))[1].$('[data-service="h-kort"]').then(b => b.click()); await p.fill('#boka-p0-namn', 'Kalle'); await p.fill('#boka-p1-namn', 'Olle'); }
+    await p.click('nav >> text=Boka'); await p.click('[data-cat="Klippning"]'); await p.click('[data-service="klipp-30"]');
+    if (flera) { await p.click('text=Lägg till person'); await p.waitForTimeout(200); await (await p.$$('[data-person]'))[1].$('[data-cat="Klippning"]').then(b => b.click()); await (await p.$$('[data-person]'))[1].$('[data-service="klipp-30"]').then(b => b.click()); await p.fill('#boka-p0-namn', 'Kalle'); await p.fill('#boka-p1-namn', 'Olle'); }
     await p.click('text=Fortsätt'); await p.waitForTimeout(500);
     const step = await p.evaluate(() => document.body.innerText.includes('STEG 2 AV 3') || /Steg 2 av 3/i.test(document.body.innerText));
     ok(step, `${tag}: är i steg 2 (dag och tid)`);

@@ -18,7 +18,7 @@ let pass = 0, fail = 0; const rows = [];
   const probs = [];
   for (const tab of TABS) {
    await p.click(`nav >> text=${tab}`); await p.waitForTimeout(700);
-   if (tab === 'Boka') { await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]'); await p.waitForTimeout(150); }
+   if (tab === 'Boka') { await p.click('[data-cat="Klippning"]'); await p.click('[data-service="klipp-30"]'); await p.waitForTimeout(150); }
    const r = await p.evaluate(() => {
      const hs = document.documentElement.scrollWidth > innerWidth + 1;
      const clip = [...document.querySelectorAll('main h1, main h2, main h3, main p, main button, main a, main label, main dd, main td, main th, nav span, header *, .lh-opt__name, .lh-opt__price, .lh-pcard__name, .lh-gtile__title')].filter(e => e.offsetParent !== null && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX !== 'auto').map(e => (e.innerText || '').trim().slice(0, 18)).filter(Boolean);
