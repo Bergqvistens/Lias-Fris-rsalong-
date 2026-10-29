@@ -135,10 +135,11 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   ok(await pageBg(c) === 'rgb(95, 168, 168)', 'Kontakt har turkos bakgrund');
   const ci = await c.$$eval('[data-contact]', rs => rs.map(r => ({ k: r.getAttribute('data-contact'), t: r.innerText.replace(/\n/g, ' '), href: (r.querySelector('a') || {}).href || '', svg: !!r.querySelector('svg') })));
   ok(ci.length === 3 && ci.every(r => r.svg), 'Telefon, e-post och adress i kontaktkort med linjeikoner', ci.map(r => r.t).join(' | '));
-  ok(ci[1].href === 'mailto:lias@hantverkeri.se', 'E-posten är en mailto-länk');
-  ok(ci[0].t.includes('070-XXX XX XX') && ci[0].href === '', 'Telefon: platshållaren visas som text (ingen ring-länk förrän riktigt nummer finns)');
+  // Ändrat 29 okt: Lias riktiga uppgifter (förut platshållare)
+  ok(ci[1].href === 'mailto:lias.hantverkeri@gmail.com', 'E-posten är en mailto-länk (lias.hantverkeri@gmail.com)', ci[1].href);
+  ok(ci[0].t.includes('073-642 30 18') && ci[0].href === 'tel:+46736423018', 'Telefon 073-642 30 18 med ring-länk', ci[0].href);
   const hours = await c.$$eval('.lh-hours tr', rs => rs.map(r => r.innerText.replace(/\t|\n/g, ' ').replace(/\s+/g, ' ').trim()));
-  ok(hours.length === 7 && hours[0].startsWith('Måndag') && hours[0].endsWith('10–18') && hours[3].endsWith('10–20') && hours[5].endsWith('09–15') && hours[6].endsWith('Stängt'), 'Öppettider i tabell: Mån–Ons/Fre 10–18, Tor 10–20, Lör 09–15, Sön stängt', hours.join(' | '));
+  ok(hours.length === 7 && hours[0].startsWith('Måndag') && hours[0].endsWith('Stängt') && [1, 2, 3, 4].every(i => hours[i].endsWith('09–17')) && hours[5].endsWith('Öppet vid förfrågan') && hours[6].endsWith('Stängt'), 'Öppettider i tabell: Mån stängt, Tis–Fre 09–17, Lör vid förfrågan, Sön stängt', hours.join(' | '));
   ok(await c.$$eval('.lh-hours tr[data-today="true"]', r => r.length === 1 && r[0].innerText.includes('(idag)')), 'Dagens rad markeras med text "(idag)"');
   await c.click('button:has-text("Skicka meddelande")'); await c.waitForTimeout(200);
   const cerr = await c.$$eval('[data-err]', es => es.length);

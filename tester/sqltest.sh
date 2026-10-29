@@ -1,5 +1,5 @@
 P="psql -h /tmp/pg -p 5433 -U postgres -d lias -tA -q"
-MON="(date_trunc('week', now() at time zone 'Europe/Stockholm') + interval '7 days')"   # nästa måndag 00:00 svensk tid
+MON="(date_trunc('week', now() at time zone 'Europe/Stockholm') + interval '8 days')"   # testdag: nästa TISDAG 00:00 svensk tid (Lia har stängt måndagar sedan 29 okt). Namnet MON är kvar av historiska skäl.
 T() { # T "beskrivning" roll uid "sql" förväntat-mönster
   out=$($P -c "set role $2" -c "set request.jwt.claim.sub = '$3'" -c "$4" 2>&1 | grep -v '^CONTEXT' | tr '\n' ' ' | sed 's/ *$//')
   if echo "$out" | grep -qE "$5"; then r="OK  "; else r="FEL "; fi
@@ -13,15 +13,15 @@ ANNAN=$($P -c "insert into auth.users(email) values('annan@test.se') returning i
 $P -c "insert into admins values ('$LIA')"
 
 echo "--- Kund bokar ---"
-T "1. Giltig bokning mån 10:00, 2 tjänster" anon "" "$(BK "$(P Herr '"h-kort","h-skägg"')" '10 hours' 'Anna Andersson' '070-123 45 67' 'anna@test.se')" "Herr kort hår, Skäggtrim"
-T "2. Krock: mån 10:15 (överlappar 10:00-10:35)" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 15 minutes' 'Bo B' '0701111111' 'bo@test.se')" "TIDEN_UPPTAGEN"
-T "3. Direkt efter: mån 10:35 är inte på kvart" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 35 minutes' 'Bo B' '0701111111' 'bo@test.se')" "OGILTIG_TID"
-T "4. Direkt efter: mån 10:45 (ledig)" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 45 minutes' 'Bo B' '0701111111' 'bo@test.se')" "Dam kort hår"
-T "5. Söndag (stängt)" anon "" "$(BK "$(P Herr '"h-kort"')" '6 days 11 hours' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
-T "6. Före öppning mån 09:45" anon "" "$(BK "$(P Herr '"h-kort"')" '9 hours 45 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
-T "7. Slutar efter stängning mån 17:45 + 60 min" anon "" "$(BK "$(P Dam '"d-långt"')" '17 hours 45 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
-T "8. Torsdag 19:00 (öppet till 20)" anon "" "$(BK "$(P Herr '"h-medel"')" '3 days 19 hours' 'Cia C' '0702222222' 'cia@test.se')" "Herr medel hår"
-T "9. Lördag 14:45 + 20 min (stänger 15)" anon "" "$(BK "$(P Herr '"h-kort"')" '5 days 14 hours 45 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
+T "1. Giltig bokning tis 10:00, 2 tjänster" anon "" "$(BK "$(P Herr '"h-kort","h-skägg"')" '10 hours' 'Anna Andersson' '070-123 45 67' 'anna@test.se')" "Herr kort hår, Skäggtrim"
+T "2. Krock: tis 10:15 (överlappar 10:00-10:35)" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 15 minutes' 'Bo B' '0701111111' 'bo@test.se')" "TIDEN_UPPTAGEN"
+T "3. Direkt efter: tis 10:35 är inte på kvart" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 35 minutes' 'Bo B' '0701111111' 'bo@test.se')" "OGILTIG_TID"
+T "4. Direkt efter: tis 10:45 (ledig)" anon "" "$(BK "$(P Dam '"d-kort"')" '10 hours 45 minutes' 'Bo B' '0701111111' 'bo@test.se')" "Dam kort hår"
+T "5. Måndag (stängt)" anon "" "$(BK "$(P Herr '"h-kort"')" '6 days 11 hours' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
+T "6. Före öppning tis 08:45 (öppnar 09)" anon "" "$(BK "$(P Herr '"h-kort"')" '8 hours 45 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
+T "7. Slutar efter stängning tis 16:30 + 60 min (stänger 17)" anon "" "$(BK "$(P Dam '"d-långt"')" '16 hours 30 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
+T "8. Fredag 16:30–17:00, sista tiden före stängning" anon "" "$(BK "$(P Herr '"h-medel"')" '3 days 16 hours 30 minutes' 'Cia C' '0702222222' 'cia@test.se')" "Herr medel hår"
+T "9. Lördag 11:00 (öppet vid förfrågan, ingen onlinebokning)" anon "" "$(BK "$(P Herr '"h-kort"')" '4 days 11 hours' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
 T "10. Tid i dåtid" anon "" "select create_booking('[{\"category\":\"Herr\",\"service_ids\":[\"h-kort\"]}]'::jsonb, now() - interval '1 day', 'Cia C', '0702222222', 'cia@test.se')" "OGILTIG_TID"
 T "11. Fel telefon (9 siffror)" anon "" "$(BK "$(P Herr '"h-kort"')" '1 day 12 hours' 'Cia C' '070222222' 'cia@test.se')" "OGILTIGT_TELEFON"
 T "12. Fel e-post" anon "" "$(BK "$(P Herr '"h-kort"')" '1 day 12 hours' 'Cia C' '0702222222' 'cia.test.se')" "OGILTIG_EPOST"
@@ -37,7 +37,7 @@ T "20. Inloggad men INTE admin läser" authenticated "$ANNAN" "select count(*) f
 T "21. Inloggad men INTE admin avbokar" authenticated "$ANNAN" "update bookings set status='avbokad' returning id" "^$|UPDATE 0"
 T "22. Admin (Lia) ser alla bokningar" authenticated "$LIA" "select count(*) from bookings where status='bokad'" "^3$"
 T "23. Admin får INTE ändra pris" authenticated "$LIA" "update bookings set price=0" "permission denied"
-T "24. Admin avbokar mån 10:00" authenticated "$LIA" "update bookings set status='avbokad' where service_names like 'Herr kort%' returning service_names" "Herr kort hår"
+T "24. Admin avbokar tis 10:00" authenticated "$LIA" "update bookings set status='avbokad' where service_names like 'Herr kort%' returning service_names" "Herr kort hår"
 T "25. Mån 10:00 är ledig igen" anon "" "$(BK "$(P Herr '"h-kort"')" '10 hours' 'Dan D' '0703333333' 'dan@test.se')" "Herr kort hår"
 T "26. Pris räknas av servern (395+149)" authenticated "$LIA" "select price from bookings where customer_name='Anna Andersson'" "^544$"
 T "27. Telefon sparas utan mellanslag" authenticated "$LIA" "select customer_phone from bookings where customer_name='Anna Andersson'" "^0701234567$"
@@ -53,7 +53,9 @@ T "34. Raderna ligger efter varandra med förnamn" authenticated "$LIA" "select 
 T "35. Samma grupp-id för alla tre" authenticated "$LIA" "select count(distinct group_id)||' '||count(*) from bookings where customer_name='Eva Ek'" "^1 3$"
 T "36. Ny grupp tis 11:30 (30+45 min) krockar med Kalle kl 12:00" anon "" "$(BK '[{"category":"Herr","service_ids":["h-medel"],"name":"Olle"},{"category":"Dam","service_ids":["d-medel"],"name":"Stina"}]' '1 day 11 hours 30 minutes' 'Ulf U' '0705555555' 'ulf@test.se')" "TIDEN_UPPTAGEN"
 T "37. Inget sparades av den krockande gruppen (allt eller inget)" authenticated "$LIA" "select count(*) from bookings where customer_name='Ulf U'" "^0$"
-T "38. Grupp som slutar efter stängning (lör 14:00, 25+25+25 min)" anon "" "$(BK '[{"category":"Barn","service_ids":["b-klipp"],"name":"B1"},{"category":"Barn","service_ids":["b-klipp"],"name":"B2"},{"category":"Barn","service_ids":["b-klipp"],"name":"B3"}]' '5 days 14 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "UTANFOR_OPPETTID"
+T "38. Grupp som slutar efter stängning (fre 16:00, 25+25+25 min)" anon "" "$(BK '[{"category":"Barn","service_ids":["b-klipp"],"name":"B1"},{"category":"Barn","service_ids":["b-klipp"],"name":"B2"},{"category":"Barn","service_ids":["b-klipp"],"name":"B3"}]' '3 days 16 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "UTANFOR_OPPETTID"
 T "39. En person: inget förnamn behövs, sparas utan person_name" anon "" "$(BK "$(P Barn '"b-klipp"')" '2 days 10 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "^Barnklippning$"
 T "40. Pris och tid från servern, inte webbsidan (Dam kort + Fön + Styling = 30+15+20 min)" anon "" "select (r->>'price')||' '||(r->>'duration') from (select create_booking('[{\"category\":\"Dam\",\"service_ids\":[\"d-kort\",\"d-fön\",\"d-style\"],\"price\":1}]'::jsonb, (($MON + interval '2 days 14 hours') at time zone 'Europe/Stockholm'), 'Pia P', '0706666666', 'pia@test.se') r) x" "^743 65$"
 T "41. Kunden kan inte läsa förnamnen via get_busy" anon "" "select count(*) from get_busy(now(), now() + interval '14 days') g where row_to_json(g)::text like '%Kalle%'" "^0$"
+T "42. Torsdag 09:00, första tiden (öppnar 09)" anon "" "$(BK "$(P Herr '"h-kort"')" '2 days 9 hours' 'Gun G' '0707777777' 'gun@test.se')" "Herr kort hår"
+T "43. Söndag 11:00 (stängt)" anon "" "$(BK "$(P Herr '"h-kort"')" '5 days 11 hours' 'Gun G' '0707777777' 'gun@test.se')" "UTANFOR_OPPETTID"

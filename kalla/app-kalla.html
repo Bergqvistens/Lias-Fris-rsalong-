@@ -235,6 +235,8 @@
     .lh-hours { width: 100%; border-collapse: collapse; font: 16px var(--font-body); color: var(--text); }
     .lh-hours th, .lh-hours td { padding: 9px 4px; border-bottom: 1px solid rgba(74,56,42,0.12); text-align: left; }
     .lh-hours td { text-align: right; white-space: nowrap; }
+    .lh-hours td[data-note] { white-space: normal; }   /* "Öppet vid förfrågan" får radbrytas på smal skärm */
+    main strong, main a { overflow-wrap: anywhere; }   /* lång e-postadress bryts i stället för att göra sidan bredare */
     .lh-hours th { font-weight: 500; }
     .lh-hours tr[data-today="true"] th, .lh-hours tr[data-today="true"] td { font-weight: 700; color: var(--forest); }
     .lh-hours tr:last-child th, .lh-hours tr:last-child td { border-bottom: 0; }
@@ -644,11 +646,11 @@
       const total = plan.reduce((a2, x) => a2 + x.price, 0);
       const first = c.name.split(' ')[0];
       if (!multi) {
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Avboka/ändra: ring 070-XXX XX XX. Välkommen!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Avboka/ändra: ring ${CONTACT.phone}. Välkommen!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, ${total} kr. Tel ${c.phone}`);
       } else {
         const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Avboka/ändra: ring 070-XXX XX XX. Välkomna!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Avboka/ändra: ring ${CONTACT.phone}. Välkomna!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning (${plan.length} personer): ${c.name}, ${demoWhen(start).replace(/ kl .*/, '')}: ${list}, totalt ${total} kr. Tel ${c.phone}`);
       }
       demoSave(db);
@@ -679,7 +681,7 @@
         seats, price, customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad' };
       db.courseBookings.push(row);
       const pl = seats === 1 ? '1 plats' : seats + ' platser';
-      demoAddSms(db, c.phone, 'kurs-bekraftelse', row.id, `Hej ${c.name.split(' ')[0]}! Du är anmäld till ${course.name} hos Lias Hantverkeri, ${course.kind === 'dropin' ? '' : 'start '}${demoWhen(occ.startMs)} (${pl}). Frågor: ring 070-XXX XX XX. Välkommen!`);
+      demoAddSms(db, c.phone, 'kurs-bekraftelse', row.id, `Hej ${c.name.split(' ')[0]}! Du är anmäld till ${course.name} hos Lias Hantverkeri, ${course.kind === 'dropin' ? '' : 'start '}${demoWhen(occ.startMs)} (${pl}). Frågor: ring ${CONTACT.phone}. Välkommen!`);
       demoAddSms(db, 'Lias mobil', 'kurs-till-lia', row.id, `Ny kursbokning: ${c.name}, ${course.name} ${demoWhen(occ.startMs)}, ${pl}, ${price} kr. Tel ${c.phone}`);
       demoSave(db); demoEmit('course_bookings', row);
       return { data: row, error: null };
@@ -708,7 +710,7 @@
       const row = { id: demoId(), number: 'LH-' + db.orderSeq, created_at: new Date().toISOString(), items, total, payment: p.p_payment,
         customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'betald' };
       db.orders.push(row);
-      demoAddSms(db, c.phone, 'order-bekraftelse', row.id, `Tack ${c.name.split(' ')[0]}! Din beställning ${row.number} hos Lias Hantverkeri är betald (${total} kr). Vi sms:ar när den kan hämtas. Frågor: 070-XXX XX XX.`);
+      demoAddSms(db, c.phone, 'order-bekraftelse', row.id, `Tack ${c.name.split(' ')[0]}! Din beställning ${row.number} hos Lias Hantverkeri är betald (${total} kr). Vi sms:ar när den kan hämtas. Frågor: ${CONTACT.phone}.`);
       demoAddSms(db, 'Lias mobil', 'order-till-lia', row.id, `Ny beställning ${row.number}: ${c.name}, ${items.map(i => i.qty + ' st ' + i.name).join(', ')}, ${total} kr (${p.p_payment === 'swish' ? 'Swish' : 'kort'}). Tel ${c.phone}`);
       demoSave(db); demoEmit('orders', row);
       return { data: row, error: null };
@@ -970,7 +972,10 @@
     ];
 
     // Öppettider per veckodag (0 = söndag … 6 = lördag), [öppnar, stänger] i svensk tid
-    const OPENING = { 0: null, 1: [10, 18], 2: [10, 18], 3: [10, 18], 4: [10, 20], 5: [10, 18], 6: [9, 15] };
+    // Öppettider (svensk tid). null = ingen onlinebokning den dagen. Lördag: öppet vid förfrågan (bokas via telefon/sms).
+    const OPENING = { 0: null, 1: null, 2: [9, 17], 3: [9, 17], 4: [9, 17], 5: [9, 17], 6: null };
+    const OPENING_NOTE = { 6: 'Öppet vid förfrågan' };
+    const CONTACT = { phone: '073-642 30 18', tel: '+46736423018', email: 'lias.hantverkeri@gmail.com', address: ['Lias Hantverkeri', 'Sandviksvägen 10', '691 52 Karlskoga'] };
 
     const initialState = { gdprOk: false, tab: 'home' };
 
@@ -1007,7 +1012,7 @@
     function fmtTime(ms) { return new Date(ms).toLocaleTimeString('sv-SE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }); }
     function fmtDayLong(ms) { const t = new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); }
 
-    // De kommande öppna dagarna (söndag hoppas över)
+    // De kommande dagarna med onlinebokning (stängda dagar och lördag hoppas över)
     function upcomingDays(count) {
       const t = tzParts(Date.now());
       const out = [];
@@ -1118,9 +1123,9 @@
               <div style={{ marginBottom: '28px', backgroundColor: `${COLORS.sandBrown}15`, padding: '16px', borderRadius: '12px', borderLeft: `4px solid ${COLORS.sandBrown}` }}>
                 <h3 style={{ margin: '0 0 12px 0', color: COLORS.earthBrown, fontSize: '16px', fontWeight: '600' }}>📞 Kontakta oss</h3>
                 <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.6' }}>
-                  E-post: <strong>lias@hantverkeri.se</strong><br />
-                  Tel: <strong>070-XXX XX XX</strong><br />
-                  Adress: Karlskoga, Sverige
+                  E-post: <strong>{CONTACT.email}</strong><br />
+                  Tel: <strong>{CONTACT.phone}</strong><br />
+                  Adress: {CONTACT.address.slice(1).join(', ')}
                 </p>
               </div>
 
@@ -1542,7 +1547,7 @@
         </div>
       );
     }
-    const ONLINE_SOON = <div style={{ ...BOX, marginBottom: '16px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.6' }}>Onlinebokning och köp öppnar snart. Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong>.</div>;
+    const ONLINE_SOON = <div style={{ ...BOX, marginBottom: '16px', fontSize: '14px', color: COLORS.dark, lineHeight: '1.6' }}>Onlinebokning och köp öppnar snart. Kontakta Lia på <strong>{CONTACT.phone}</strong> eller <strong>{CONTACT.email}</strong>.</div>;
     const pageWrap = { padding: '20px 16px', maxWidth: '700px', margin: '0 auto' };
     const plats = n => n === 1 ? '1 plats' : n + ' platser';
     function fmtDate(ms) { const t = new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, day: 'numeric', month: 'short' }).replace('.', ''); return t; }
@@ -1906,7 +1911,7 @@
           <p className="lh-page__note">Produktbilderna är illustrationer – varje föremål är handgjort och unikt.{DEMO ? ' Lagersaldot är exempel i demon.' : ''}</p>
           <Card tone="sand" style={{ marginTop: '16px', textAlign: 'center' }}>
             <h2 style={{ margin: '0 0 6px', font: `600 18px/1.3 ${T.font.heading}`, color: T.color.forest }}>Är du intresserad av en specialbeställning?</h2>
-            <p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kontakta Lia på <strong>070-XXX XX XX</strong> eller <strong>lias@hantverkeri.se</strong></p>
+            <p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kontakta Lia på <strong>{CONTACT.phone}</strong> eller <strong>{CONTACT.email}</strong></p>
           </Card>
           {det && (
             <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
@@ -1931,7 +1936,6 @@
     }
 
     // Kontaktuppgifter på ett ställe. tel: null = riktigt nummer saknas än (då visas numret som text, utan ring-länk).
-    const CONTACT = { phone: '070-XXX XX XX', tel: null, email: 'lias@hantverkeri.se', address: ['Lias Hantverkeri', 'Karlskoga', 'Sverige'] };
     const WEEK_ORDER = [[1, 'Måndag'], [2, 'Tisdag'], [3, 'Onsdag'], [4, 'Torsdag'], [5, 'Fredag'], [6, 'Lördag'], [0, 'Söndag']];
     const hh = h => String(h).padStart(2, '0');
 
@@ -1975,7 +1979,7 @@
               <tbody>
                 {WEEK_ORDER.map(([dow, name]) => {
                   const o = OPENING[dow];
-                  return <tr key={dow} data-today={dow === todayDow ? 'true' : 'false'}><th scope="row">{name}{dow === todayDow ? ' (idag)' : ''}</th><td>{o ? `${hh(o[0])}–${hh(o[1])}` : 'Stängt'}</td></tr>;
+                  return <tr key={dow} data-today={dow === todayDow ? 'true' : 'false'}><th scope="row">{name}{dow === todayDow ? ' (idag)' : ''}</th><td data-note={!o && OPENING_NOTE[dow] ? 'true' : undefined}>{o ? `${hh(o[0])}–${hh(o[1])}` : (OPENING_NOTE[dow] || 'Stängt')}</td></tr>;
                 })}
               </tbody>
             </table>
@@ -2740,7 +2744,7 @@
           <Nav state={state} dispatch={dispatch} />
           <footer className="lh-footer" style={{ '--fade-from': pageBg }}>
             <p className="lh-footer__name">Lias Hantverkeri © 2026</p>
-            <p className="lh-footer__place">Karlskoga, Sverige</p>
+            <p className="lh-footer__place">Sandviksvägen 10, Karlskoga</p>
             <button onClick={() => { dispatch({ type: 'TAB', p: 'admin' }); window.scrollTo(0, 0); }} className="lh-footer__admin" style={{ marginTop: '4px', minHeight: '44px', minWidth: '44px', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Admin</button>
           </footer>
         </div>

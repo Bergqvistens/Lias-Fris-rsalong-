@@ -122,3 +122,11 @@
 
 ## 28 okt: Startbilden visas minst 3,5 s (förut 2,5 s)
 - Math.max(0, 3500 - performance.now()) i det vanliga skriptet efter .lh-splash. startbild.js: appen 4,5 s i långsam-testet, toning vid 3,50 s. cookie-glimt.js väntar 4,3 s efter omstart. Alla 785 kontroller gröna.
+
+## 29 okt: Lias riktiga kontaktuppgifter och öppettider
+- CONTACT (flyttad upp bredvid OPENING): 073-642 30 18 (tel:+46736423018), lias.hantverkeri@gmail.com, Sandviksvägen 10, 691 52 Karlskoga. Alla 070-XXX/lias@hantverkeri.se-platshållare borta (integritetsrutan, demo-sms, shop, kontakt, sidfot).
+- OPENING: tis–fre 9–17, mån/sön stängt, lör null + OPENING_NOTE "Öppet vid förfrågan". create_booking i supabase-setup.sql och tester/lokal-testdatabas.sql: tis–fre 09–17 (verifierad återställning).
+- CSS: "Öppet vid förfrågan"-cellen och main strong/a får radbrytas (lång e-post gjorde Shop/Kontakt/Galleri för breda vid 320 px + 130 %).
+- Tester: sqltest testdag nu tisdag + 2 nya (43/43), s4check uppdaterad, ny kontakt-info.js 10/10. Totalt 797 gröna.
+- Lias 17 tjänster avskrivna i kalla/tjanster-lia.md (två stavfel rättade). INTE inlagda i appen än – väntar på Lias svar om bokningsflöde, från-priser och Valei.
+- Instagram-kontots namn saknas fortfarande.

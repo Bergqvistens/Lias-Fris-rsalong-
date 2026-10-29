@@ -1,4 +1,4 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås). Öppettider i create_booking ändrade 29 okt 2026 (tis–fre 9–17).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
@@ -114,9 +114,9 @@ begin
   v_local     := p_starts_at at time zone 'Europe/Stockholm';
   v_local_end := v_end       at time zone 'Europe/Stockholm';
   v_dow := extract(isodow from v_local);   -- 1 = måndag … 7 = söndag
-  v_open  := case when v_dow = 6 then time '09:00' when v_dow = 7 then null else time '10:00' end;
-  v_close := case when v_dow = 4 then time '20:00' when v_dow = 6 then time '15:00'
-                  when v_dow = 7 then null else time '18:00' end;
+  -- Tisdag–fredag 9–17. Måndag, lördag (öppet vid förfrågan) och söndag: ingen onlinebokning.
+  v_open  := case when v_dow between 2 and 5 then time '09:00' else null end;
+  v_close := case when v_dow between 2 and 5 then time '17:00' else null end;
   if v_open is null or v_local::time < v_open or v_local_end::date <> v_local::date or v_local_end::time > v_close then
     raise exception 'UTANFOR_OPPETTID';
   end if;
