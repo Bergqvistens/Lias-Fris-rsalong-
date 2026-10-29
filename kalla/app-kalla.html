@@ -16,6 +16,7 @@
   <style>
     /* ===== Designtokens (Lias Hantverkeri – skogsgrön & champagne) ===== */
     :root {
+      --frame: #91744A;   /* brun ram (1 px) runt innehållsrutor – 1,5 px avrundas olika i olika webbläsare */
       --forest: #1F3D32; --forest-dark: #173026; --teal: #5FA8A8;
       --bg: #F6EED7; --sand: #EADFC8; --surface: #FBF8EF;
       --text: #4A382A; --text-muted: #6E5B4A;
@@ -64,7 +65,7 @@
     .lh-chip[aria-pressed="true"] { background: var(--forest); color: #FFFFFF; border-color: var(--forest); }
 
     /* Kort och statusmärken */
-    .lh-card { background: var(--surface); color: var(--text); border-radius: var(--r-card); padding: 16px; border: 1px solid rgba(74,56,42,0.08); box-shadow: var(--shadow-card); }
+    .lh-card { background: var(--surface); color: var(--text); border-radius: var(--r-card); padding: 16px; border: 1px solid var(--frame); box-shadow: var(--shadow-card); }
     .lh-card--sand { background: var(--sand); }
     .lh-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--r-pill); font: 600 14px var(--font-body); }
     .lh-badge--ok { color: var(--forest); background: rgba(31,61,50,0.08); }
@@ -126,7 +127,7 @@
     .lh-entries > * { min-width: 0; }
     .lh-entry__title, .lh-entry__text { overflow-wrap: anywhere; }
     @media (max-width: 340px) { .lh-entry__img { width: 72px; } .lh-entry { gap: 10px; } }
-    .lh-entry { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 112px; padding: 12px; text-align: left; border: 1px solid rgba(74,56,42,0.08); border-radius: var(--r-card); background: var(--surface); color: var(--text); box-shadow: var(--shadow-card); cursor: pointer; transition: transform .08s ease; }
+    .lh-entry { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 112px; padding: 12px; text-align: left; border: 1px solid var(--frame); border-radius: var(--r-card); background: var(--surface); color: var(--text); box-shadow: var(--shadow-card); cursor: pointer; transition: transform .08s ease; }
     .lh-entry:active { transform: scale(0.99); }
     .lh-entry__img { width: 88px; flex-shrink: 0; }
     .lh-entry__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

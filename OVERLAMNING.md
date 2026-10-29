@@ -130,3 +130,8 @@
 - Tester: sqltest testdag nu tisdag + 2 nya (43/43), s4check uppdaterad, ny kontakt-info.js 10/10. Totalt 797 gröna.
 - Lias 17 tjänster avskrivna i kalla/tjanster-lia.md (två stavfel rättade). INTE inlagda i appen än – väntar på Lias svar om bokningsflöde, från-priser och Valei.
 - Instagram-kontots namn saknas fortfarande.
+
+## 29 okt: Brun ram runt innehållsrutor
+- Token --frame: #91744A. .lh-card och .lh-entry: border 1px solid var(--frame) (förut 1px rgba(74,56,42,0.08)). 1,5 px provades men Chromium avrundar till 1 px medan Safari ritar halva pixlar – därför 1 px för samma utseende överallt.
+- Knappar, menyn, inmatningsfält, .lh-opt (val), .lh-cut (Lias schema) och admin-rutorna (BOX, redan 2 px brun) är oförändrade.
+- Före/efter-bild: ram-fore-efter.png (outputs). Test: ram-test.js 8/8. Totalt 805 gröna.

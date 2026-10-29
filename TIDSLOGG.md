@@ -11,5 +11,7 @@ Aktiv arbetstid räknas från tidsstämplarna i Claudes arbetslogg: tiden mellan
 | 2026-10-27 | 17:53–19:31 | 98 min | Startbild med Lias originallogga, tidslogg, startbilden minst 2,5 s, appen översätts i förväg (utan Babel) |
 | 2026-10-28 | 10:57–10:59 | 1 min | Vad som krävs för officiell start |
 | 2026-10-28 | 12:21–12:53 | 32 min | Lias startlista (delbar checklista + PDF), startbilden minst 3,5 s |
+| 2026-10-28 | 17:08 | under 1 min | Genomgång av Lias uppgifter från bilder |
+| 2026-10-29 | 10:53–11:42 | 49 min | Lias kontaktuppgifter och öppettider, tjänstelistan, brun ram runt rutorna |
 
-**Summa mätt tid: 3 h 3 min** (från 27 okt 2026)
+**Summa mätt tid: 3 h 52 min** (från 27 okt 2026)
