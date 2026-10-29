@@ -142,7 +142,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   // Ändrat 29 okt: Lias riktiga uppgifter (förut platshållare)
   ok(ci[1].href === 'mailto:lias.hantverkeri@gmail.com', 'E-posten är en mailto-länk (lias.hantverkeri@gmail.com)', ci[1].href);
   ok(ci[0].t.includes('073-642 30 18') && ci[0].href === 'tel:+46736423018', 'Telefon 073-642 30 18 med ring-länk', ci[0].href);
-  const hours = await c.$$eval('.lh-hours tr', rs => rs.map(r => r.innerText.replace(/\t|\n/g, ' ').replace(/\s+/g, ' ').trim()));
+  const hours = await c.$$eval('[aria-labelledby="kontakt-oppet"] .lh-hours tr', rs => rs.map(r => r.innerText.replace(/\t|\n/g, ' ').replace(/\s+/g, ' ').trim()));
   ok(hours.length === 7 && hours[0].startsWith('Måndag') && hours[0].endsWith('Stängt') && [1, 2, 3, 4].every(i => hours[i].endsWith('09–17')) && hours[5].endsWith('Öppet vid förfrågan') && hours[6].endsWith('Stängt'), 'Öppettider i tabell: Mån stängt, Tis–Fre 09–17, Lör vid förfrågan, Sön stängt', hours.join(' | '));
   ok(await c.$$eval('.lh-hours tr[data-today="true"]', r => r.length === 1 && r[0].innerText.includes('(idag)')), 'Dagens rad markeras med text "(idag)"');
   await c.click('button:has-text("Skicka meddelande")'); await c.waitForTimeout(200);

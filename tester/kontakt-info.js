@@ -1,3 +1,4 @@
+// 29 okt: öppettidstabellen avgränsas till sin sektion (avbokningsreglerna har också en tabell)
 // Lias riktiga kontaktuppgifter och öppettider (från hennes bokningssida/Google, 28 okt 2026)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const fs = require('fs');
@@ -34,7 +35,7 @@ const built = fs.readFileSync('/mnt/user-data/outputs/github/index.html', 'utf8'
     tel: document.querySelector('[data-contact="telefon"]').innerText, telHref: (document.querySelector('[data-contact="telefon"] a') || {}).href || '',
     mail: document.querySelector('[data-contact="epost"]').innerText, mailHref: (document.querySelector('[data-contact="epost"] a') || {}).href || '',
     adr: document.querySelector('[data-contact="adress"]').innerText,
-    hours: [...document.querySelectorAll('.lh-hours tr')].map(tr => tr.innerText.replace(/\s+/g, ' ').trim()) }));
+    hours: [...document.querySelectorAll('[aria-labelledby="kontakt-oppet"] .lh-hours tr')].map(tr => tr.innerText.replace(/\s+/g, ' ').trim()) }));
   ok(/073-642 30 18/.test(c.tel) && c.telHref === 'tel:+46736423018', 'Telefon 073-642 30 18, går att trycka för att ringa', c.telHref);
   ok(/lias\.hantverkeri@gmail\.com/.test(c.mail) && c.mailHref === 'mailto:lias.hantverkeri@gmail.com', 'E-post lias.hantverkeri@gmail.com', c.mailHref);
   ok(/Sandviksvägen 10/.test(c.adr) && /691 52 Karlskoga/.test(c.adr), 'Adress Sandviksvägen 10, 691 52 Karlskoga', c.adr.replace(/\n/g, ' | '));

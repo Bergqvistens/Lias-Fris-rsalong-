@@ -153,6 +153,20 @@
 - Steg 1: kategori (textknappar, CAT_LABEL ger mjukt bindestreck i Hårbottenmassage) → en tjänst per person (radio) + "Mer info"-knapp → ruta med kategori, namn, tid, från-pris, beskrivning, "Utförs av Lia", "Välj den här tjänsten", Tillbaka överst/nederst, bakåtgest och Escape. Inga tillägg.
 - Priser visas som "från X kr" (fromPrice) i steg 1–3, bekräftelsen och sms till Lia. Formatet är appens vanliga (600,00 kr).
 - Databasen: services ersatt (gamla tas bort med delete), kategorikontrollen mot services-tabellen i stället för Herr/Dam/Barn. lokal-testdatabas.sql uppdaterad och verifierad.
-- Lias schema i admin säger fortfarande "Klippning: namn tid" för alla bokningar, även bryn/massage – fråga Tommy om det ska ändras.
-- Väntar på Lia: tillägg (t.ex. Bottenfärg + klippning), slutpris i admin, Valei.
+- Lias schema i admin säger "Klippning: namn tid" för alla bokningar. Tommy 29 okt: ska INTE ändras.
+- Svar 29 okt: se avsnittet Beslut 29 okt kväll.
 - Tester: 14 sviter omskrivna till Lias tjänster, krock-parallell skärpt, ny tjanster-test 34/34. Totalt 884.
+
+## Beslut 29 okt kväll (Tommy, efter samtal med Lia)
+- **Tillägg ska byggas:** max EN klippning per person, valfritt antal tillägg från andra kategorier (ex. Klippning + Färgbehandling + Bottenfärg). Schemat blockerar summan av tiderna (Tommy: kör på förslaget).
+- "Klipp & färg, kort hår" (klipp-farg-kort) ska bort; "Färg kort hår" blir tillval. AVVAKTA: tid/pris/text saknas.
+- AVVAKTA (Tommy återkommer): tjänster som redan innehåller klippning (färg 2,5/3 h, permanenter) – räknas de som kundens klippning? Skäggtrim finns inte bland Lias tjänster – läggas till? Hårbottenmassagens text "bokas separat" – ändras?
+- **Pris:** utgångspris. Text att visa i sammanfattningen innan bokning och i bekräftelsen: "Priserna är utgångspriser. Tar arbetet längre tid än beräknat kan slutpriset bli högre." Lia avgör slutpriset själv. (Godkänt, ej byggt än.)
+- **Valei ska bort** i början av 2027. Ersättaren ska: ta betalningar, skicka sms- och e-postpåminnelser, vara mycket pålitlig, hög säkerhet, smidig, samarbeta enkelt med appen och automatiskt skicka uppgifter till bokföringsprogrammet Fortnox. Jämförelse av system görs när det blir aktuellt.
+- **Admin-schemats "Klippning:"-rubrik:** lämnas som den är.
+
+## 29 okt: Avbokningsregler (24 h / 48 h, ingen avgift)
+- Regel: senast 24 timmar före; 48 timmar för Färgbehandling och Permanent (CANCEL_LONG_CATS). Bokning med flera tjänster/personer: strängaste regeln gäller hela bokningen (cancelHoursFor). Ingen avgift (Tommy valde "Ingen avgift än"). Om avgift införs: villkoret måste visas och godkännas INNAN bokning (Lawline, Familjens Jurist).
+- Visas: Kontaktsidan (Avbokningsregler under Öppettider), Mer info-rutan ("Avbokning senast X timmar före"), steg 3 före kontaktfälten (ruta med exakt sista tid), bekräftelsen, bekräftelse-sms (demo). Om sista tiden redan passerat vid bokning: "Din tid är mindre än X timmar bort …".
+- Kunden avbokar via telefon/sms/e-post (ingen avbokningsknapp för kunder i appen).
+- Test: avbokning-test.js (19). Kontaktsidans regler visas som lista (inte tabell) så att inget sticker ut vid 320 px + 130 % text. s4check och kontakt-info avgränsar öppettidstabellen till sin sektion. Hela sviten: 31 sviter, 903 kontroller, alla gröna.

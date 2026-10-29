@@ -191,6 +191,11 @@
     .lh-howto { margin: 16px 0 4px; padding: 14px 16px; background: var(--surface); color: var(--text); border: 1px solid var(--frame); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
     .lh-howto__title { margin: 0 0 6px; font: 600 19px/1.25 var(--font-heading); color: var(--forest); }
     .lh-howto__steps { margin: 0; padding-left: 24px; display: grid; gap: 4px; font: 16px/1.45 var(--font-body); }
+    .lh-cancel { margin: 14px 0 0; padding: 14px 16px; background: var(--surface); color: var(--text); border: 1px solid var(--frame); border-radius: var(--r-card); box-shadow: var(--shadow-card); text-align: left; }
+    .lh-cancel__title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font: 600 19px/1.25 var(--font-heading); color: var(--forest); }
+    .lh-cancel p { margin: 6px 0 0; font: 16px/1.45 var(--font-body); }
+    .lh-cancel a { color: var(--forest); font-weight: 600; }
+    .lh-cancel .lh-cancel__rule { font-size: 15px; color: var(--text-muted); }
     .lh-howto__swipe { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 0; font: 500 15px/1.45 var(--font-body); }
     .lh-opts { display: grid; gap: 8px; }
     .lh-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 12px 14px; text-align: left; background: var(--surface); color: var(--text); border: 1.5px solid rgba(74,56,42,0.18); border-radius: 16px; cursor: pointer; font: 16px var(--font-body); }
@@ -246,6 +251,11 @@
     .lh-hours th { font-weight: 500; }
     .lh-hours tr[data-today="true"] th, .lh-hours tr[data-today="true"] td { font-weight: 700; color: var(--forest); }
     .lh-hours tr:last-child th, .lh-hours tr:last-child td { border-bottom: 0; }
+    .lh-cancelrules { margin: 0; }
+    .lh-cancelrules > div { padding: 9px 0; border-bottom: 1px solid rgba(74,56,42,0.12); }
+    .lh-cancelrules > div:last-child { border-bottom: 0; }
+    .lh-cancelrules dt { font: 700 16px/1.4 var(--font-body); color: var(--forest); }
+    .lh-cancelrules dd { margin: 2px 0 0; font: 16px/1.45 var(--font-body); color: var(--text); }
     .lh-gsec { margin: 18px 0 8px; font: 600 20px/1.2 var(--font-heading); color: var(--on-page); }
     .lh-gsec__note { margin: -2px 0 10px; font: 15px/1.45 var(--font-body); color: var(--on-page); }
     .lh-ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 12px; }
@@ -666,12 +676,14 @@
       rows.forEach(r => db.bookings.push(r));
       const total = plan.reduce((a2, x) => a2 + x.price, 0);
       const first = c.name.split(' ')[0];
+      const cDl = start - cancelHoursFor(plan.flatMap(x => x.ids)) * 3600000;
+      const cTxt = cDl > Date.now() ? `Avboka/ändra senast ${demoWhen(cDl)}: ring eller sms:a ${CONTACT.phone}.` : `Avboka/ändra: ring ${CONTACT.phone}.`;
       if (!multi) {
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Avboka/ändra: ring ${CONTACT.phone}. Välkommen!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). ${cTxt} Välkommen!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, från ${total} kr. Tel ${c.phone}`);
       } else {
         const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Avboka/ändra: ring ${CONTACT.phone}. Välkomna!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. ${cTxt} Välkomna!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning (${plan.length} personer): ${c.name}, ${demoWhen(start).replace(/ kl .*/, '')}: ${list}, totalt ${total} kr. Tel ${c.phone}`);
       }
       demoSave(db);
@@ -938,6 +950,11 @@
     // Visningsnamn: mjukt bindestreck så att långa ord bryts snyggt på smala knappar (Hårbotten-massage)
     const CAT_LABEL = { 'Hårbottenmassage': 'Hårbotten\u00admassage' };
     const SERVICE_CATS = ['Klippning', 'Färgbehandling', 'Permanent', 'Styling, tvätt & föning', 'Hårbottenmassage', 'Frans och/eller brynfärg'];
+    // Avbokningsregler (beslut Tommy 29 okt 2026): senast 24 timmar före, 48 timmar för långa behandlingar. Ingen avgift tills vidare.
+    const CANCEL_LONG_CATS = ['Färgbehandling', 'Permanent'];
+    const CANCEL_SHORT_TEXT = 'Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage';
+    const CANCEL_LONG_TEXT = 'Färgbehandling och permanent';
+    const cancelHoursFor = ids => ids.some(id => { const x = SERVICES.find(v => v.id === id); return x && CANCEL_LONG_CATS.includes(x.cat); }) ? 48 : 24;
     const SERVICES = [
       { id: 'klipp-45', cat: 'Klippning', name: 'Klippning 45 min.', dur: 45, price: 600, cut: true,
         desc: 'Inklusive tvätt, fön och lättare styling. För dig som har normalt till tjockt hår. Vid extra långt eller tjockt hår, boka 60 min klippning.' },
@@ -1393,7 +1410,8 @@
                   {demoLoad().sms.filter(m => m.bookingId === done.id && m.kind === 'bekraftelse').map(m => <DemoSmsBubble key={m.id} sms={m} />)}
                 </div>
               )}
-              <p className="lh-done__note">Ta gärna en skärmbild. Behöver du ändra eller avboka? Kontakta Lia på <strong>{CONTACT.phone}</strong>.</p>
+              <CancelPolicy ids={people.map(p => p.cut).filter(Boolean)} startMs={s} />
+              <p className="lh-done__note">Ta gärna en skärmbild.</p>
             </DoneCard>
           </div>
         );
@@ -1470,6 +1488,7 @@
                       <p className="lh-svcinfo__meta"><span><Icon name="clock" size={18} />{svc.dur} min</span><strong>{fromPrice(svc.price)}</strong></p>
                       <p className="lh-svcinfo__desc">{svc.desc}</p>
                       <p className="lh-svcinfo__who"><Icon name="user" size={18} />Utförs av Lia</p>
+                      <p className="lh-svcinfo__who" data-cancel-info={cancelHoursFor([svc.id])}><Icon name="calendar" size={18} />Avbokning senast {cancelHoursFor([svc.id])} timmar före</p>
                       {chosen
                         ? <p className="lh-svcinfo__chosen" data-chosen="true"><Icon name="check" size={18} strokeWidth={3} />Vald{multi ? ' för ' + label(people[info.i], info.i) : ''}</p>
                         : <Button block data-valj={svc.id} onClick={() => { update(info.i, { cat: svc.cat, cut: svc.id }); closeInfo(); }}>Välj den här tjänsten</Button>}
@@ -1555,6 +1574,7 @@
                 </>}
             <InfoRow icon="tag"><strong>{fromPrice(totalPrice)}</strong> (betalas på plats)</InfoRow>
           </Card>
+          <CancelPolicy ids={people.map(p => p.cut).filter(Boolean)} startMs={slot} />
           <ContactFields form={form} setForm={setForm} tried={tried} idp="boka" />
           {multi && <p className="lh-steph__sub" style={{ marginTop: '10px' }}><Icon name="info" size={18} />Kontaktuppgifterna gäller hela bokningen.</p>}
           <ActionBar label={sending ? 'Bokar…' : `Boka · ${fromPrice(totalPrice)}`} enabled={!sending} onClick={submit} />
@@ -1604,6 +1624,21 @@
       const v = { name: form.name.trim().length >= 2, phone: /^0\d{9}$/.test(phoneDigits), email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim()) };
       return { ...v, all: v.name && v.phone && v.email, phoneDigits };
     }
+    // Avbokningsrutan: visas i steg 3 (innan kunden bokar) och i bekräftelsen
+    function CancelPolicy({ ids, startMs }) {
+      const h = cancelHoursFor(ids), dl = startMs - h * 3600000, passed = dl <= Date.now();
+      return (
+        <section className="lh-cancel" data-cancel={h} aria-label="Avbokning">
+          <h3 className="lh-cancel__title"><Icon name="calendar" size={20} />Avbokning</h3>
+          {passed
+            ? <p data-cancel-deadline="passerad">Din tid är mindre än {h} timmar bort. Kan du inte komma, hör av dig till Lia så snart som möjligt.</p>
+            : <p data-cancel-deadline={new Date(dl).toISOString()}>Avboka eller ändra senast <strong>{fmtDayLong(dl).toLowerCase()} kl {fmtTime(dl)}</strong>.</p>}
+          <p>Ring eller sms:a <a href={'tel:' + CONTACT.tel}>{CONTACT.phone}</a>, eller mejla <a href={'mailto:' + CONTACT.email}>{CONTACT.email}</a>.</p>
+          <p className="lh-cancel__rule">{CANCEL_SHORT_TEXT}: senast 24 timmar före. {CANCEL_LONG_TEXT}: senast 48 timmar före.</p>
+        </section>
+      );
+    }
+
     function ContactFields({ form, setForm, tried, idp = 'kund' }) {
       const v = contactCheck(form);
       const f = (key, label, props, msg) => <FormField id={idp + '-' + key} label={label} required value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} error={tried && !v[key] ? msg : null} {...props} />;
@@ -2065,6 +2100,15 @@
                 })}
               </tbody>
             </table>
+          </section>
+
+          <section className="lh-card lh-contact" style={{ marginTop: '14px' }} aria-labelledby="kontakt-avbokning" data-section="avbokning">
+            <h2 id="kontakt-avbokning">Avbokningsregler</h2>
+            <dl className="lh-cancelrules">
+              <div data-rule="24"><dt>Senast 24 timmar före</dt><dd>{CANCEL_SHORT_TEXT}</dd></div>
+              <div data-rule="48"><dt>Senast 48 timmar före</dt><dd>{CANCEL_LONG_TEXT}</dd></div>
+            </dl>
+            <p style={{ margin: '10px 0 0', fontSize: '16px', lineHeight: 1.5 }}>Avboka eller ändra genom att ringa eller sms:a <a href={'tel:' + CONTACT.tel}>{CONTACT.phone}</a>, eller mejla <a href={'mailto:' + CONTACT.email}>{CONTACT.email}</a>.</p>
           </section>
 
           <section className="lh-card" style={{ marginTop: '14px' }} aria-labelledby="kontakt-form">
