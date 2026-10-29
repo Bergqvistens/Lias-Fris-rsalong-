@@ -27,7 +27,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
     await p.click('nav >> text=Boka'); await p.click('[data-cat="Herr"]'); await p.click('[data-service="h-kort"]'); await p.click('text=Fortsätt'); await p.waitForTimeout(500);
     const h = await p.evaluate(() => { const e = document.querySelector('[data-howto]'); if (!e) return null; const days = document.querySelector('.lh-days');
       return { title: e.querySelector('h3').innerText, steps: [...e.querySelectorAll('li')].map(li => li.innerText), swipe: e.querySelector('.lh-howto__swipe').innerText.trim(),
-        above: e.getBoundingClientRect().bottom <= days.getBoundingClientRect().top, fg: getComputedStyle(e.querySelector('li')).color, fs: parseFloat(getComputedStyle(e.querySelector('li')).fontSize),
+        above: e.getBoundingClientRect().bottom <= days.getBoundingClientRect().top, fg: getComputedStyle(e.querySelector('li')).color, tfg: getComputedStyle(e.querySelector('h3')).color, boxbg: getComputedStyle(e).backgroundColor, bw: getComputedStyle(e).borderTopWidth, bc: getComputedStyle(e).borderTopColor, fs: parseFloat(getComputedStyle(e.querySelector('li')).fontSize),
         bg: getComputedStyle(document.querySelector('.lh-flow').closest('main') || document.body).backgroundColor,
         clip: [...e.querySelectorAll('*')].some(x => x.scrollWidth > x.clientWidth + 1), hs: document.documentElement.scrollWidth <= innerWidth + 1,
         placeholder: [...document.querySelectorAll('.lh-flow p')].map(x => x.innerText).find(t => /Tryck på en dag ovan/.test(t)) || '' }; });
@@ -36,12 +36,13 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
     ok(h && h.swipe === 'Svep åt sidan på datumrutorna för fler förslag på datum.', `${tag}: svep-texten (Tommys formulering)`, h && h.swipe);
     ok(h && h.above, `${tag}: instruktionen står ovanför datumrutorna`);
     ok(h && h.placeholder === 'Tryck på en dag ovan, så visas de lediga tiderna här.', `${tag}: rutan under dagarna förklarar vad som händer`, h && h.placeholder);
-    if (zoom === 1) ok(h && h.fs >= 16 && contrast(h.fg, 'rgb(95, 168, 168)') >= 4.5, `${tag}: textstorlek ≥ 16 px och kontrast ≥ 4,5 mot turkos`, h && (h.fs + ' px, ' + contrast(h.fg, 'rgb(95, 168, 168)').toFixed(2)));
+    if (zoom === 1) ok(h && h.boxbg !== 'rgba(0, 0, 0, 0)' && h.bc === 'rgb(145, 116, 74)' && h.bw === '1px', `${tag}: instruktionen ligger i en ljus ruta med brun ram (ändrat 29 okt)`, h && (h.boxbg + ' / ' + h.bw + ' ' + h.bc));
+    if (zoom === 1) ok(h && h.fs >= 16 && contrast(h.fg, h.boxbg) >= 7 && contrast(h.tfg, h.boxbg) >= 7, `${tag}: 16 px, text och rubrik har kontrast ≥ 7 mot rutan`, h && (h.fs + ' px, text ' + contrast(h.fg, h.boxbg).toFixed(2) + ', rubrik ' + contrast(h.tfg, h.boxbg).toFixed(2)));
     ok(h && !h.clip && h.hs, `${tag}: ingen avklippt text, ingen sidledsscroll`);
     await (await p.$$('.lh-day'))[0].click(); await p.waitForTimeout(500);
     const tt = await p.$eval('[data-times-title]', e => e.innerText).catch(() => '');
     ok(/^Välj en tid · /.test(tt), `${tag}: efter vald dag har tiderna rubriken "Välj en tid"`, tt);
-    if (w === 390) await p.screenshot({ path: '/mnt/user-data/outputs/boka-instruktion.png' });
+    if (w === 390) await p.screenshot({ path: '/mnt/user-data/outputs/boka-instruktion-ruta.png' });
     ok(errs.length === 0, `${tag}: inga JavaScript-fel`, errs.join(' | '));
     await ctx.close();
   }

@@ -45,8 +45,8 @@ Testerna läser bilderna från `/mnt/user-data/outputs/github/bilder/` – ändr
 | `starttid.js` | Mätning (inte godkänt/underkänt): tid tills appen är ritad, processorn 4× långsammare, ingen nätfördröjning. 27 okt: median 0,42 s | – |
 | `kontakt-info.js` | Lias riktiga uppgifter: telefon 073-642 30 18 med ring-länk, lias.hantverkeri@gmail.com, Sandviksvägen 10, öppettider i tabellen, bokning bara tis–fre 09–17, inga gamla platshållare kvar , Instagram @lias_hantverkeri i kontaktkort och sidfot | 12/12 |
 | `ram-test.js` | Brun ram 1 px (#91744A) på alla innehållsrutor (.lh-card, .lh-entry) på fem sidor, mätt som mobilskärm 3×; knappar, menyn och inmatningsfält oförändrade | 8/8 |
-| `instruktion-test.js` | Bokning steg 2: "Så här bokar du" med två steg och svep-text ovanför datumrutorna, ny text i rutan under dagarna, rubriken "Välj en tid", 16 px, kontrast, inget klipps (390, 320, 130 % text) | 26/26 |
+| `instruktion-test.js` | Bokning steg 2: "Så här bokar du" med två steg och svep-text ovanför datumrutorna, ny text i rutan under dagarna, rubriken "Välj en tid", 16 px, kontrast, inget klipps (390, 320, 130 % text) ; i ljus ruta med brun ram, kontrast 10,5/11,2 | 28/28 |
 | `b2check.js` | Produktbilder i shop och startsida | inga fel |
 
-Totalt 833 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
+Totalt 835 kontroller (27 okt 2026). s6check.js behöver också `/tmp/t/ingenbild.txt` (finns här) och `/tmp/t/storbild.jpg`, som skapas med Python/Pillow:
 `python3 -c "from PIL import Image; n=Image.effect_noise((4000,3000),60).convert('RGB'); g=Image.linear_gradient('L').resize((4000,3000)).convert('RGB'); Image.blend(n,g,0.5).save('/tmp/t/storbild.jpg',quality=92)"`. Ej testat: riktiga Supabase-servrar, riktig betalning, riktiga sms, iPhone/Safari (testerna kör Chromium).
