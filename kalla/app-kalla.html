@@ -1469,7 +1469,8 @@
                 )}
               </div>
             )}
-            <ActionBar label={slot ? `Fortsätt · ${fmtTime(slot)}` : 'Välj en tid'} enabled={!!slot} onClick={() => { setStep(3); setError(null); }} />
+            {/* Knappen visas först när en dag är vald (testpersoner trodde att de skulle trycka på den först) */}
+            {day && <ActionBar label={slot ? `Fortsätt · ${fmtTime(slot)}` : 'Välj en tid'} enabled={!!slot} onClick={() => { setStep(3); setError(null); }} />}
           </div>
         );
       }

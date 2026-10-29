@@ -35,7 +35,8 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   await k1.screenshot({ path: '/tmp/t/s1.png' });
   await k1.click('text=Fortsätt'); await k1.waitForTimeout(200);
   ok((await mainText(k1)).includes('STEG 2 AV 3'), 'Steg 2 visas');
-  a = await bar(); ok(a.disabled, 'Kan inte gå vidare utan tid', a.text);
+  // Ändrat 29 okt: knappen visas först när en dag är vald (Tommys önskemål)
+  ok(!(await k1.$('.lh-actionbar')), 'Kan inte gå vidare utan tid: ingen Fortsätt-knapp innan dag är vald');
   const dayBtns = await k1.$$('main div[style*="overflow-x"] button');
   ok(dayBtns.length === 14, 'Visar 14 öppna dagar', dayBtns.length + ' dagar, första: ' + (await dayBtns[0].innerText()).replace(/\n/g, ' '));
   await dayBtns[1].click(); await k1.waitForTimeout(500);

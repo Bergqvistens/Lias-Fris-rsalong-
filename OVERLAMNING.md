@@ -144,3 +144,6 @@
 - Testpersoner visste inte vad de skulle göra. Ovanför datumrutorna: "Så här bokar du" 1. Tryck på den dag som passar dig. 2. Välj sedan en ledig tid. Tiderna visas under dagarna. + "Svep åt sidan på datumrutorna för fler förslag på datum." (Tommys formulering). Rutan under dagarna: "Tryck på en dag ovan, så visas de lediga tiderna här." Tidsrubrik: "Välj en tid · <dag>".
 - Test: instruktion-test.js 26/26. Totalt 833.
 - Instruktionen ligger i en ljus ruta (.lh-howto: surface-bakgrund, 1px var(--frame), mörk text) – vit text på turkos hade gett kontrast 2,7, nu 10,5. instruktion-test 28/28. Totalt 835.
+
+## 29 okt: Knappen i bokningens steg 2 visas först när en dag är vald
+- {day && <ActionBar …/>}. scenario.js kontrollerar nu att ingen Fortsätt-knapp finns innan dag är vald. knapp-test.js 12/12. Totalt 847.
