@@ -816,6 +816,12 @@
                 demoAddSms(db, r.customer_phone, 'kurs-avbokning', r.id, `Din plats på ${r.course_name} hos Lias Hantverkeri (${demoWhen(new Date(r.starts_at).getTime())}) är avbokad.`);
               if (table === 'orders' && before === 'betald' && r.status === 'klar')
                 demoAddSms(db, r.customer_phone, 'order-hamtklar', r.id, `Hej! Din beställning ${r.number} är klar att hämta hos Lias Hantverkeri. Välkommen!`);
+              // Händelse i loggen när Lia markerar en beställning som hämtad (Tommy 30 okt). Inget sms skickas till kunden.
+              if (table === 'orders' && before !== 'hamtad' && r.status === 'hamtad') {
+                db.sms.unshift({ id: demoId(), bookingId: r.id, at: new Date().toISOString(), from: 'Admin', to: r.customer_phone, kind: 'order-hamtad', event: true,
+                  text: `${r.number} är utlämnad till ${r.customer_name} (${r.customer_phone}). Hämtad ${demoWhen(Date.now())}.` });
+                db.sms = db.sms.slice(0, 60);
+              }
             });
             demoSave(db);
             return { data: null, error: null };
@@ -894,6 +900,12 @@
 
     const SMS_LABELS = { 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
     function DemoSmsBubble({ sms }) {
+      if (sms.event) return (
+        <div data-sms={sms.kind} data-event="true" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderLeft: `6px solid ${COLORS.rosemary}`, borderRadius: '14px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
+          <div data-sms-head style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: COLORS.rosemary, marginBottom: '4px' }}><Icon name="check" size={16} strokeWidth={3} />Händelse · Beställning hämtad · inget sms skickat</div>
+          {sms.text}
+        </div>
+      );
       const label = /till-lia$/.test(sms.kind) ? 'Till Lia' : (SMS_LABELS[sms.kind] || 'Sms') + ' till ' + sms.to;
       return (
         <div data-sms={sms.kind} style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderRadius: '14px 14px 14px 4px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
@@ -917,7 +929,7 @@
       return (
         <section style={{ marginTop: '24px' }}>
           <h2 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '17px', fontFamily: T.font.heading, margin: '0 0 4px 0' }}>Sms-logg (demo)</h2>
-          <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats.</p>
+          <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats. Här syns också när en beställning har hämtats.</p>
           {sms.length === 0
             ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
             : <div style={{ display: 'grid', gap: '12px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}

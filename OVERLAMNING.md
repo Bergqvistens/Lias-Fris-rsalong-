@@ -170,3 +170,10 @@
 - Visas: Kontaktsidan (Avbokningsregler under Öppettider), Mer info-rutan ("Avbokning senast X timmar före"), steg 3 före kontaktfälten (ruta med exakt sista tid), bekräftelsen, bekräftelse-sms (demo). Om sista tiden redan passerat vid bokning: "Din tid är mindre än X timmar bort …".
 - Kunden avbokar via telefon/sms/e-post (ingen avbokningsknapp för kunder i appen).
 - Test: avbokning-test.js (19). Kontaktsidans regler visas som lista (inte tabell) så att inget sticker ut vid 320 px + 130 % text. s4check och kontakt-info avgränsar öppettidstabellen till sin sektion. Hela sviten: 31 sviter, 903 kontroller, alla gröna.
+
+## 30 okt: Händelse i loggen när en beställning hämtas (punkt 2b)
+- När Lia trycker "Hämtad" (efter kontrollfrågan) skrivs en händelse överst i Sms-loggen: "LH-1001 är utlämnad till [kund] ([telefon]). Hämtad fre 30 okt kl 06:25." Rubrikrad "Händelse · Beställning hämtad · inget sms skickat", grön vänsterkant + bock. Inget sms till kunden.
+- Lagras i demo-databasens sms-lista med event:true, kind 'order-hamtad'. Gäller DEMOLÄGET: i riktiga läget finns ännu ingen logg (kommer med Supabase/sms-tjänst) – då behövs en händelsetabell.
+- Test: hamtad-logg.js (18).
+- Kvar från Tommys lista 29 okt: punkt 1 (Lia byter alla bilder själv – frågor: tom plats eller originalbild vid borttagning? logga/startbild med?), punkt 2a (läskvitto går inte pålitligt; förslag: "Levererat" + kundens bekräftelselänk).
+- Hela sviten 30 okt: 32 sviter, 921 kontroller, alla gröna. s6check föll en gång (fast väntetid 1,5 s på förhandsbilden under tung last); ändrat till att vänta på bilden, sedan grön flera gånger i rad.

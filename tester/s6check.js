@@ -148,7 +148,7 @@ const H = 3600000, D = 86400000;
   ok((await lia.$$('[data-section="bilder"] [data-err]')).length === 3, 'Utan bild, bildtext och godkännande: 3 felmeddelanden');
   await lia.setInputFiles('#bild-fil', '/tmp/t/ingenbild.txt'); await lia.waitForTimeout(400);
   ok((await lia.evaluate(() => document.querySelector('[data-section="bilder"]').innerText)).includes('Bilden kunde inte läsas'), 'Fil som inte är en bild stoppas');
-  await lia.setInputFiles('#bild-fil', '/tmp/t/storbild.jpg'); await lia.waitForTimeout(1500);
+  await lia.setInputFiles('#bild-fil', '/tmp/t/storbild.jpg'); await lia.waitForSelector('[data-preview] img', { timeout: 10000 }); await lia.waitForTimeout(300);   // 30 okt: väntar på förhandsbilden i stället för fast 1,5 s (föll en gång under tung last)
   const prev = await lia.$eval('[data-preview] img', i => ({ w: i.naturalWidth, h: i.naturalHeight, len: i.src.length }));
   ok(prev.w <= 1000 && prev.h <= 1000 && Math.max(prev.w, prev.h) >= 640 && prev.len <= 400000, 'Stor mobilbild (4000×3000, 7 MB) förminskas före sparning', `${prev.w}×${prev.h}, ${Math.round(prev.len / 1024)} KB som text`);
   await lia.fill('#bild-text', 'Balayage i honungsblont');
