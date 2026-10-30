@@ -186,3 +186,12 @@
 - Lagring DEMO: IndexedDB 'lias_bilder' (store 'platser'), läses in innan appen ritas (siteImgLoad, max 1,5 s). Demo-Nollställ rensar den. RIKTIGA läget: kräver Supabase Storage (ej byggt).
 - Test: bilder-hemsida.js (38).
 - Hela sviten efter bilder: 32 sviter, 959 kontroller, alla gröna.
+
+## 30 okt: Kunden bekräftar sin tid via länk i sms:et (punkt 2a)
+- Läskvitto går inte pålitligt (sms: bara leveransrapport; e-post: Apple Mail räknar öppnat felaktigt). Tommy valde kundens egen bekräftelselänk.
+- Demo: create_booking ger alla rader i bokningen samma confirm_token (+ confirmed_at null). Bekräftelse-sms: "Bekräfta din tid: <adress>#bekrafta=<token>" (grupp: "Bekräfta era tider"). Länkar i sms-rutorna är klickbara.
+- Kunden öppnar länken → sidan "Tack! Din tid är bekräftad" (dag, tider, tjänster, adress, telefon). Andra gången: "Din tid är redan bekräftad" + när. Fel: ogiltig länk / avbokad / passerad → tydligt besked + telefon. "Klar" städar adressen (#bekrafta) och går till Start. Även hashchange (klick i appen).
+- Lia: bokningskortet visar "Bekräftad av kunden mån 2 nov kl 08:05" eller "Inte bekräftad av kunden än" (bara bokningar med confirm_token). Uppdateras direkt (demo-realtid stöder nu UPDATE). Loggen får händelsen "Kunden bekräftade sin tid".
+- RIKTIGA läget: kräver kolumner confirm_token/confirmed_at, RPC confirm_booking (security definer, anon) och sms-tjänsten – ej byggt. Där visar sidan "Tiden kunde inte bekräftas" om någon ändå använder en länk.
+- Test: bekrafta-test.js (18).
+- Hela sviten efter bekräftelselänken: 33 sviter, 977 kontroller, alla gröna.

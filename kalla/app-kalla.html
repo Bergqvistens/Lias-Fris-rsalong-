@@ -363,6 +363,8 @@
     .lh-cut__badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font: 700 14px var(--font-body); }
     .lh-cut__title { font: 17px/1.35 var(--font-body); color: #1F3D32; }
     .lh-cut__title strong { font-weight: 700; }
+    .lh-cut__conf { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font: 600 14px/1.4 var(--font-body); color: #5A5048; }
+    .lh-cut__conf[data-confirmed="true"] { color: #2F5A3F; }
     .lh-cut__svc { margin: 4px 0 8px; font: 15px/1.4 var(--font-body); color: #2C2C2C; }
     .lh-cut--kommande .lh-cut__badge { background: #EADFC8; color: #4A382A; }
     .lh-cut--pagar { background: #DCEFE2; border: 3px solid #1F3D32; padding: 13px 15px; }
@@ -636,11 +638,11 @@
       db.sms = db.sms.slice(0, 60);
     }
     const demoListeners = new Set();
-    function demoEmit(table, row) {
-      if (demoBus) demoBus.postMessage({ type: 'insert', table, row });
-      demoListeners.forEach(cb => cb(table, row));
+    function demoEmit(table, row, event = 'INSERT') {
+      if (demoBus) demoBus.postMessage({ type: 'insert', table, row, event });
+      demoListeners.forEach(cb => cb(table, row, event));
     }
-    if (demoBus) demoBus.onmessage = e => { if (e.data && e.data.type === 'insert') demoListeners.forEach(cb => cb(e.data.table || 'bookings', e.data.row)); };
+    if (demoBus) demoBus.onmessage = e => { if (e.data && e.data.type === 'insert') demoListeners.forEach(cb => cb(e.data.table || 'bookings', e.data.row, e.data.event || 'INSERT')); };
     function demoSession() { try { return JSON.parse(localStorage.getItem(DEMO_SESSION_KEY)); } catch (e) { return null; } }
 
     function demoCheckContact(p) {
@@ -687,21 +689,21 @@
       if (!hours || a.hour * 60 + a.minute < hours[0] * 60 || z.day !== a.day || z.hour * 60 + z.minute > hours[1] * 60) return fail('UTANFOR_OPPETTID');
       const db = demoLoad();
       if (db.bookings.some(b => b.status === 'bokad' && start < new Date(b.ends_at).getTime() && end > new Date(b.starts_at).getTime())) return fail('TIDEN_UPPTAGEN');
-      const group = demoId(), created = new Date().toISOString();
+      const group = demoId(), created = new Date().toISOString(), token = demoId();   // token: kundens bekräftelselänk i sms:et (30 okt)
       const rows = plan.map(x => ({ id: demoId(), created_at: created, service_ids: x.ids, service_names: x.names, price: x.price,
         starts_at: new Date(x.s).toISOString(), ends_at: new Date(x.e).toISOString(),
-        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad', person_name: x.pname, group_id: group }));
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad', person_name: x.pname, group_id: group, confirm_token: token, confirmed_at: null }));
       rows.forEach(r => db.bookings.push(r));
       const total = plan.reduce((a2, x) => a2 + x.price, 0);
       const first = c.name.split(' ')[0];
       const cDl = start - cancelHoursFor(plan.flatMap(x => x.ids)) * 3600000;
       const cTxt = cDl > Date.now() ? `Avboka/ändra senast ${demoWhen(cDl)}: ring eller sms:a ${CONTACT.phone}.` : `Avboka/ändra: ring ${CONTACT.phone}.`;
       if (!multi) {
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). ${cTxt} Välkommen!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Bekräfta din tid: ${confirmUrl(token)} ${cTxt} Välkommen!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, från ${total} kr. Tel ${c.phone}`);
       } else {
         const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. ${cTxt} Välkomna!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Bekräfta era tider: ${confirmUrl(token)} ${cTxt} Välkomna!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning (${plan.length} personer): ${c.name}, ${demoWhen(start).replace(/ kl .*/, '')}: ${list}, totalt ${total} kr. Tel ${c.phone}`);
       }
       demoSave(db);
@@ -806,6 +808,28 @@
       try { demoSave(db); } catch (e) { return fail('LAGRING_FULL'); }
       return { data: row, error: null };
     }
+    // Kunden trycker på länken i sms:et (Tommy 30 okt). Hela bokningen (alla personer) bekräftas.
+    const confirmUrl = token => location.origin + location.pathname + '#bekrafta=' + token;
+    function demoConfirmBooking(p) {
+      const token = String(p.p_token || '');
+      const db = demoLoad(), rows = db.bookings.filter(b => token && b.confirm_token === token);
+      if (!rows.length) return fail('OGILTIG_LANK');
+      const live = rows.filter(b => b.status === 'bokad');
+      if (!live.length) return fail('BOKNING_AVBOKAD');
+      const start = Math.min(...live.map(b => new Date(b.starts_at).getTime())), end = Math.max(...live.map(b => new Date(b.ends_at).getTime()));
+      if (end <= Date.now()) return fail('BOKNING_PASSERAD');
+      const info = { starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(), customer_name: live[0].customer_name,
+        items: live.slice().sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).map(b => ({ person_name: b.person_name, service_names: b.service_names, starts_at: b.starts_at, ends_at: b.ends_at })) };
+      if (live[0].confirmed_at) return { data: { ...info, already: true, confirmed_at: live[0].confirmed_at }, error: null };
+      const now = new Date().toISOString();
+      live.forEach(b => { b.confirmed_at = now; });
+      db.sms.unshift({ id: demoId(), bookingId: live[0].id, at: now, from: 'Kunden', to: 'Lia', kind: 'kund-bekraftade', event: true,
+        text: `${live[0].customer_name} bekräftade ${live.length > 1 ? 'sina tider (' + live.length + ' personer)' : 'sin tid'} ${demoWhen(start)}. Bekräftat ${demoWhen(Date.now())}.` });
+      db.sms = db.sms.slice(0, 60);
+      demoSave(db);
+      live.forEach(b => demoEmit('bookings', b, 'UPDATE'));
+      return { data: { ...info, already: false, confirmed_at: now }, error: null };
+    }
     function demoDeletePhoto(p) {
       const db = demoLoad(), n = db.photos.length;
       db.photos = db.photos.filter(x => x.id !== p.p_id);
@@ -880,6 +904,7 @@
           if (fn === 'mark_paid') return wait(demoMarkPaid(p));
           if (fn === 'add_photo') return wait(demoAddPhoto(p));
           if (fn === 'delete_photo') return wait(demoDeletePhoto(p));
+          if (fn === 'confirm_booking') return wait(demoConfirmBooking(p));
           return wait(fail('okänd funktion'));
         },
         from: builder,
@@ -895,9 +920,9 @@
         },
         channel() {
           const ch = { handlers: [] };
-          ch.on = (type, filter, cb) => { ch.handlers.push({ table: filter && filter.table, cb }); return ch; };
+          ch.on = (type, filter, cb) => { ch.handlers.push({ table: filter && filter.table, event: (filter && filter.event) || 'INSERT', cb }); return ch; };
           ch.subscribe = statusCb => {
-            ch.listener = (table, row) => ch.handlers.forEach(h => { if (!h.table || h.table === table) h.cb({ eventType: 'INSERT', table, new: row }); });
+            ch.listener = (table, row, event = 'INSERT') => ch.handlers.forEach(h => { if ((!h.table || h.table === table) && h.event === event) h.cb({ eventType: event, table, new: row }); });
             demoListeners.add(ch.listener); setTimeout(() => statusCb && statusCb('SUBSCRIBED'), 200); return ch;
           };
           return ch;
@@ -918,9 +943,10 @@
 
     const SMS_LABELS = { 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
     function DemoSmsBubble({ sms }) {
+      const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
       if (sms.event) return (
         <div data-sms={sms.kind} data-event="true" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderLeft: `6px solid ${COLORS.rosemary}`, borderRadius: '14px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
-          <div data-sms-head style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: COLORS.rosemary, marginBottom: '4px' }}><Icon name="check" size={16} strokeWidth={3} />Händelse · Beställning hämtad · inget sms skickat</div>
+          <div data-sms-head style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: COLORS.rosemary, marginBottom: '4px' }}><Icon name="check" size={16} strokeWidth={3} />{EVENT_HEAD[sms.kind] || 'Händelse'}</div>
           {sms.text}
         </div>
       );
@@ -928,7 +954,7 @@
       return (
         <div data-sms={sms.kind} style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderRadius: '14px 14px 14px 4px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
           <div data-sms-head style={{ fontSize: '13px', fontWeight: '700', color: T.color.textMuted, marginBottom: '4px' }}>Från {sms.from} · {label}</div>
-          {sms.text}
+          {String(sms.text).split(/(https?:\/\/\S+)/).map((part, i) => i % 2 ? <a key={i} href={part} data-sms-link style={{ color: COLORS.rosemary, fontWeight: 700, overflowWrap: 'anywhere' }}>{part}</a> : part)}
         </div>
       );
     }
@@ -2836,6 +2862,10 @@
             alarm(t, r);
           });
         });
+        ch = ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookings' }, payload => {   // t.ex. kunden bekräftade sin tid
+          const r = payload.new; if (!r) return;
+          setLists(prev => ({ ...prev, bookings: prev.bookings.map(x => x.id === r.id ? { ...x, ...r } : x) }));
+        });
         ch.subscribe(status => setLive(status === 'SUBSCRIBED'));
         const poll = setInterval(load, 60000);   // reserv om liveanslutningen tappas
         return () => { clearInterval(poll); sb.removeChannel(ch); };
@@ -2949,6 +2979,7 @@
                         </div>
                         <div className="lh-cut__title" data-cut-title>Klippning: <strong>{b.person_name || b.customer_name}</strong> {fmtTime(s)}–{fmtTime(e)}</div>
                         <div className="lh-cut__svc">{b.service_names} · {formatPrice(b.price)}</div>
+                        {'confirm_token' in b && <div className="lh-cut__conf" data-confirmed={b.confirmed_at ? 'true' : 'false'}>{b.confirmed_at ? <><Icon name="check" size={16} strokeWidth={3} />Bekräftad av kunden {demoWhen(new Date(b.confirmed_at).getTime())}</> : <><Icon name="clock" size={16} />Inte bekräftad av kunden än</>}</div>}
                         {contact(b)}
                         {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.person_name || b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>}
                       </div>
@@ -3005,6 +3036,45 @@
       );
     }
 
+    const confirmTokenFromUrl = () => { const m = /[#&]bekrafta=([A-Za-z0-9-]{8,80})/.exec(location.hash || ''); return m ? m[1] : null; };
+    function ConfirmBooking({ token, onDone }) {
+      const [res, setRes] = useState(null);   // null = laddar
+      useEffect(() => {
+        let live = true;
+        sb.rpc('confirm_booking', { p_token: token }).then(({ data, error }) => { if (live) setRes(error ? { error: (error.message || '').match(/[A-Z_]{4,}/) ? error.message.match(/[A-Z_]{4,}/)[0] : 'NATVERK' } : { data }); });
+        return () => { live = false; };
+      }, [token]);
+      if (!res) return <div className="lh-flow"><LoadingState text="Bekräftar din tid…" /></div>;
+      if (res.error) {
+        const t = { OGILTIG_LANK: 'Länken fungerar inte. Kontrollera att hela länken från sms:et kom med.', BOKNING_AVBOKAD: 'Den här tiden är avbokad.', BOKNING_PASSERAD: 'Den här tiden har redan varit.' }[res.error] || 'Bekräftelsen kunde inte göras just nu.';
+        return (
+          <div className="lh-flow">
+            <div className="lh-card lh-done" role="alert" data-bekraftelse="fel">
+              <div className="lh-done__icon" style={{ background: '#F6E3DC', color: '#8A2E12' }}><Icon name="alert" size={34} /></div>
+              <h2>Tiden kunde inte bekräftas</h2>
+              <p className="lh-done__sub">{t}</p>
+              <p className="lh-done__note">Frågor? Ring eller sms:a Lia på <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>
+              <Button variant="primary" block onClick={onDone}>Till startsidan</Button>
+            </div>
+          </div>
+        );
+      }
+      const d = res.data, st = new Date(d.starts_at).getTime(), multi = d.items.length > 1;
+      return (
+        <div className="lh-flow" data-bekraftelse={d.already ? 'redan' : 'ok'}>
+          <DoneCard title={d.already ? (multi ? 'Era tider är redan bekräftade' : 'Din tid är redan bekräftad') : (multi ? 'Tack! Era tider är bekräftade' : 'Tack! Din tid är bekräftad')}
+            sub={d.already ? 'Du bekräftade ' + demoWhen(new Date(d.confirmed_at).getTime()) + '.' : 'Lia ser nu att du har fått ditt sms. Välkommen, ' + String(d.customer_name || '').trim().split(' ')[0] + '!'}
+            onDone={onDone} lines={[
+              <InfoRow icon="calendar"><strong>{fmtDayLong(st)}</strong></InfoRow>,
+              ...d.items.map(it => <InfoRow icon="scissors"><strong>{fmtTime(new Date(it.starts_at).getTime())}–{fmtTime(new Date(it.ends_at).getTime())}</strong> {it.person_name ? it.person_name + ': ' : ''}{it.service_names}</InfoRow>),
+              <InfoRow icon="pin">{CONTACT.address.slice(1).join(', ')}</InfoRow>,
+            ]}>
+            <p className="lh-done__note">Behöver du ändra eller avboka? Ring eller sms:a <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>
+          </DoneCard>
+        </div>
+      );
+    }
+
     function App() {
       // Sparat godkännande läses in INNAN första ritningen, så cookie-rutan inte glimtar förbi vid omstart
       const [state, dispatch] = useReducer(reducer, null, () => {
@@ -3024,6 +3094,12 @@
       // Varje flik börjar längst upp (även efter omladdning)
       useEffect(() => { try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {} }, []);
       useEffect(() => { window.scrollTo(0, 0); }, [state.tab, state.nav]);
+
+      // Kunden kom via bekräftelselänken i sms:et (#bekrafta=...). Adressen städas när kunden går vidare.
+      const [confirmTok, setConfirmTok] = useState(confirmTokenFromUrl);
+      useEffect(() => { const h = () => { const t = confirmTokenFromUrl(); if (t) setConfirmTok(t); }; window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h); }, []);
+      useEffect(() => { if (confirmTok) window.scrollTo(0, 0); }, [confirmTok]);
+      const leaveConfirm = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} setConfirmTok(null); dispatch({ type: 'TAB', p: 'home' }); };
 
       // Appen är ritad: startbilden får försvinna (tidigast 3,5 s efter start)
       useEffect(() => { try { window.__lhHideSplash && window.__lhHideSplash(); } catch (e) {} }, []);
@@ -3048,13 +3124,14 @@
           <Header state={state} dispatch={dispatch} />
           {DEMO && <DemoBanner />}
           <main key={state.nav || 0} style={{ backgroundColor: pageBg, flex: 1, paddingBottom: '24px', ...(REBUILT.includes(state.tab) ? { '--flow-fg': T.color.onPage, '--flow-err': '#5C1A08', '--bar-bg': T.color.brand } : {}) }}>
-            {state.tab === 'home' && <Home dispatch={dispatch} />}
-            {state.tab === 'booking' && <Booking dispatch={dispatch} />}
-            {state.tab === 'courses' && <Courses />}
-            {state.tab === 'shop' && <Shop />}
-            {state.tab === 'contact' && <Contact />}
-            {state.tab === 'gallery' && <Gallery dispatch={dispatch} />}
-            {state.tab === 'admin' && <AdminPanel dispatch={dispatch} />}
+            {confirmTok && <ConfirmBooking token={confirmTok} onDone={leaveConfirm} />}
+            {!confirmTok && state.tab === 'home' && <Home dispatch={dispatch} />}
+            {!confirmTok && state.tab === 'booking' && <Booking dispatch={dispatch} />}
+            {!confirmTok && state.tab === 'courses' && <Courses />}
+            {!confirmTok && state.tab === 'shop' && <Shop />}
+            {!confirmTok && state.tab === 'contact' && <Contact />}
+            {!confirmTok && state.tab === 'gallery' && <Gallery dispatch={dispatch} />}
+            {!confirmTok && state.tab === 'admin' && <AdminPanel dispatch={dispatch} />}
           </main>
           <Nav state={state} dispatch={dispatch} />
           <footer className="lh-footer" style={{ '--fade-from': pageBg }}>
