@@ -50,6 +50,13 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
     ok(b.every(x => x.fs >= 15 && x.hfs >= 13), 'Textstorlek: brödtext ≥ 15 px, rubrikrad ≥ 13 px', b[0].fs + ' / ' + b[0].hfs);
     ok(b[1].top - b[0].bottom >= 11.5 && b[2].top - b[1].bottom >= 11.5, 'Minst 12 px luft mellan rutorna', (b[1].top - b[0].bottom).toFixed(1));
     ok(b.every(x => x.sw <= x.cw + 1) && await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Ingen text klipps, ingen sidledsscroll');
+    // 30 okt: etikett "Till Lia" / "Till kund …" fetmarkerad i egen färg (Tommys önskemål)
+    const tags = await p.$$eval('[data-sms-to]', ts => ts.map(t => { const s = getComputedStyle(t), r = t.getBoundingClientRect(), box = t.closest('[data-sms]').getBoundingClientRect(); return { who: t.dataset.smsTo, text: t.innerText.trim(), fw: parseInt(s.fontWeight), fg: s.color, bg: s.backgroundColor, inside: r.left >= box.left && r.right <= box.right + 0.5 }; }));
+    ok(tags.length === 3 && tags[0].who === 'lia' && tags[0].text === 'Till Lia' && tags[1].text === 'Till kund 0736344954' && tags[2].text === 'Till kund 0736344954', 'Etiketter: "Till Lia" och "Till kund 0736344954"', tags.map(t => t.text).join(' / '));
+    ok(tags.every(t => t.fw >= 700), 'Etiketterna är fetmarkerade', tags.map(t => t.fw).join(','));
+    ok(tags[0].bg !== tags[1].bg && tags[1].bg === tags[2].bg, 'Lia och kund har olika färg', tags[0].bg + ' / ' + tags[1].bg);
+    ok(tags.every(t => contrast(t.fg, t.bg) >= 4.5), 'Etikettens text läsbar (kontrast ≥ 4,5)', tags.map(t => contrast(t.fg, t.bg).toFixed(1)).join(' / '));
+    ok(tags.every(t => t.inside), 'Etiketterna ryms i rutan');
     await p.locator('[data-sms]').first().scrollIntoViewIfNeeded(); await p.waitForTimeout(200);
     await p.locator("section:has([data-sms])").screenshot({ path: `/tmp/t/sms-ruta-${w}${zoom > 1 ? '-zoom' : ''}.png` });
     ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | ').slice(0, 200));

@@ -297,10 +297,18 @@
     .lh-confirm__list { margin: 8px 0 12px; padding-left: 22px; font: 16px/1.5 var(--font-body); }
     .lh-confirm__q { margin: 0 0 16px; font: 700 17px/1.45 var(--font-body); color: var(--forest); }
     .lh-confirm__btns { display: grid; gap: 10px; }
+    /* "Detta ingår inte" / "Kan kosta extra" (Tommy 30 okt) */
+    .lh-notes { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; text-align: left; }
+    .lh-note { display: flex; align-items: flex-start; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 10px; font: 500 14px/1.4 var(--font-body); }
+    .lh-note > svg { flex: none; margin-top: 2px; }
+    .lh-note strong { font-weight: 800; }
+    .lh-note--excl { background: #FBE9E1; color: #7A2A10; border: 1px solid #C77B5A; }
+    .lh-note--extra { background: #F3ECDD; color: #4A3A28; border: 1px solid var(--frame); }
     .lh-ok { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 12px 14px; background: #ECF2EE; color: var(--forest); border: 1.5px solid var(--forest); border-radius: 14px; font: 600 15px/1.45 var(--font-body); }
     .lh-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; }
     .lh-kpi { display: flex; flex-direction: column; gap: 2px; }
     .lh-kpi__label { font: 600 14px var(--font-body); color: var(--text-muted); }
+    .lh-kpi__select { width: 100%; min-height: 44px; margin: 2px 0 4px; padding: 6px 30px 6px 10px; font: 600 15px var(--font-body); color: var(--forest); background-color: var(--surface); border: 1.5px solid var(--frame); border-radius: 10px; }
     .lh-kpi__value { font: 700 26px/1.2 var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
     .lh-kpi__sub { font: 15px var(--font-body); color: var(--text-muted); }
     .lh-visits { display: grid; gap: 12px; }
@@ -679,7 +687,7 @@
         const pname = String(person.name || '').trim();
         if (multi && (pname.length < 2 || pname.length > 50)) return fail('OGILTIGT_PERSONNAMN');
         const dur = svcs.reduce((a, s) => a + s.dur, 0), price = svcs.reduce((a, s) => a + s.price, 0);
-        const names = svcs.slice().sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0) || a.name.localeCompare(b.name, 'sv')).map(s => s.name).join(', ');
+        const names = svcs.slice().sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0) || sname(a).localeCompare(sname(b), 'sv')).map(sname).join(', ');
         plan.push({ ids, names, dur, price, pname: multi ? pname : null, s: cursor, e: cursor + dur * 60000 });
         cursor += dur * 60000;
       }
@@ -950,10 +958,13 @@
           {sms.text}
         </div>
       );
-      const label = /till-lia$/.test(sms.kind) ? 'Till Lia' : (SMS_LABELS[sms.kind] || 'Sms') + ' till ' + sms.to;
+      const toLia = /till-lia$/.test(sms.kind);   // 30 okt: tydlig etikett så man ser vem sms:et gick till (Tommy)
       return (
         <div data-sms={sms.kind} style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderRadius: '14px 14px 14px 4px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
-          <div data-sms-head style={{ fontSize: '13px', fontWeight: '700', color: T.color.textMuted, marginBottom: '4px' }}>Från {sms.from} · {label}</div>
+          <div data-sms-head style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px', fontSize: '13px', fontWeight: '700', color: T.color.textMuted, marginBottom: '6px' }}>
+            <span data-sms-to={toLia ? 'lia' : 'kund'} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', backgroundColor: toLia ? T.color.forest : COLORS.earthBrown, color: '#FFFFFF', fontSize: '14px', fontWeight: '800', lineHeight: '1.4' }}><Icon name={toLia ? 'user' : 'smartphone'} size={14} strokeWidth={2.5} />{toLia ? 'Till Lia' : 'Till kund ' + sms.to}</span>
+            <span data-sms-kind>{toLia ? 'Från ' + sms.from : (SMS_LABELS[sms.kind] || 'Sms') + ' · från ' + sms.from}</span>
+          </div>
           {String(sms.text).split(/(https?:\/\/\S+)/).map((part, i) => i % 2 ? <a key={i} href={part} data-sms-link style={{ color: COLORS.rosemary, fontWeight: 700, overflowWrap: 'anywhere' }}>{part}</a> : part)}
         </div>
       );
@@ -1006,6 +1017,21 @@
     // Visningsnamn: mjukt bindestreck så att långa ord bryts snyggt på smala knappar (Hårbotten-massage)
     const CAT_LABEL = { 'Hårbottenmassage': 'Hårbotten\u00admassage' };
     const SERVICE_CATS = ['Klippning', 'Färgbehandling', 'Permanent', 'Styling, tvätt & föning', 'Hårbottenmassage', 'Frans och/eller brynfärg'];
+    // Visningsnamn: kort namn när Lias namn innehåller vad som inte ingår (det visas i stället i en egen ruta)
+    const sname = x => x.short || x.name;
+    const svcByName = n => SERVICES.find(x => sname(x) === n || x.name === n);
+    function SvcNotes({ list, named }) {   // list: tjänster; named: visa tjänstens namn (när flera tjänster visas)
+      const xs = (list || []).filter((x, i, a) => x && (x.excl || x.extra) && a.indexOf(x) === i);
+      if (!xs.length) return null;
+      return (
+        <span className="lh-notes" data-notes={xs.map(x => x.id).join(' ')} style={{ display: 'flex' }}>
+          {xs.map(x => <React.Fragment key={x.id}>
+            {x.excl && <span className="lh-note lh-note--excl" data-excl={x.id}><Icon name="alert" size={16} strokeWidth={2.5} /><span><strong>Detta ingår inte{named ? ' (' + sname(x) + ')' : ''}:</strong> {x.excl}</span></span>}
+            {x.extra && <span className="lh-note lh-note--extra" data-extra={x.id}><Icon name="tag" size={16} strokeWidth={2.5} /><span><strong>Kan kosta extra{named ? ' (' + sname(x) + ')' : ''}:</strong> {x.extra}</span></span>}
+          </React.Fragment>)}
+        </span>
+      );
+    }
     // Avbokningsregler (beslut Tommy 29 okt 2026): senast 24 timmar före, 48 timmar för långa behandlingar. Ingen avgift tills vidare.
     const CANCEL_LONG_CATS = ['Färgbehandling', 'Permanent'];
     const CANCEL_SHORT_TEXT = 'Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage';
@@ -1016,15 +1042,16 @@
         desc: 'Inklusive tvätt, fön och lättare styling. För dig som har normalt till tjockt hår. Vid extra långt eller tjockt hår, boka 60 min klippning.' },
       { id: 'klipp-lyx', cat: 'Klippning', name: 'Klippning lyx', dur: 60, price: 850, cut: true,
         desc: 'Klippning tvätt och fön. För dig med lite tjockare & längre hår. Här ingår konsultation, schamponering med inpackning och skalpmassage.' },
-      { id: 'klipp-30', cat: 'Klippning', name: 'Klippning/Herrklippning 30 min', dur: 30, price: 500, cut: true,
+      { id: 'klipp-30', cat: 'Klippning', name: 'Klippning/Herrklippning 30 min', dur: 30, price: 500, cut: true, excl: 'Schamponering eller längre konsultation.',
         desc: 'Klippning. Kort hår, tunt till normalt, max längd till nyckelbenen, ej schamponering eller längre konsultation. För dig som inte vill göra en större förändring av frisyren.' },
       { id: 'putsning', cat: 'Klippning', name: 'Putsning, kort hår med maskinklippn. sidor & nacke.', dur: 15, price: 250, cut: true,
         desc: 'En uppfräschning mellan en hel, vanlig klippning, fokus på nacke och sidor enbart.' },
-      { id: 'farg-botten', cat: 'Färgbehandling', name: 'Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.', dur: 90, price: 1000, cut: true,
+      { id: 'farg-botten', cat: 'Färgbehandling', name: 'Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.', short: 'Bottenfärg/utväxt', dur: 90, price: 1000, cut: true,
+        excl: 'Klippning eller slingor. Boka till klippning om så önskas.', extra: 'Material, beroende på hårets tjocklek.',
         desc: 'Passar dig som har en utväxt på max 2-4 cm och kort hår. du vill göra en färgförändring eller uppfräschning. Materialkostnad tillkommer beroende på hårets tjocklek. Tvätt och fön ingår. Klippning eller slingor ingår ej.' },
       { id: 'farg-150', cat: 'Färgbehandling', name: 'Färgbehandling 2.5 timmar Klippning ingår.', dur: 150, price: 2000, cut: true,
         desc: 'Passar dig som vill göra färgning, slingor och/eller -Balayage eller folieslingor i hela håret. -Långt hår! Klippning ingår.' },
-      { id: 'farg-180', cat: 'Färgbehandling', name: 'Färgbehandling 3 timmar, klippning ingår.', dur: 180, price: 2500, cut: true,
+      { id: 'farg-180', cat: 'Färgbehandling', name: 'Färgbehandling 3 timmar, klippning ingår.', dur: 180, price: 2500, cut: true, extra: 'Material.',
         desc: 'Passar dig som vill göra en extra avancerad färgning eller har väldigt långt och tjockt hår. Materialkostnad kan tillkomma. Om du känner dig osäker på vad du ska boka, kontakta mig.' },
       { id: 'klipp-farg-kort', cat: 'Färgbehandling', name: 'Klipp & färg, kort hår. Som längst till nyckelbenen.', dur: 135, price: 1350, cut: true,
         desc: 'För dig som bara vill färga utväxten (ca.2 cm)och klippa topparna (Puts) Ingår: tvätt och lättare styling. Tillägg kan förekomma vid tjockt hår. om du är osäker kontakta mig så löser vi det. 073-6423018' },
@@ -1040,7 +1067,7 @@
         desc: 'Tvätt & enklare fön/ styling' },
       { id: 'tvatt-fon-60', cat: 'Styling, tvätt & föning', name: 'Tvätt & fön/ styling 1 timma', dur: 60, price: 800, cut: true,
         desc: 'Tvätt & fön/ styling inkl. produkt tips.' },
-      { id: 'harbotten', cat: 'Hårbottenmassage', name: 'Hårbottenmassage', dur: 45, price: 750, cut: true,
+      { id: 'harbotten', cat: 'Hårbottenmassage', name: 'Hårbottenmassage', dur: 45, price: 750, cut: true, excl: 'Andra behandlingar, t.ex. klippning. De bokas separat.',
         desc: 'Djupgående massage med utvalda produkter och lättare föning/ styling efteråt. Om fler behandlingar önskas, t ex klippning,så bokas detta separat.' },
       { id: 'bryn', cat: 'Frans och/eller brynfärg', name: 'Färg och form av bryn.', dur: 30, price: 200, cut: true,
         desc: 'Färgning & plockning av bryn.' },
@@ -1397,7 +1424,7 @@
     const personServices = p => SERVICES.filter(s => s.id === p.cut || p.addons.includes(s.id));
     const personDur = p => personServices(p).reduce((a, s) => a + s.dur, 0);
     const personPrice = p => personServices(p).reduce((a, s) => a + s.price, 0);
-    const personNames = p => personServices(p).sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0)).map(s => s.name).join(', ');
+    const personNames = p => personServices(p).sort((a, b) => (b.cut ? 1 : 0) - (a.cut ? 1 : 0)).map(sname).join(', ');
     const fromPrice = n => 'från ' + formatPrice(n);   // Lias priser är "från"-priser
 
     function Booking({ dispatch }) {
@@ -1522,6 +1549,7 @@
                   {demoLoad().sms.filter(m => m.bookingId === done.id && m.kind === 'bekraftelse').map(m => <DemoSmsBubble key={m.id} sms={m} />)}
                 </div>
               )}
+              <SvcNotes list={people.flatMap(personServices)} named={people.filter(p => p.cut).length > 1} />
               <CancelPolicy ids={people.map(p => p.cut).filter(Boolean)} startMs={s} />
               <p className="lh-done__note">Ta gärna en skärmbild.</p>
             </DoneCard>
@@ -1561,9 +1589,10 @@
                           <div key={svc.id} className="lh-svc" data-svc-row={svc.id}>
                             <button type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-service={svc.id} onClick={() => update(i, { cut: svc.id })}>
                               <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
-                              <span className="lh-opt__main"><span className="lh-opt__name">{svc.name}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span><span className="lh-opt__from">{fromPrice(svc.price)}</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
+                              <span className="lh-opt__main"><span className="lh-opt__name">{sname(svc)}</span><span className="lh-opt__meta"><span><Icon name="clock" size={16} />{svc.dur} min</span><span className="lh-opt__from">{fromPrice(svc.price)}</span>{on && <span className="lh-opt__vald">Vald</span>}</span></span>
                             </button>
-                            <button type="button" className="lh-svc__info" data-info={svc.id} aria-label={'Mer info om ' + svc.name} onClick={e => openInfo(svc.id, i, e.currentTarget)}><Icon name="info" size={18} />Mer info</button>
+                            <button type="button" className="lh-svc__info" data-info={svc.id} aria-label={'Mer info om ' + sname(svc)} onClick={e => openInfo(svc.id, i, e.currentTarget)}><Icon name="info" size={18} />Mer info</button>
+                            {(svc.excl || svc.extra) && <div style={{ flexBasis: '100%' }}><SvcNotes list={[svc]} /></div>}
                           </div>
                         );
                       })}
@@ -1582,6 +1611,7 @@
               <Card className="lh-sum" data-summary="tjanster" aria-live="polite">
                 <h3 className="lh-cardtitle" style={{ fontSize: '18px', margin: 0 }}>Din bokning</h3>
                 {people.map((p, i) => p.cut && <InfoRow key={i} icon="scissors">{multi ? <strong>{label(p, i)}: </strong> : null}{personNames(p)} · {personDur(p)} min</InfoRow>)}
+                <SvcNotes list={people.flatMap(personServices)} named={people.filter(p => p.cut).length > 1} />
                 <InfoRow icon="clock">Sammanlagt {totalDur} min{multi ? ', efter varandra' : ''}</InfoRow>
                 <InfoRow icon="tag"><strong>{fromPrice(totalPrice)}</strong></InfoRow>
                 <p className="lh-sum__note" style={{ margin: '4px 0 0', fontSize: '15px', color: T.color.textMuted }}>Priserna är "från"-priser. Slutpriset kan bli högre beroende på hårets längd och tjocklek samt material.</p>
@@ -1596,8 +1626,9 @@
                     <DialogBar onBack={closeInfo} />
                     <div className="lh-dialog__body">
                       <p className="lh-svcinfo__cat">{svc.cat}</p>
-                      <h2 id="tjanst-rubrik">{svc.name}</h2>
+                      <h2 id="tjanst-rubrik">{sname(svc)}</h2>
                       <p className="lh-svcinfo__meta"><span><Icon name="clock" size={18} />{svc.dur} min</span><strong>{fromPrice(svc.price)}</strong></p>
+                      <SvcNotes list={[svc]} />
                       <p className="lh-svcinfo__desc">{svc.desc}</p>
                       <p className="lh-svcinfo__who"><Icon name="user" size={18} />Utförs av Lia</p>
                       <p className="lh-svcinfo__who" data-cancel-info={cancelHoursFor([svc.id])}><Icon name="calendar" size={18} />Avbokning senast {cancelHoursFor([svc.id])} timmar före</p>
@@ -1685,6 +1716,7 @@
                   <InfoRow icon="scissors">{personNames(people[0])}</InfoRow>
                 </>}
             <InfoRow icon="tag"><strong>{fromPrice(totalPrice)}</strong> (betalas på plats)</InfoRow>
+            <SvcNotes list={people.flatMap(personServices)} named={people.filter(p => p.cut).length > 1} />
           </Card>
           <CancelPolicy ids={people.map(p => p.cut).filter(Boolean)} startMs={slot} />
           <ContactFields form={form} setForm={setForm} tried={tried} idp="boka" />
@@ -2382,6 +2414,7 @@
       const [forms, setForms] = useState({});
       const [msg, setMsg] = useState(null);
       const [month, setMonth] = useState(dayKey(Date.now()).slice(0, 7));
+      const [period, setPeriod] = useState('dygn');   // 30 okt: dygn | vecka | manad | ar (kalender, Tommy valde A)
       const opener = useRef(null);
 
       const load = async () => {
@@ -2416,7 +2449,19 @@
       const perDay = {}; days.forEach(d => { perDay[d] = { n: 0, sum: 0 }; });
       pays.forEach(p => { const k = dayKey(new Date(p.at).getTime()); if (perDay[k]) { perDay[k].n++; perDay[k].sum += p.amount; } });
       const maxDay = Math.max(1, ...days.map(d => perDay[d].sum));
-      const last24 = pays.filter(p => new Date(p.at).getTime() >= now - DAY_MS);
+      // Period för den andra rutan och listan under. Vecka/månad/år räknas enligt kalendern (svensk tid) fram till nu.
+      const tk = today.split('-').map(Number), tNoon = new Date(Date.UTC(tk[0], tk[1] - 1, tk[2], 12));
+      const back = n => { const u = new Date(tNoon.getTime() - n * DAY_MS); return u.getUTCFullYear() + '-' + String(u.getUTCMonth() + 1).padStart(2, '0') + '-' + String(u.getUTCDate()).padStart(2, '0'); };
+      const weekStart = back((tNoon.getUTCDay() + 6) % 7);   // måndag denna vecka
+      const monShort = tNoon.toLocaleDateString('sv-SE', { timeZone: 'UTC', month: 'short' }).replace('.', '');
+      const PERIODS = {
+        dygn: { label: 'Senaste 24 timmarna', list: 'senaste dygnet', none: 'de senaste 24 timmarna', test: p => new Date(p.at).getTime() >= now - DAY_MS },
+        vecka: { label: 'Denna vecka (mån–idag)', list: 'denna vecka', none: 'denna vecka', test: p => dayKey(new Date(p.at).getTime()) >= weekStart },
+        manad: { label: `Denna månad (1 ${monShort}–idag)`, list: 'denna månad', none: 'denna månad', test: p => dayKey(new Date(p.at).getTime()).slice(0, 7) === today.slice(0, 7) },
+        ar: { label: `I år (${tk[0]})`, list: 'i år', none: 'i år', test: p => dayKey(new Date(p.at).getTime()).slice(0, 4) === today.slice(0, 4) },
+      };
+      const per = PERIODS[period] || PERIODS.dygn;
+      const last24 = pays.filter(p => new Date(p.at).getTime() <= now && per.test(p));
       const sum24 = last24.reduce((a, p) => a + p.amount, 0);
       const qq = q.trim().toLowerCase(), qd = q.replace(/\D/g, '');
       const hits = qq.length < 2 ? [] : pays.filter(p => p.receipt.toLowerCase().includes(qq) || (p.customer_name || '').toLowerCase().includes(qq) || (qd.length >= 3 && (p.customer_phone || '').includes(qd)));
@@ -2467,8 +2512,14 @@
           {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
 
           <div className="lh-kpis">
-            <Card className="lh-kpi" data-kpi="idag"><span className="lh-kpi__label">Idag</span><span className="lh-kpi__value">{kr(perDay[today].sum)}</span><span className="lh-kpi__sub">{perDay[today].n} betalningar</span></Card>
-            <Card className="lh-kpi" data-kpi="dygn"><span className="lh-kpi__label">Senaste 24 timmarna</span><span className="lh-kpi__value">{kr(sum24)}</span><span className="lh-kpi__sub">{last24.length} betalningar</span></Card>
+            <Card className="lh-kpi" data-kpi="idag"><span className="lh-kpi__label">Idag</span><span className="lh-kpi__value">{kr(perDay[today].sum)}</span><span className="lh-kpi__sub">{perDay[today].n} {perDay[today].n === 1 ? 'betalning' : 'betalningar'}</span></Card>
+            <Card className="lh-kpi" data-kpi={period}>
+              <label className="lh-sr" htmlFor="ekonomi-period">Välj period</label>
+              <select id="ekonomi-period" className="lh-kpi__select" value={period} onChange={e => setPeriod(e.target.value)} data-period-select>
+                {Object.entries(PERIODS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+              <span className="lh-kpi__value">{kr(sum24)}</span><span className="lh-kpi__sub">{last24.length} {last24.length === 1 ? 'betalning' : 'betalningar'}</span>
+            </Card>
           </div>
 
           <Card style={{ marginTop: '14px' }}>
@@ -2500,8 +2551,9 @@
           </Card>
 
           <Card style={{ marginTop: '14px' }}>
-            <h2 className="lh-cardtitle">Betalningar senaste dygnet</h2>
-            {last24.length === 0 ? <p className="lh-econ__help">Inga betalningar de senaste 24 timmarna.</p> : <div className="lh-opts" data-list="dygn">{last24.map(payRow)}</div>}
+            <h2 className="lh-cardtitle" data-period-title>Betalningar {per.list}</h2>
+            <p className="lh-econ__help" style={{ margin: '-4px 0 8px' }}>Välj period i rutan högst upp.</p>
+            {last24.length === 0 ? <p className="lh-econ__help" data-list-tom>Inga betalningar {per.none}.</p> : <div className="lh-opts" data-list={period}>{last24.map(payRow)}</div>}
           </Card>
 
           <Card style={{ marginTop: '14px' }}>
@@ -2979,6 +3031,7 @@
                         </div>
                         <div className="lh-cut__title" data-cut-title>Klippning: <strong>{b.person_name || b.customer_name}</strong> {fmtTime(s)}–{fmtTime(e)}</div>
                         <div className="lh-cut__svc">{b.service_names} · {formatPrice(b.price)}</div>
+                        {Array.isArray(b.service_ids) && <div style={{ margin: '-2px 0 8px' }}><SvcNotes list={b.service_ids.map(id => SERVICES.find(x => x.id === id))} /></div>}
                         {'confirm_token' in b && <div className="lh-cut__conf" data-confirmed={b.confirmed_at ? 'true' : 'false'}>{b.confirmed_at ? <><Icon name="check" size={16} strokeWidth={3} />Bekräftad av kunden {demoWhen(new Date(b.confirmed_at).getTime())}</> : <><Icon name="clock" size={16} />Inte bekräftad av kunden än</>}</div>}
                         {contact(b)}
                         {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.person_name || b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>}
@@ -3069,6 +3122,7 @@
               ...d.items.map(it => <InfoRow icon="scissors"><strong>{fmtTime(new Date(it.starts_at).getTime())}–{fmtTime(new Date(it.ends_at).getTime())}</strong> {it.person_name ? it.person_name + ': ' : ''}{it.service_names}</InfoRow>),
               <InfoRow icon="pin">{CONTACT.address.slice(1).join(', ')}</InfoRow>,
             ]}>
+            <SvcNotes list={d.items.flatMap(it => String(it.service_names).split(', ').map(svcByName))} named={d.items.length > 1} />
             <p className="lh-done__note">Behöver du ändra eller avboka? Ring eller sms:a <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>
           </DoneCard>
         </div>

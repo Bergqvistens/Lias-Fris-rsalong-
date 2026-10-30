@@ -69,7 +69,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   const d1 = await mainText(k1);
   ok(d1.includes('Din tid är bokad!'), 'Kunden får "Din tid är bokad!"', 'tid ' + t1);
   const bubble = await k1.$eval('[data-sms="bekraftelse"]', e => e.innerText).catch(() => '');
-  ok(bubble.includes('Hej Anna!') && bubble.includes('kl ' + t1) && bubble.includes('Från LiasSalong'), 'Kunden ser sms:et som skulle ha skickats', bubble.replace(/\n/g, ' '));
+  ok(bubble.includes('Hej Anna!') && bubble.includes('kl ' + t1) && /från LiasSalong/i.test(bubble), 'Kunden ser sms:et som skulle ha skickats', bubble.replace(/\n/g, ' '));
   await k1.screenshot({ path: '/tmp/t/d1.png', fullPage: false });
 
   console.log('--- Larm hos Lia i flik 1 ---');

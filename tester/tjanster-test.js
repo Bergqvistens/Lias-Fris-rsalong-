@@ -7,6 +7,8 @@ const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'OK   ' : 'FEL  
 const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync('/tmp/t/react-shim.js', 'utf8'), app = fs.readFileSync('/tmp/t/app.js', 'utf8');
 const kr = n => Number(n).toLocaleString('sv-SE', { style: 'currency', currency: 'SEK' });   // samma format som appen (formatPrice)
 const norm = t => t.replace(/[  ]/g, ' ').replace(/\s+/g, ' ').trim();
+// 30 okt (Tommy): Bottenfärgs namn delas upp – kort namn + rutan 'Detta ingår inte' (testas i ingar-test.js). Övriga namn ordagrant.
+const shownName = x => x.id === 'farg-botten' ? 'Bottenfärg/utväxt' : x.name;
 (async () => {
   const browser = await chromium.launch();
   const open = async (w = 390, zoom = 1) => {
@@ -37,7 +39,7 @@ const norm = t => t.replace(/[  ]/g, ' ').replace(/\s+/g, ' ').trim();
     await p.click(`[data-person="0"] [data-cat="${cat}"]`); await p.waitForTimeout(100);
     const shown = await p.$$eval('[data-person="0"] [data-service]', bs => bs.map(b => ({ id: b.getAttribute('data-service'), t: b.innerText })));
     const want = SERVICES.filter(s => s.cat === cat);
-    const good = shown.length === want.length && want.every((s, k) => shown[k].id === s.id && norm(shown[k].t).includes(s.name) && norm(shown[k].t).includes(s.dur + ' min') && norm(shown[k].t).includes('från ' + norm(kr(s.price))));
+    const good = shown.length === want.length && want.every((s, k) => shown[k].id === s.id && norm(shown[k].t).includes(shownName(s)) && norm(shown[k].t).includes(s.dur + ' min') && norm(shown[k].t).includes('från ' + norm(kr(s.price))));
     ok(good, `${cat}: ${want.length} tjänster med namn, tid och "från"-pris`, shown.map(x => x.id).join(', '));
   }
   console.log('--- "Mer info" för alla 17 tjänster ---');
@@ -47,7 +49,7 @@ const norm = t => t.replace(/[  ]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!(await p.$(`[data-info="${svc.id}"]`))) { await p.click(`[data-person="0"] [data-cat="${svc.cat}"]`); await p.waitForTimeout(60); }
     await p.click(`[data-info="${svc.id}"]`); await p.waitForTimeout(150);
     const d = await p.$eval('[data-dialog="tjanst"]', e => ({ svc: e.getAttribute('data-svc'), h: e.querySelector('h2').innerText, desc: e.querySelector('.lh-svcinfo__desc').innerText, meta: e.querySelector('.lh-svcinfo__meta').innerText, cat: e.querySelector('.lh-svcinfo__cat').innerText })).catch(() => null);
-    if (d && d.svc === svc.id && d.h === svc.name && norm(d.desc) === norm(svc.desc) && norm(d.meta).includes(svc.dur + ' min') && norm(d.meta).includes('från ' + norm(kr(svc.price))) && d.cat.toLowerCase() === svc.cat.toLowerCase()) infoOk++; else infoFel.push(svc.id);
+    if (d && d.svc === svc.id && d.h === shownName(svc) && norm(d.desc) === norm(svc.desc) && norm(d.meta).includes(svc.dur + ' min') && norm(d.meta).includes('från ' + norm(kr(svc.price))) && d.cat.toLowerCase() === svc.cat.toLowerCase()) infoOk++; else infoFel.push(svc.id);
     await p.click('[data-dialog="tjanst"] [data-tillbaka="topp"]'); await p.waitForTimeout(120);
   }
   ok(infoOk === 17, 'Alla 17 "Mer info"-rutor visar rätt namn, kategori, tid, "från"-pris och Lias beskrivning ordagrant', infoOk + ' rätt' + (infoFel.length ? ', fel: ' + infoFel.join(', ') : ''));

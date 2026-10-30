@@ -452,7 +452,7 @@ klipp-45	Klippning 45 min.	45	600	Klippning	klipp
 klipp-lyx	Klippning lyx	60	850	Klippning	klipp
 klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
 putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
-farg-botten	Bottenfärg/utväxt klippning ingår ej, boka till om så önskas.	90	1000	Färgbehandling	klipp
+farg-botten	Bottenfärg/utväxt	90	1000	Färgbehandling	klipp
 farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
 farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
 klipp-farg-kort	Klipp & färg, kort hår. Som längst till nyckelbenen.	135	1350	Färgbehandling	klipp

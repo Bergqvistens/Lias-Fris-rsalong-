@@ -60,7 +60,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   const l2 = await logg();
   ok(l2.length === 3 && l2[0].kind === 'order-hamtad' && l2[1].kind === 'order-hamtklar' && l2[2].kind === 'order-hamtad', 'Nyast överst: hämtad, klar att hämta (sms), hämtad', l2.map(x => x.kind).join(', '));
   ok(l2[0].text.endsWith('LH-1002 är utlämnad till Anna Andersson (0701234567). Hämtad fre 30 okt kl 06:29.'), 'Rätt kund och rätt klockslag för andra beställningen', l2[0].text.split('\n').pop());
-  ok(!l2[1].ev && /^Från LiasSalong · Klar att hämta till 0701234567$/.test(l2[1].head), 'Vanliga sms ser ut som förut');
+  ok(!l2[1].ev && /^Till kund 0701234567\s*Klar att hämta · från LiasSalong$/.test(l2[1].head), 'Vanliga sms har etiketten Till kund (30 okt)', l2[1].head.replace(/\n/g, ' | '));
 
   // 4. Utseende
   const st = await p.$eval('[data-event="true"]', c => { const s = getComputedStyle(c), h = getComputedStyle(c.querySelector('[data-sms-head]')); return { bg: s.backgroundColor, fg: s.color, hfg: h.color, bl: s.borderLeftWidth + ' ' + s.borderLeftColor, bt: s.borderTopWidth + ' ' + s.borderTopColor, svg: !!c.querySelector('svg') }; });
