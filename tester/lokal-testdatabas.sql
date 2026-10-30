@@ -474,3 +474,9 @@ frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller bry
 
 \unrestrict YQUkaYBNRf5GrrDCj32RK4OMfY5yWVKPFTejBL8lxLTBK0PZwmudpjM8UT9zts5
 
+
+-- 30 okt 2026: avbokningsmeddelande (samma som supabase-setup.sql)
+alter table public.bookings add column if not exists cancel_note text;
+alter table public.bookings drop constraint if exists cancel_note_langd;
+alter table public.bookings add constraint cancel_note_langd check (cancel_note is null or char_length(cancel_note) <= 160);
+grant select, update (status, cancel_note) on public.bookings to authenticated;

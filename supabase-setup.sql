@@ -62,6 +62,10 @@ create table if not exists public.bookings (
 -- Flera personer i samma bokning: en rad per person, efter varandra, med samma group_id.
 alter table public.bookings add column if not exists person_name text;   -- förnamn när flera personer bokas
 alter table public.bookings add column if not exists group_id    uuid;
+-- Lias meddelande till kunden vid avbokning (valfritt, 30 okt 2026). Skickas med i avbokningssms:et när sms-tjänsten kopplas in.
+alter table public.bookings add column if not exists cancel_note text;
+alter table public.bookings drop constraint if exists cancel_note_langd;
+alter table public.bookings add constraint cancel_note_langd check (cancel_note is null or char_length(cancel_note) <= 160);
 
 -- ---------- 3. Vilka konton som är admin (Lia) ----------
 create table if not exists public.admins (
@@ -91,7 +95,7 @@ drop policy if exists "alla_laser_tjanster" on public.services;
 create policy "alla_laser_tjanster" on public.services for select using (true);
 
 -- Bara admin får läsa bokningar (namn, telefon, e-post) och ändra status.
-grant select, update (status) on public.bookings to authenticated;
+grant select, update (status, cancel_note) on public.bookings to authenticated;
 drop policy if exists "admin_laser_bokningar" on public.bookings;
 create policy "admin_laser_bokningar" on public.bookings
   for select to authenticated using (public.is_admin());

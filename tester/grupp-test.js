@@ -118,7 +118,7 @@ const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
   const cards = await lia.$$eval('[data-booking]', cs => cs.map(c => c.innerText.replace(/\n/g, ' | ')));
   const group = cards.filter(c => c.includes('Eva Ek'));
   ok(group.length === 3 && group[0].includes('Klippning: Kalle 11:30–12:00') && group[1].includes('Klippning: Anna 12:00–12:30') && group[2].includes('Klippning: Lisa 12:30–13:00'), 'Lia ser tre kort i tidsordning med vem som ska klippas', group.map(c => c.split(' | ').slice(0, 2).join(' ')).join(' || '));
-  await lia.locator('[data-booking]', { hasText: /Klippning: Anna \d/ }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(600);
+  await lia.locator('[data-booking]', { hasText: /Klippning: Anna \d/ }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(600);
   ok((await lia.$$eval('[data-booking]', cs => cs.filter(c => c.innerText.includes('Eva Ek')).length)) === 2, 'Lia kan avboka en person (Anna); övriga ligger kvar');
   await lia.screenshot({ path: '/tmp/t/g-admin.png', fullPage: true });
 

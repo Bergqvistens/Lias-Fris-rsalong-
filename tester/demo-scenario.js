@@ -98,7 +98,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
 
   console.log('--- Lia avbokar ---');
   await lia.waitForTimeout(500);
-  await lia.locator('div[data-booking]', { hasText: 'Anna Andersson' }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(600);
+  await lia.locator('div[data-booking]', { hasText: 'Anna Andersson' }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(600);
   const lt3 = await mainText(lia);
   ok(!lt3.includes('👤 Anna Andersson') && lt3.includes('Bo Berg'), 'Avbokad bokning försvann, övriga kvar');
   ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'avbokning', 'Avboknings-sms till kunden syns i loggen');
@@ -108,7 +108,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok((await times(k5)).includes(t1), 'Den avbokade tiden ' + t1 + ' är ledig igen');
 
   console.log('--- Nollställ ---');
-  await lia.click('text=Nollställ'); await lia.waitForTimeout(800);
+  await lia.click('text=Nollställ'); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(800);
   ok((await lia.evaluate(() => localStorage.getItem('lias_demo_db'))) === null, 'Nollställ raderar all demodata');
 
   console.log('--- Inget lämnar webbläsaren ---');

@@ -101,7 +101,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   ok((await conf()).filter(x => x.startsWith('true')).length === 3, 'Admin: alla tre kort visar bekräftad', (await conf()).join(' | '));
 
   // --- 7. Avbokad tid ---
-  await lia.locator('div[data-booking]').first().locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(600);
+  await lia.locator('div[data-booking]').first().locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(600);
   const c5 = await newPage(l1.href);
   await c5.waitForSelector('[data-bekraftelse]', { timeout: 5000 }).catch(() => {});
   const v5 = await c5.evaluate(() => (document.querySelector('[data-bekraftelse]') || {}).innerText || '');

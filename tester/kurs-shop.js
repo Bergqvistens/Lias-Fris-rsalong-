@@ -103,7 +103,7 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
 
   console.log('--- Lia avbokar kursplats ---');
   await lia.waitForTimeout(500);
-  await lia.locator('[data-coursebooking]', { hasText: 'Eva Ek' }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(500);
+  await lia.locator('[data-coursebooking]', { hasText: 'Eva Ek' }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(500);
   ok(!(await mainText(lia)).includes('Eva Ek') || (await lia.$$('[data-coursebooking]')).length === 1, 'Avbokningen försvann från listan');
   ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'kurs-avbokning', 'Avboknings-sms till kunden i loggen');
   await k2.click('nav >> text=Kurser'); await openCourse(k2, 'c-begin');
@@ -144,7 +144,7 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
   await lia.click('button:has-text("Klar att hämta")'); await lia.waitForTimeout(500);
   ok((await lia.$eval('[data-order]', e => e.innerText)).includes('KLAR ATT HÄMTA'), 'Lia markerar klar att hämta');
   ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'order-hamtklar', 'Hämt-sms till kunden i loggen');
-  await lia.click('[data-order] button:has-text("Hämtad")'); await lia.waitForTimeout(500);
+  await lia.click('[data-order] button:has-text("Hämtad")'); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(500);
   ok((await lia.$$('[data-order]')).length === 0, 'Hämtad beställning försvinner från listan');
   await lia.screenshot({ path: '/tmp/t/s-admin.png', fullPage: true });
 

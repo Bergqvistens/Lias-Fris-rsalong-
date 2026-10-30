@@ -35,14 +35,14 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('lias_demo_db')));
 
   // 1. Avbryt i frågan -> ingenting händer
-  dialogSvar = false;
-  await p.click('button:text-is("Hämtad")'); await p.waitForTimeout(500);
-  ok(dialogText === 'Markera LH-1001 som hämtad?', 'Lia får en kontrollfråga först', dialogText);
+  await p.click('button:text-is("Hämtad")'); await p.waitForTimeout(400);   // 30 okt: appens egen fråga-ruta i stället för webbläsarens
+  dialogText = await p.$eval('[data-confirm]', d => d.querySelector('h2').innerText + ' ' + d.querySelector('[data-rader] p').innerText).catch(() => '');
+  ok(dialogText === 'Markera som hämtad? LH-1001 · Tommy Bergqvist', 'Lia får en kontrollfråga först', dialogText);
+  await p.click('[data-confirm] [data-svar="nej"]'); await p.waitForTimeout(300);
   ok((await logg()).length === 0 && (await db()).orders.find(o => o.number === 'LH-1001').status === 'klar', 'Avbryter hon blir ingenting skrivet och beställningen ligger kvar');
 
   // 2. Bekräfta -> händelse i loggen
-  dialogSvar = true;
-  await p.click('button:text-is("Hämtad")'); await p.waitForTimeout(700);
+  await p.click('button:text-is("Hämtad")'); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   const l = await logg();
   ok(l.length === 1 && l[0].kind === 'order-hamtad' && l[0].ev, 'En händelse visas i loggen direkt, utan omladdning', JSON.stringify(l.map(x => x.kind)));
   ok(l[0] && l[0].text.endsWith('LH-1001 är utlämnad till Tommy Bergqvist (0736344954). Hämtad fre 30 okt kl 06:25.'), 'Texten har ordernummer, kund, telefon, datum och tid', l[0] && l[0].text.replace(/\n/g, ' | '));
@@ -56,7 +56,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   // 3. Andra beställningen: Klar att hämta (sms) och sedan Hämtad -> nyast överst
   await p.click('button:has-text("Klar att hämta")'); await p.waitForTimeout(600);
   await p.clock.runFor(4 * 60 * 1000);   // 4 minuter senare
-  await p.click('button:text-is("Hämtad")'); await p.waitForTimeout(700);
+  await p.click('button:text-is("Hämtad")'); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   const l2 = await logg();
   ok(l2.length === 3 && l2[0].kind === 'order-hamtad' && l2[1].kind === 'order-hamtklar' && l2[2].kind === 'order-hamtad', 'Nyast överst: hämtad, klar att hämta (sms), hämtad', l2.map(x => x.kind).join(', '));
   ok(l2[0].text.endsWith('LH-1002 är utlämnad till Anna Andersson (0701234567). Hämtad fre 30 okt kl 06:29.'), 'Rätt kund och rätt klockslag för andra beställningen', l2[0].text.split('\n').pop());

@@ -304,6 +304,20 @@
     .lh-note strong { font-weight: 800; }
     .lh-note--excl { background: #FBE9E1; color: #7A2A10; border: 1px solid #C77B5A; }
     .lh-note--extra { background: #F3ECDD; color: #4A3A28; border: 1px solid var(--frame); }
+    /* Appens egen fråga-ruta (ersätter webbläsarens vita ruta, Tommy 30 okt) */
+    .lh-ask__lines { margin: 8px 0 0; padding: 10px 12px; background: var(--bg, #F6EED7); border: 1px solid var(--frame); border-radius: 12px; font: 16px/1.5 var(--font-body); color: var(--text); }
+    .lh-ask__lines p { margin: 0; }
+    .lh-ask__lines p:first-child { font-weight: 700; color: var(--forest); }
+    .lh-ask__note { margin: 10px 0 0; font: 15px/1.45 var(--font-body); color: var(--text-muted); }
+    .lh-ask__reasons { margin: 14px 0 0; padding: 0; border: 0; }
+    .lh-ask__reasons legend { padding: 0; margin-bottom: 6px; font: 700 16px/1.3 var(--font-body); color: var(--forest); }
+    .lh-ask__reasons .lh-opts { display: grid; gap: 8px; }
+    .lh-ask__reasons .lh-opt__name { white-space: normal; font-weight: 500; }
+    .lh-ask__count { margin: 4px 0 0; font: 14px var(--font-body); color: var(--text-muted); text-align: right; }
+    .lh-ask__preview { margin: 12px 0 0; padding: 10px 12px; background: #F4EDE0; border: 1.5px dashed var(--frame); border-radius: 12px; font: 15px/1.5 var(--font-body); color: #2C2C2C; overflow-wrap: anywhere; }
+    .lh-ask__preview strong { display: block; margin-bottom: 2px; font-size: 13px; color: #5A4632; }
+    .lh-ask__btns { display: grid; gap: 10px; margin-top: 16px; }
+    .lh-btn--danger { background: #A33A1C; color: #FFFFFF; border-color: #A33A1C; }
     .lh-ok { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 12px 14px; background: #ECF2EE; color: var(--forest); border: 1.5px solid var(--forest); border-radius: 14px; font: 600 15px/1.45 var(--font-body); }
     .lh-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; }
     .lh-kpi { display: flex; flex-direction: column; gap: 2px; }
@@ -641,6 +655,17 @@
       return 'demo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     }
     function demoWhen(ms) { return new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + ' kl ' + fmtTime(ms); }
+    // Avbokningssms. note = Lias meddelande (valfritt, max 160 tecken). Samma funktion ger förhandsvisningen i frågerutan.
+    const CANCEL_REASONS = {
+      bookings: ['Din frisör Lia är tyvärr sjuk och måste avboka din tid.', 'Ett oförutsett hinder har uppstått och på grund av detta måste din frisör Lia tyvärr avboka din tid.', 'Din frisör Lia måste tyvärr boka om din tid.'],
+      course_bookings: ['Kursledaren Lia är tyvärr sjuk och måste ställa in din kursplats.', 'Ett oförutsett hinder har uppstått och på grund av detta måste kursledaren Lia tyvärr ställa in din kursplats.', 'Kursledaren Lia måste tyvärr flytta din kursplats.'],
+    };
+    const cleanNote = n => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    function cancelSmsText(table, r, note) {
+      const when = demoWhen(new Date(r.starts_at).getTime()), n = cleanNote(note);
+      const head = table === 'course_bookings' ? `Din plats på ${r.course_name} hos Lias Hantverkeri (${when}) är avbokad.` : `Din tid hos Lias Hantverkeri ${when} är avbokad.`;
+      return n ? `${head} ${n} Ring ${CONTACT.phone} så hittar vi en ny tid.` : head;
+    }
     function demoAddSms(db, to, kind, refId, text) {
       db.sms.unshift({ id: demoId(), bookingId: refId, at: new Date().toISOString(), from: 'LiasSalong', to, kind, text });
       db.sms = db.sms.slice(0, 60);
@@ -860,10 +885,11 @@
             list.forEach(r => {
               if (!match(r)) return;
               const before = r.status; r.status = q.update.status;
+              if ('cancel_note' in q.update) r.cancel_note = cleanNote(q.update.cancel_note) || null;
               if (table === 'bookings' && before === 'bokad' && r.status === 'avbokad')
-                demoAddSms(db, r.customer_phone, 'avbokning', r.id, `Din tid hos Lias Hantverkeri ${demoWhen(new Date(r.starts_at).getTime())} är avbokad.`);
+                demoAddSms(db, r.customer_phone, 'avbokning', r.id, cancelSmsText('bookings', r, r.cancel_note));
               if (table === 'course_bookings' && before === 'bokad' && r.status === 'avbokad')
-                demoAddSms(db, r.customer_phone, 'kurs-avbokning', r.id, `Din plats på ${r.course_name} hos Lias Hantverkeri (${demoWhen(new Date(r.starts_at).getTime())}) är avbokad.`);
+                demoAddSms(db, r.customer_phone, 'kurs-avbokning', r.id, cancelSmsText('course_bookings', r, r.cancel_note));
               if (table === 'orders' && before === 'betald' && r.status === 'klar')
                 demoAddSms(db, r.customer_phone, 'order-hamtklar', r.id, `Hej! Din beställning ${r.number} är klar att hämta hos Lias Hantverkeri. Välkommen!`);
               // Händelse i loggen när Lia markerar en beställning som hämtad (Tommy 30 okt). Inget sms skickas till kunden.
@@ -940,12 +966,78 @@
     }
     if (DEMO) sb = createDemoClient();
 
-    function DemoBanner() {
+    // Frågeruta i appens stil. ask(opts) ger ett löfte: false (nej) eller { ok: true, msg } (ja).
+    function useAppConfirm() {
+      const [d, setD] = useState(null);
+      const ask = opts => new Promise(res => setD({ opts, res, opener: document.activeElement }));
+      const answer = v => { if (!d) return; const el = d.opener; d.res(v); setD(null); setTimeout(() => { if (el && el.focus && document.contains(el)) el.focus(); }, 0); };
+      return [d ? <AppConfirm key="fraga" {...d.opts} onAnswer={answer} /> : null, ask];
+    }
+    function AppConfirm({ title, lines = [], note, yes, no = 'Avbryt', danger, reasons, preview, onAnswer }) {
+      const [pick, setPick] = useState('inget');   // 'inget' | 0 | 1 | 2 | 'egen'
+      const [own, setOwn] = useState('');
+      const [err, setErr] = useState(null);
+      useBackClose(true, () => onAnswer(false));
+      useEffect(() => { const b = document.querySelector('[data-confirm] [data-svar="nej"]'); if (b) b.focus(); }, []);
+      const msg = !reasons ? '' : pick === 'egen' ? cleanNote(own) : typeof pick === 'number' ? reasons[pick] : '';
+      const yesClick = () => { if (reasons && pick === 'egen' && !msg) { setErr('Skriv ett meddelande, eller välj "Inget meddelande".'); return; } onAnswer({ ok: true, msg }); };
+      const key = e => {
+        if (e.key === 'Escape') { onAnswer(false); return; }
+        if (e.key !== 'Tab') return;
+        const fs = [...e.currentTarget.querySelectorAll('button:not([disabled]), textarea')]; if (!fs.length) return;
+        if (e.shiftKey && document.activeElement === fs[0]) { e.preventDefault(); fs[fs.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === fs[fs.length - 1]) { e.preventDefault(); fs[0].focus(); }
+      };
+      const opt = (id, text) => {
+        const on = pick === id;
+        return <button key={String(id)} type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-orsak={String(id)} onClick={() => { setPick(id); setErr(null); }}>
+          <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
+          <span className="lh-opt__main"><span className="lh-opt__name">{text}</span></span>
+        </button>;
+      };
       return (
+        <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) onAnswer(false); }}>
+          <div className="lh-dialog" role="alertdialog" aria-modal="true" aria-labelledby="fraga-rubrik" data-confirm onKeyDown={key}>
+            <div className="lh-dialog__body" style={{ paddingTop: '20px' }}>
+              <h2 id="fraga-rubrik">{title}</h2>
+              {lines.length > 0 && <div className="lh-ask__lines" data-rader>{lines.map((l, i) => <p key={i}>{l}</p>)}</div>}
+              {note && <p className="lh-ask__note">{note}</p>}
+              {reasons && (
+                <fieldset className="lh-ask__reasons">
+                  <legend>Meddelande till kunden (valfritt)</legend>
+                  <div className="lh-opts" role="radiogroup">
+                    {opt('inget', 'Inget meddelande')}
+                    {reasons.map((r, i) => opt(i, r))}
+                    {opt('egen', 'Eget meddelande…')}
+                  </div>
+                  {pick === 'egen' && <div className="lh-field" style={{ marginTop: '10px' }}>
+                    <label htmlFor="eget-meddelande">Ditt meddelande</label>
+                    <textarea id="eget-meddelande" className="lh-input" rows={3} maxLength={160} value={own} onChange={e => { setOwn(e.target.value); setErr(null); }} style={{ resize: 'vertical', minHeight: '84px' }} />
+                    <p className="lh-ask__count" data-kvar>{160 - own.length} tecken kvar</p>
+                  </div>}
+                  {err && <div className="lh-err-inline" role="alert" data-err="true"><Icon name="alert" size={16} />{err}</div>}
+                  {preview && <div className="lh-ask__preview" data-forhandsvisning aria-live="polite"><strong>Sms till kunden:</strong>{preview(msg)}</div>}
+                </fieldset>
+              )}
+              <div className="lh-ask__btns">
+                <Button variant="secondary" block data-svar="nej" onClick={() => onAnswer(false)}>{no}</Button>
+                <Button variant="primary" block className={danger ? 'lh-btn--danger' : ''} data-svar="ja" onClick={yesClick}>{yes}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function DemoBanner() {
+      const [askEl, ask] = useAppConfirm();
+      return (<>
+        {askEl}
         <div className="lh-demo" role="note">
           <Icon name="info" size={16} /><strong>Demoläge</strong> · Inga riktiga bokningar, köp eller meddelanden genomförs.{' '}
-          <button type="button" onClick={() => { if (window.confirm('Radera alla demobokningar, demoköp och demo-sms?')) { demoReset().then(() => window.location.reload()); } }}>Nollställ</button>
+          <button type="button" onClick={async () => { if (await ask({ title: 'Nollställa demon?', note: 'Alla demobokningar, demoköp, demo-sms och bytta bilder raderas i den här webbläsaren. Det går inte att ångra.', yes: 'Ja, nollställ', no: 'Nej, avbryt', danger: true })) { demoReset().then(() => window.location.reload()); } }}>Nollställ</button>
         </div>
+      </>
       );
     }
 
@@ -2741,6 +2833,7 @@
     }
 
     function AdminPhotos() {
+      const [askPhotoEl, askPhoto] = useAppConfirm();
       const [photos, setPhotos] = useState(null);
       const [state, setState] = useState('loading');
       const [src, setSrc] = useState(null);
@@ -2776,13 +2869,14 @@
         load();
       };
       const remove = async p => {
-        if (!window.confirm(`Ta bort bilden "${p.title}" från galleriet?`)) return;
+        if (!(await askPhoto({ title: 'Ta bort bilden?', lines: [p.title], note: 'Bilden försvinner från galleriet. Det går inte att ångra.', yes: 'Ja, ta bort', no: 'Nej, behåll bilden', danger: true }))) return;
         const { error } = await sb.rpc('delete_photo', { p_id: p.id });
         if (error) { setErr('Bilden kunde inte tas bort. Försök igen.'); return; }
         setMsg(`Bilden "${p.title}" är borttagen.`); load();
       };
       return (
         <div data-section="bilder">
+          {askPhotoEl}
           <SiteImagesAdmin />
           <p className="lh-econ__note"><Icon name="info" size={18} />Bilder du laddar upp visas i galleriet under "Från Lias salong".{DEMO ? ' Demo: bilderna sparas bara i den här webbläsaren (max 12).' : ''}</p>
           {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
@@ -2848,6 +2942,7 @@
       const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
       const [newIds, setNewIds] = useState([]);
       const [section, setSection] = useState('bokningar');
+      const [askEl, ask] = useAppConfirm();
       const [, setTick] = useState(0);
       useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 30000); return () => clearInterval(t); }, []);   // färgerna byter läge av sig själva
       const seen = useRef(new Set());
@@ -2939,9 +3034,13 @@
         }
         setAlarmOn(true);
       };
-      const setStatus = async (table, r, status, question) => {
-        if (question && !window.confirm(question)) return;
-        const { error } = await sb.from(table).update({ status }).eq('id', r.id);
+      const setStatus = async (table, r, status, opts) => {
+        let patch = { status };
+        if (opts) {
+          const a = await ask(opts); if (!a) return;
+          if (a.msg) patch = { status, cancel_note: a.msg };   // Lias meddelande till kunden (valfritt)
+        }
+        const { error } = await sb.from(table).update(patch).eq('id', r.id);
         if (error) { window.alert('Ändringen misslyckades. Försök igen.'); return; }
         setLists(prev => ({ ...prev, [table]: (status === 'avbokad' || status === 'hamtad') ? prev[table].filter(x => x.id !== r.id) : prev[table].map(x => x.id === r.id ? { ...x, status } : x) }));
       };
@@ -2992,6 +3091,7 @@
 
       return (
         <div style={wrap}>
+          {askEl}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
             <h1 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '24px', fontFamily: T.font.heading, margin: 0 }}>Admin</h1>
             <button onClick={logout} style={{ ...btn(COLORS.rosemary), border: `2px solid ${COLORS.sand1}`, whiteSpace: 'nowrap' }}>Logga ut</button>
@@ -3034,7 +3134,7 @@
                         {Array.isArray(b.service_ids) && <div style={{ margin: '-2px 0 8px' }}><SvcNotes list={b.service_ids.map(id => SERVICES.find(x => x.id === id))} /></div>}
                         {'confirm_token' in b && <div className="lh-cut__conf" data-confirmed={b.confirmed_at ? 'true' : 'false'}>{b.confirmed_at ? <><Icon name="check" size={16} strokeWidth={3} />Bekräftad av kunden {demoWhen(new Date(b.confirmed_at).getTime())}</> : <><Icon name="clock" size={16} />Inte bekräftad av kunden än</>}</div>}
                         {contact(b)}
-                        {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', `Avboka ${b.person_name || b.customer_name}, ${fmtDayLong(s)} kl ${fmtTime(s)}?\nTiden blir ledig för andra kunder.`)} style={small(COLORS.error)}>Avboka</button>}
+                        {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', { title: 'Avboka tiden?', lines: [b.person_name ? `${b.person_name} (${b.customer_name})` : b.customer_name, `${fmtDayLong(s)} kl ${fmtTime(s)}`, b.service_names], note: 'Tiden blir ledig för andra kunder och kunden får ett sms.', yes: 'Ja, avboka', no: 'Nej, behåll tiden', danger: true, reasons: CANCEL_REASONS.bookings, preview: m => cancelSmsText('bookings', b, m) })} style={small(COLORS.error)}>Avboka</button>}
                       </div>
                     );
                   })}
@@ -3055,7 +3155,7 @@
                       </div>
                       <div style={{ fontSize: '14px', color: COLORS.dark, margin: '4px 0 8px 0' }}>{fmtDayLong(s)} · {fmtTime(s)}–{fmtTime(e)}{c.last_date ? ` (sista ${fmtDate(new Date(c.last_date).getTime())})` : ''}<br />{plats(c.seats)} · {formatPrice(c.price)}</div>
                       {contact(c)}
-                      <button onClick={() => setStatus('course_bookings', c, 'avbokad', `Avboka ${c.customer_name} från ${c.course_name}?\nPlatserna blir lediga igen.`)} style={small(COLORS.error)}>Avboka</button>
+                      <button onClick={() => setStatus('course_bookings', c, 'avbokad', { title: 'Avboka kursplatsen?', lines: [c.customer_name, c.course_name, `${fmtDayLong(s)} kl ${fmtTime(s)} · ${plats(c.seats)}`], note: 'Platserna blir lediga igen och kunden får ett sms.', yes: 'Ja, avboka', no: 'Nej, behåll platsen', danger: true, reasons: CANCEL_REASONS.course_bookings, preview: m => cancelSmsText('course_bookings', c, m) })} style={small(COLORS.error)}>Avboka</button>
                     </div>
                   );
                 })}
@@ -3077,7 +3177,7 @@
                     {contact(o)}
                     {o.status === 'betald'
                       ? <button onClick={() => setStatus('orders', o, 'klar')} style={small(COLORS.rosemary)}>Klar att hämta – skicka sms</button>
-                      : <button onClick={() => setStatus('orders', o, 'hamtad', `Markera ${o.number} som hämtad?`)} style={small(COLORS.sandBrown)}>Hämtad</button>}
+                      : <button onClick={() => setStatus('orders', o, 'hamtad', { title: 'Markera som hämtad?', lines: [`${o.number} · ${o.customer_name}`, o.items.map(i => i.qty + ' st ' + i.name).join(', ')], note: 'Beställningen försvinner ur listan och det skrivs i loggen. Inget sms skickas till kunden.', yes: 'Ja, den är hämtad', no: 'Nej, inte än' })} style={small(COLORS.sandBrown)}>Hämtad</button>}
                   </div>
                 ))}
               </div>

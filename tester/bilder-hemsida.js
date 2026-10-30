@@ -141,7 +141,7 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
   await p.locator('[data-section="hemsidebilder"]').screenshot({ path: '/tmp/t/bilder-admin.png' });
 
   // --- 10. Nollställ demo tar bort Lias bilder ---
-  await p.click('.lh-demo button'); await p.waitForTimeout(4500);
+  await p.click('.lh-demo button'); await p.waitForSelector('[data-confirm]'); await p.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await p.waitForTimeout(4500);
   ok(JSON.stringify(await idb()) === '{}', 'Demo-Nollställ rensar även de sparade bilderna');
   await tab('Start');
   ok(!(await homeEntry())[0].startsWith('data:'), 'Efter Nollställ: originalbilderna igen');

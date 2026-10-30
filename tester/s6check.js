@@ -174,7 +174,7 @@ const H = 3600000, D = 86400000;
   await g.screenshot({ path: '/tmp/t/s6-galleri.png' });
 
   console.log('--- Ta bort bild ---');
-  await lia.click('[data-photo] button:has-text("Ta bort")'); await lia.waitForTimeout(700);
+  await lia.click('[data-photo] button:has-text("Ta bort")'); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(700);
   ok((await lia.$$('[data-photo]')).length === 0, 'Bilden togs bort i admin');
   await g.reload(); await g.waitForTimeout(800); await g.click('nav >> text=Galleri'); await g.waitForTimeout(800);
   ok((await g.$$('h2[data-section="egna"] + .lh-ggrid [data-gallery]')).length === 2, 'Bilden är borta från galleriet');

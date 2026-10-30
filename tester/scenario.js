@@ -104,7 +104,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   console.log('--- Lia avbokar ---');
   await lia.waitForTimeout(1500);
   const before = (await mainText(lia)).match(/👤/g).length;
-  await lia.locator('div[data-booking]', { hasText: 'Anna Andersson' }).locator('button:has-text("Avboka")').click(); await lia.waitForTimeout(500);
+  await lia.locator('div[data-booking]', { hasText: 'Anna Andersson' }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(500);
   const after = (await mainText(lia)).match(/👤/g).length;
   ok(before === 2 && after === 1, 'Avbokning tar bort kortet', before + ' -> ' + after);
   ok(admin("select status from bookings where customer_name='Anna Andersson'") === 'avbokad', 'Databasen: status avbokad');
