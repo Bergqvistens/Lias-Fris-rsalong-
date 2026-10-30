@@ -279,6 +279,24 @@
     .lh-admintabs { margin-top: 4px; }
     .lh-econ__note { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 12px; font: 600 15px/1.45 var(--font-body); color: var(--flow-fg, #F4EDE0); }
     .lh-econ__help { margin: 0 0 10px; font: 15px/1.45 var(--font-body); color: var(--text-muted); }
+    /* Bilder på hemsidan (admin) */
+    .lh-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; margin-top: 12px; }
+    .lh-slot { display: flex; flex-direction: row; align-items: flex-start; overflow: hidden; padding: 0; }
+    .lh-slot > .lh-img { flex: 0 0 96px; width: 96px; margin: 10px 0 10px 10px; }   /* liten bild till vänster: kortare lista att scrolla */
+    .lh-slots { container-type: inline-size; }
+    @container (max-width: 239px) { .lh-slot { flex-direction: column; } .lh-slot > .lh-img { flex: none; margin: 10px 10px 0; } .lh-slot__body { width: 100%; box-sizing: border-box; } }   /* smal ruta (stor text på liten mobil): texten under bilden */
+    .lh-slot[data-pending="true"] { box-shadow: 0 0 0 3px #E8B863; }
+    .lh-slot__body { display: flex; flex-direction: column; gap: 4px; padding: 10px; flex: 1; min-width: 0; }
+    .lh-slot__name { font: 600 16px/1.3 var(--font-body); color: var(--forest); overflow-wrap: anywhere; }
+    .lh-slot__state { font: 14px/1.4 var(--font-body); color: var(--text-muted); }
+    .lh-slot[data-pending="true"] .lh-slot__state { color: var(--text); font-weight: 600; }
+    .lh-slot__actions { display: grid; gap: 8px; margin-top: 8px; }
+    .lh-slot__actions .lh-btn { min-height: 44px; padding: 8px 10px; white-space: normal; text-align: center; line-height: 1.25; }   /* långa knapptexter radbryts på smal skärm */
+    .lh-slotbar { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(74,56,42,0.15); }
+    .lh-slotbar__count { margin: 0; font: 600 15px/1.4 var(--font-body); color: var(--text); }
+    .lh-confirm__list { margin: 8px 0 12px; padding-left: 22px; font: 16px/1.5 var(--font-body); }
+    .lh-confirm__q { margin: 0 0 16px; font: 700 17px/1.45 var(--font-body); color: var(--forest); }
+    .lh-confirm__btns { display: grid; gap: 10px; }
     .lh-ok { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 12px 14px; background: #ECF2EE; color: var(--forest); border: 1.5px solid var(--forest); border-radius: 14px; font: 600 15px/1.45 var(--font-body); }
     .lh-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; }
     .lh-kpi { display: flex; flex-direction: column; gap: 2px; }
@@ -607,7 +625,7 @@
       return demoEmpty();
     }
     function demoSave(db) { localStorage.setItem(DEMO_KEY, JSON.stringify(db)); }
-    function demoReset() { localStorage.removeItem(DEMO_KEY); try { sessionStorage.removeItem('lias_cart'); } catch (e) {} if (demoBus) demoBus.postMessage({ type: 'reset' }); }
+    function demoReset() { localStorage.removeItem(DEMO_KEY); try { sessionStorage.removeItem('lias_cart'); } catch (e) {} if (demoBus) demoBus.postMessage({ type: 'reset' }); return siteImgClear(); }
     function demoId() {
       try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
       return 'demo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
@@ -893,7 +911,7 @@
       return (
         <div className="lh-demo" role="note">
           <Icon name="info" size={16} /><strong>Demoläge</strong> · Inga riktiga bokningar, köp eller meddelanden genomförs.{' '}
-          <button type="button" onClick={() => { if (window.confirm('Radera alla demobokningar, demoköp och demo-sms?')) { demoReset(); window.location.reload(); } }}>Nollställ</button>
+          <button type="button" onClick={() => { if (window.confirm('Radera alla demobokningar, demoköp och demo-sms?')) { demoReset().then(() => window.location.reload()); } }}>Nollställ</button>
         </div>
       );
     }
@@ -1254,16 +1272,72 @@
     // Produktbilder per produkt-id. Alla produkter har bild (visar "Bild kommer").
     const PRODUCT_IMG = { 's-cup': IMG.produktKopp, 's-bowl': IMG.produktSkal, 's-pot': IMG.produktKruka, 's-set': IMG.produktPresentset, 's-vase': IMG.produktVas, 's-plate': IMG.produktTallrik };
 
+    // ---- Bilder på hemsidan som Lia kan byta eller ta bort själv (Tommy 30 okt 2026) ----
+    // Demo: ändringarna sparas i webbläsarens IndexedDB (rymmer mycket mer än localStorage). Riktiga läget kräver Supabase Storage.
+    // SITE_IMG.map: plats-id -> { src } (Lias bild) eller { removed: true } (tom). Saknas id = originalbilden.
+    const SITE_IMG = { map: {} };
+    const SITE_IDB = 'lias_bilder', SITE_STORE = 'platser';
+    function siteIdb() {
+      return new Promise((res, rej) => {
+        if (!window.indexedDB) { rej(new Error('IndexedDB saknas')); return; }
+        const r = indexedDB.open(SITE_IDB, 1);
+        r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(SITE_STORE)) r.result.createObjectStore(SITE_STORE); };
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error || new Error('IndexedDB'));
+      });
+    }
+    function siteImgLoad() {
+      if (!DEMO) return Promise.resolve();
+      const read = siteIdb().then(db => new Promise(res => {
+        const out = {}, tx = db.transaction(SITE_STORE, 'readonly'), cur = tx.objectStore(SITE_STORE).openCursor();
+        cur.onsuccess = () => { const c = cur.result; if (c) { out[c.key] = c.value; c.continue(); } };
+        tx.oncomplete = () => { SITE_IMG.map = out; db.close(); res(); };
+        tx.onerror = tx.onabort = () => { db.close(); res(); };
+      })).catch(() => {});
+      return Promise.race([read, new Promise(r => setTimeout(r, 1500))]);   // hänger IndexedDB startar appen ändå (med originalbilderna)
+    }
+    function siteImgSave(changes) {   // changes: { id: {src} | {removed:true} | null (= tillbaka till originalbilden) }
+      return siteIdb().then(db => new Promise((res, rej) => {
+        const tx = db.transaction(SITE_STORE, 'readwrite'), st = tx.objectStore(SITE_STORE);
+        Object.entries(changes).forEach(([id, v]) => { if (v) st.put(v, id); else st.delete(id); });
+        tx.oncomplete = () => { db.close(); Object.entries(changes).forEach(([id, v]) => { if (v) SITE_IMG.map[id] = v; else delete SITE_IMG.map[id]; }); res(); };
+        tx.onerror = tx.onabort = () => { db.close(); rej(tx.error || new Error('Kunde inte spara')); };
+      }));
+    }
+    function siteImgClear() {
+      SITE_IMG.map = {};
+      return new Promise(res => { try { const r = indexedDB.deleteDatabase(SITE_IDB); r.onsuccess = r.onerror = r.onblocked = () => res(); } catch (e) { res(); } });
+    }
+    const siteSrc = (id, def) => { const o = SITE_IMG.map[id]; return !o ? def : o.removed ? null : o.src; };
+    const siteGone = id => !!(SITE_IMG.map[id] && SITE_IMG.map[id].removed);
+    const siteOwn = id => !!(SITE_IMG.map[id] && SITE_IMG.map[id].src);
+    const siteAlt = (id, def) => siteOwn(id) ? 'Bild från Lias Hantverkeri' : def;
+    const productImg = id => siteSrc('produkt-' + id, PRODUCT_IMG[id]);
+    const SITE_PAGES = [['start', 'Start'], ['boka', 'Boka'], ['kurser', 'Kurser'], ['shop', 'Shop'], ['kontakt', 'Kontakt'], ['galleri', 'Galleri']];
+    // Alla bytbara platser. Funktion (inte konstant) eftersom GALLERY och SHOP_DATA definieras på andra ställen i koden.
+    // Loggan och startbilden ingår inte (varumärket).
+    const siteSlots = () => [
+      { id: 'start-hero', page: 'start', label: 'Stora bilden överst', def: IMG.salongMiljo, ratio: '16 / 10' },
+      { id: 'start-boka', page: 'start', label: 'Rutan Boka frisör', def: IMG.frisorDetalj, ratio: '1 / 1' },
+      { id: 'start-kurser', page: 'start', label: 'Rutan Keramikkurser', def: IMG.keramikDrejning, ratio: '1 / 1' },
+      { id: 'start-shop', page: 'start', label: 'Rutan Keramikshoppen', def: IMG.produktKopp, ratio: '1 / 1' },
+      { id: 'boka-banner', page: 'boka', label: 'Bilden överst i bokningen', def: IMG.bannerBoka, ratio: '3 / 2' },
+      { id: 'kurser-topp', page: 'kurser', label: 'Bilden överst på Kurser', def: IMG.keramikDrejning, ratio: '16 / 9' },
+      ...SHOP_DATA.map(p => ({ id: 'produkt-' + p.id, page: 'shop', label: p.name, def: PRODUCT_IMG[p.id], ratio: '1 / 1' })),
+      { id: 'kontakt-banner', page: 'kontakt', label: 'Bilden överst på Kontakt', def: IMG.bannerKontakt, ratio: '3 / 2' },
+      { id: 'galleri-banner', page: 'galleri', label: 'Bilden överst i Galleriet', def: IMG.bannerGalleri, ratio: '3 / 2' },
+      ...GALLERY.map(g => ({ id: 'galleri-' + g.id, page: 'galleri', label: g.title, def: g.src, ratio: '4 / 5', tile: true })),
+    ];
+
     function Home({ dispatch }) {
       const entries = [
-        { id: 'boka', title: 'Boka frisör', text: 'Klippning, färgning, styling – för all ålder', cta: 'Boka tid', icon: 'scissors', img: IMG.frisorDetalj, go: () => dispatch({ type: 'START_BOOK' }) },
-        { id: 'kurser', title: 'Upptäck keramikkurser', text: 'Lär dig keramik från grunden eller utveckla dina färdigheter', cta: 'Se kurser', icon: 'palette', img: IMG.keramikDrejning, go: () => dispatch({ type: 'TAB', p: 'courses' }) },
-        { id: 'shop', title: 'Besök keramikshoppen', text: 'Handgjorda keramikprodukter – unika och vackra', cta: 'Till shoppen', icon: 'bag', img: IMG.produktKopp, go: () => dispatch({ type: 'TAB', p: 'shop' }) },
+        { id: 'boka', title: 'Boka frisör', text: 'Klippning, färgning, styling – för all ålder', cta: 'Boka tid', icon: 'scissors', img: siteSrc('start-boka', IMG.frisorDetalj), go: () => dispatch({ type: 'START_BOOK' }) },
+        { id: 'kurser', title: 'Upptäck keramikkurser', text: 'Lär dig keramik från grunden eller utveckla dina färdigheter', cta: 'Se kurser', icon: 'palette', img: siteSrc('start-kurser', IMG.keramikDrejning), go: () => dispatch({ type: 'TAB', p: 'courses' }) },
+        { id: 'shop', title: 'Besök keramikshoppen', text: 'Handgjorda keramikprodukter – unika och vackra', cta: 'Till shoppen', icon: 'bag', img: siteSrc('start-shop', IMG.produktKopp), go: () => dispatch({ type: 'TAB', p: 'shop' }) },
       ];
       return (
         <div className="lh-home">
           <section className="lh-hero" aria-labelledby="hero-rubrik">
-            <ResponsiveImage src={IMG.salongMiljo} alt="Miljö från Lias salong" ratio="16 / 10" radius={0} eager fallbackLabel="Miljöbild kommer" />
+            <ResponsiveImage src={siteSrc('start-hero', IMG.salongMiljo)} alt={siteAlt('start-hero', 'Miljö från Lias salong')} ratio="16 / 10" radius={0} eager fallbackLabel="" />
             <div className="lh-hero__text">
               <h2 id="hero-rubrik">Välkommen till Lias Hantverkeri</h2>
               <p className="lh-hero__sub">Frisörsalong och keramikverkstad i Karlskoga</p>
@@ -1433,7 +1507,7 @@
       if (step === 1) {
         return (
           <div className="lh-flow">
-            <div data-banner="boka" style={{ marginBottom: '16px' }}><ResponsiveImage src={IMG.bannerBoka} alt="Boka tid – för en stund som är din. Klippning, färgning, styling för herr, dam och barn. Bild från en salong med spegel och frisörstol." ratio="3 / 2" eager /></div>
+            {!siteGone('boka-banner') && <div data-banner="boka" style={{ marginBottom: '16px' }}><ResponsiveImage src={siteSrc('boka-banner', IMG.bannerBoka)} alt={siteAlt('boka-banner', "Boka tid – för en stund som är din. Klippning, färgning, styling för herr, dam och barn. Bild från en salong med spegel och frisörstol.")} ratio="3 / 2" eager /></div>}
             <StepTitle n={1} total={3} title="Välj tjänst" sub={multi ? 'Varje person väljer en tjänst. Personerna tas emot efter varandra.' : 'Välj vad du vill boka. Tryck på "Mer info" för att läsa mer om en tjänst. Fler personer kan läggas till.'} />
             {people.map((p, i) => {
               const list = p.cat ? SERVICES.filter(s => s.cat === p.cat) : [];
@@ -1763,7 +1837,7 @@
         const shown = COURSES_DATA.filter(c => cat === 'alla' || c.cat === cat);
         return (
           <div className="lh-page">
-            <div style={{ marginBottom: '14px' }}><ResponsiveImage src={IMG.keramikDrejning} alt="Händer som drejar ett kärl i lera" ratio="16 / 9" position="50% 62%" eager /></div>
+            {!siteGone('kurser-topp') && <div style={{ marginBottom: '14px' }}><ResponsiveImage src={siteSrc('kurser-topp', IMG.keramikDrejning)} alt={siteAlt('kurser-topp', "Händer som drejar ett kärl i lera")} ratio="16 / 9" position="50% 62%" eager /></div>}
             <p className="lh-page__intro">Lär dig keramik från grunden eller utveckla dina befintliga färdigheter.</p>
             {!DEMO && ONLINE_SOON}
             <div className="lh-chips" role="group" aria-label="Filtrera kurser">
@@ -1978,7 +2052,7 @@
               {lines.map(l => (
                 <div key={l.id} data-line={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: '1px solid rgba(74,56,42,0.12)', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 160px' }}>
-                    <div className="lh-thumb"><ResponsiveImage src={PRODUCT_IMG[l.id]} alt="" ratio="1 / 1" radius={8} fallbackLabel="" /></div>
+                    <div className="lh-thumb"><ResponsiveImage src={productImg(l.id)} alt="" ratio="1 / 1" radius={8} fallbackLabel="" /></div>
                     <div style={{ minWidth: 0 }}><strong style={{ display: 'block', fontSize: '16px', color: T.color.forest, overflowWrap: 'anywhere' }}>{l.name}</strong><span style={{ fontSize: '15px', color: T.color.textMuted }}>{formatPrice(l.price)} / st</span></div>
                   </div>
                   {qtyControl(l)}
@@ -2023,7 +2097,7 @@
               return (
                 <article key={p.id} data-product={p.id} data-stock={s === null ? '' : s} data-out={out ? 'true' : 'false'} className="lh-card lh-pcard">
                   <button type="button" className="lh-pcard__open" aria-haspopup="dialog" aria-label={`${p.name} – visa mer`} onClick={e => openDetail(p.id, e.currentTarget)}>
-                    <ResponsiveImage src={PRODUCT_IMG[p.id]} alt="" ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" />
+                    <ResponsiveImage src={productImg(p.id)} alt="" ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" />
                   </button>
                   <div className="lh-pcard__body">
                     <h2 className="lh-pcard__name">{p.name}</h2>
@@ -2045,7 +2119,7 @@
             <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
               <div className="lh-dialog" role="dialog" aria-modal="true" aria-labelledby="produkt-rubrik" data-dialog={det.id} onKeyDown={dialogKey}>
                 <DialogBar onBack={closeDetail} />
-                <ResponsiveImage src={PRODUCT_IMG[det.id]} alt={det.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" eager />
+                <ResponsiveImage src={productImg(det.id)} alt={det.name} ratio="1 / 1" radius={0} fallbackLabel="Bild kommer" eager />
                 <div className="lh-dialog__body">
                   <h2 id="produkt-rubrik">{det.name}</h2>
                   <span className="lh-pcard__price" style={{ fontSize: '18px' }}>{formatPrice(det.price)}</span>
@@ -2088,7 +2162,7 @@
       const field = (key, label, props, msg) => <FormField id={'kontakt-' + key} label={label} required value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} error={tried && !v[key] ? msg : null} {...props} />;
       return (
         <div className="lh-page" style={{ maxWidth: '640px' }}>
-          <div data-banner="kontakt" style={{ marginBottom: '14px' }}><ResponsiveImage src={IMG.bannerKontakt} alt="Kontakta oss – vi svarar gärna på dina frågor! Tillsammans skapar vi något vackert. Bild med Lias Hantverkeris logga, blommor och keramik på ett skrivbord." ratio="3 / 2" eager /></div>
+          {!siteGone('kontakt-banner') && <div data-banner="kontakt" style={{ marginBottom: '14px' }}><ResponsiveImage src={siteSrc('kontakt-banner', IMG.bannerKontakt)} alt={siteAlt('kontakt-banner', "Kontakta oss – vi svarar gärna på dina frågor! Tillsammans skapar vi något vackert. Bild med Lias Hantverkeris logga, blommor och keramik på ett skrivbord.")} ratio="3 / 2" eager /></div>}
           <p className="lh-page__intro">Vi svarar gärna på dina frågor!</p>
 
           <section className="lh-card lh-contact" aria-labelledby="kontakt-uppgifter">
@@ -2165,7 +2239,7 @@
       useEffect(() => { if (!DEMO) return; let live = true; sb.rpc('get_photos').then(({ data, error }) => { if (live && !error && data) setExtra(data); }); return () => { live = false; }; }, []);
       const [open, setOpen] = useState(null);   // index i listan som visas
       const opener = useRef(null);
-      const all = [...extra.map(p => ({ id: 'foto-' + p.id, src: p.src, cat: p.cat, own: true, title: p.title, alt: 'Bild från Lias salong: ' + p.title })), ...GALLERY];
+      const all = [...extra.map(p => ({ id: 'foto-' + p.id, src: p.src, cat: p.cat, own: true, title: p.title, alt: 'Bild från Lias salong: ' + p.title })), ...GALLERY.filter(g => !siteGone('galleri-' + g.id)).map(g => siteOwn('galleri-' + g.id) ? { ...g, src: siteSrc('galleri-' + g.id, g.src), alt: siteAlt('galleri-' + g.id, g.alt), own: true } : g)];   // utbytt inspirationsbild = Lias egen bild
       const list = all.filter(g => cat === 'alla' || g.cat === cat);
       const own = list.filter(g => g.own), insp = list.filter(g => !g.own);
       const ordered = [...own, ...insp];
@@ -2199,7 +2273,7 @@
       );
       return (
         <div className="lh-page">
-          <div data-banner="galleri" style={{ marginBottom: '14px' }}><ResponsiveImage src={IMG.bannerGalleri} alt="Galleriet – se vad vi gör! Här kan du se exempel på våra frisörtjänster och handgjorda keramik." ratio="3 / 2" eager /></div>
+          {!siteGone('galleri-banner') && <div data-banner="galleri" style={{ marginBottom: '14px' }}><ResponsiveImage src={siteSrc('galleri-banner', IMG.bannerGalleri)} alt={siteAlt('galleri-banner', "Galleriet – se vad vi gör! Här kan du se exempel på våra frisörtjänster och handgjorda keramik.")} ratio="3 / 2" eager /></div>}
           <div className="lh-chips" role="group" aria-label="Filtrera bilder">
             {GALLERY_CATS.map(([id, label]) => <FilterChip key={id} selected={cat === id} data-chip={id} onClick={() => setCat(id)}>{label}</FilterChip>)}
           </div>
@@ -2486,6 +2560,108 @@
       });
     }
 
+    function SiteImagesAdmin() {
+      const [page, setPage] = useState('start');
+      const [pending, setPending] = useState({});   // id -> { src } | { removed: true } | { restore: true }
+      const [ask, setAsk] = useState(false);
+      const [saving, setSaving] = useState(false);
+      const [msg, setMsg] = useState(null);
+      const [err, setErr] = useState(null);
+      const [, setVer] = useState(0);
+      const fileRef = useRef(null), target = useRef(null), askOpener = useRef(null);
+      const slots = siteSlots(), byId = Object.fromEntries(slots.map(x => [x.id, x]));
+      const n = Object.keys(pending).length;
+      const removals = Object.entries(pending).filter(([, v]) => v.removed).map(([id]) => byId[id]);
+      const setOne = (id, v) => { setMsg(null); setErr(null); setPending(p => { const q = { ...p }; if (v) q[id] = v; else delete q[id]; return q; }); };
+      const choose = id => { target.current = id; setErr(null); if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } };
+      const picked = async e => {
+        const file = e.target.files && e.target.files[0], id = target.current;
+        if (!file || !id) return;
+        if (!/^image\//.test(file.type)) { setErr(BOOKING_ERRORS.OGILTIG_BILD); return; }
+        try { setOne(id, { src: await shrinkImage(file) }); } catch (x) { setErr(BOOKING_ERRORS.OGILTIG_BILD); }
+      };
+      const closeAsk = () => { setAsk(false); const el = askOpener.current; setTimeout(() => { if (el && el.focus) el.focus(); }, 0); };
+      useBackClose(ask, closeAsk);
+      useEffect(() => { if (ask) { const b = document.querySelector('[data-dialog="spara-utan-bild"] [data-svar="nej"]'); if (b) b.focus(); } }, [ask]);
+      const doSave = async () => {
+        setAsk(false); setSaving(true); setErr(null);
+        const changes = {};
+        Object.entries(pending).forEach(([id, v]) => { changes[id] = v.restore ? null : v; });
+        try { await siteImgSave(changes); setPending({}); setVer(x => x + 1); setMsg(n === 1 ? 'Ändringen är sparad och syns nu på hemsidan.' : 'Ändringarna är sparade och syns nu på hemsidan.'); }
+        catch (x) { setErr('Ändringarna kunde inte sparas. Försök igen.'); }
+        setSaving(false);
+      };
+      const save = e => { if (!n || saving) return; if (removals.length) { askOpener.current = e && e.currentTarget; setAsk(true); return; } doSave(); };
+      const askKey = e => {
+        if (e.key === 'Escape') { closeAsk(); return; }
+        if (e.key !== 'Tab') return;
+        const fs = [...e.currentTarget.querySelectorAll('button')]; if (!fs.length) return;
+        if (e.shiftKey && document.activeElement === fs[0]) { e.preventDefault(); fs[fs.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === fs[fs.length - 1]) { e.preventDefault(); fs[0].focus(); }
+      };
+      const pageName = id => (SITE_PAGES.find(p => p[0] === id) || [])[1];
+      const slotView = sl => {
+        const pv = pending[sl.id], stored = SITE_IMG.map[sl.id];
+        const eff = pv ? (pv.restore ? null : pv) : stored;   // null = originalbilden
+        const src = !eff ? sl.def : eff.removed ? null : eff.src;
+        const state = pv ? (pv.src ? 'Ny bild vald – sparas när du trycker Spara' : pv.removed ? (sl.tile ? 'Tas bort ur galleriet när du sparar' : 'Tas bort när du sparar') : 'Originalbilden kommer tillbaka när du sparar')
+          : !stored ? 'Originalbild' : stored.removed ? (sl.tile ? 'Borttagen ur galleriet' : 'Tom – ingen bild visas') : 'Din bild';
+        return (
+          <div key={sl.id} className="lh-card lh-slot" data-slot={sl.id} data-pending={pv ? 'true' : 'false'}>
+            <ResponsiveImage src={src} alt="" ratio={sl.ratio} radius={8} fallbackLabel={sl.tile ? 'Ingen bild' : 'Tom plats'} />
+            <div className="lh-slot__body">
+              <strong className="lh-slot__name">{sl.label}</strong>
+              <span className="lh-slot__state" data-state>{state}</span>
+              <div className="lh-slot__actions">
+                <Button variant="secondary" block icon="image" data-byt={sl.id} onClick={() => choose(sl.id)}>{pv && pv.src ? 'Välj en annan bild' : 'Byt bild'}</Button>
+                {pv
+                  ? <Button variant="secondary" block data-angra={sl.id} onClick={() => setOne(sl.id, null)}>Ångra</Button>
+                  : <>
+                      {src && <Button variant="secondary" block icon="x" data-tabort={sl.id} onClick={() => setOne(sl.id, { removed: true })}>Ta bort</Button>}
+                      {stored && <Button variant="secondary" block icon="refresh" data-original={sl.id} onClick={() => setOne(sl.id, { restore: true })}>Återställ original</Button>}
+                    </>}
+              </div>
+            </div>
+          </div>
+        );
+      };
+      return (
+        <Card data-section="hemsidebilder" style={{ marginBottom: '14px' }}>
+          <h2 className="lh-cardtitle">Bilder på hemsidan</h2>
+          <p className="lh-econ__help" style={{ margin: '0 0 6px' }}>Byt eller ta bort bilderna som visas på hemsidan. Välj sida nedan. Inget ändras förrän du trycker <strong>Spara ändringar</strong>.{DEMO ? ' Demo: ändringarna sparas bara i den här webbläsaren.' : ''}</p>
+          <p className="lh-econ__help" style={{ margin: '0 0 8px' }}>Visar bilden en kund? Se till att kunden har godkänt det.</p>
+          {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
+          {err && <ErrorBox text={err} />}
+          <div className="lh-chips" role="group" aria-label="Välj sida">
+            {SITE_PAGES.map(([id, label]) => { const c = slots.filter(x => x.page === id && pending[x.id]).length; return <FilterChip key={id} selected={page === id} data-sida={id} onClick={() => setPage(id)}>{label}{c ? ` (${c})` : ''}</FilterChip>; })}
+          </div>
+          <input ref={fileRef} id="plats-fil" type="file" accept="image/*" style={{ display: 'none' }} onChange={picked} />
+          <div className="lh-slots">{slots.filter(x => x.page === page).map(slotView)}</div>
+          <div className="lh-slotbar">
+            <p className="lh-slotbar__count" data-osparade={n} aria-live="polite">{n === 0 ? 'Inga osparade ändringar.' : n === 1 ? '1 ändring är inte sparad än.' : `${n} ändringar är inte sparade än.`}</p>
+            <Button variant="primary" block icon="check" data-spara disabled={!n || saving} onClick={save}>{saving ? 'Sparar…' : 'Spara ändringar' + (n ? ` (${n})` : '')}</Button>
+            {n > 0 && <Button variant="secondary" block data-angra-alla onClick={() => { setPending({}); setMsg(null); setErr(null); }}>Ångra alla ändringar</Button>}
+          </div>
+          {ask && (
+            <div className="lh-dialog-bg" onClick={e => { if (e.target === e.currentTarget) closeAsk(); }}>
+              <div className="lh-dialog" role="alertdialog" aria-modal="true" aria-labelledby="spara-rubrik" aria-describedby="spara-fraga" data-dialog="spara-utan-bild" onKeyDown={askKey}>
+                <div className="lh-dialog__body" style={{ paddingTop: '20px' }}>
+                  <h2 id="spara-rubrik">Spara utan ny bild?</h2>
+                  <p style={{ margin: '8px 0 0', fontSize: '16px', lineHeight: 1.5 }}>Du har tagit bort {removals.length === 1 ? 'en bild' : removals.length + ' bilder'} utan att lägga in någon ny:</p>
+                  <ul className="lh-confirm__list" data-borttagna>{removals.map(r => <li key={r.id}>{pageName(r.page)}: {r.label}{r.tile ? ' (försvinner ur galleriet)' : ' (platsen blir tom)'}</li>)}</ul>
+                  <p className="lh-confirm__q" id="spara-fraga">Är du säker på att du vill spara innan du har lagt in en ny bild?</p>
+                  <div className="lh-confirm__btns">
+                    <Button variant="primary" block data-svar="nej" onClick={closeAsk}>Nej, gå tillbaka och lägg in en bild</Button>
+                    <Button variant="secondary" block data-svar="ja" onClick={doSave}>Ja, spara ändå</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
     function AdminPhotos() {
       const [photos, setPhotos] = useState(null);
       const [state, setState] = useState('loading');
@@ -2529,6 +2705,7 @@
       };
       return (
         <div data-section="bilder">
+          <SiteImagesAdmin />
           <p className="lh-econ__note"><Icon name="info" size={18} />Bilder du laddar upp visas i galleriet under "Från Lias salong".{DEMO ? ' Demo: bilderna sparas bara i den här webbläsaren (max 12).' : ''}</p>
           {msg && <div className="lh-ok" role="status"><Icon name="check" size={20} /><span>{msg}</span></div>}
           <Card>
@@ -2890,7 +3067,7 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    siteImgLoad().then(() => ReactDOM.createRoot(document.getElementById('root')).render(<App />));   // Lias utbytta bilder läses in först (döljs av startbilden)
   </script>
 </body>
 </html>

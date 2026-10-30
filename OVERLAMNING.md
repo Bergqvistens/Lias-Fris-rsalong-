@@ -176,4 +176,13 @@
 - Lagras i demo-databasens sms-lista med event:true, kind 'order-hamtad'. Gäller DEMOLÄGET: i riktiga läget finns ännu ingen logg (kommer med Supabase/sms-tjänst) – då behövs en händelsetabell.
 - Test: hamtad-logg.js (18).
 - Kvar från Tommys lista 29 okt: punkt 1 (Lia byter alla bilder själv – frågor: tom plats eller originalbild vid borttagning? logga/startbild med?), punkt 2a (läskvitto går inte pålitligt; förslag: "Levererat" + kundens bekräftelselänk).
-- Hela sviten 30 okt: 32 sviter, 921 kontroller, alla gröna. s6check föll en gång (fast väntetid 1,5 s på förhandsbilden under tung last); ändrat till att vänta på bilden, sedan grön flera gånger i rad.
+- Hela sviten 30 okt: 31 sviter (rättat från 32), 921 kontroller, alla gröna. s6check föll en gång (fast väntetid 1,5 s på förhandsbilden under tung last); ändrat till att vänta på bilden, sedan grön flera gånger i rad.
+
+## 30 okt: Lia byter och tar bort bilderna på hemsidan själv (punkt 1)
+- Admin → Bilder: nytt kort "Bilder på hemsidan" överst. Sidknappar Start/Boka/Kurser/Shop/Kontakt/Galleri (räknare för osparade). 23 platser (siteSlots): Start 4 (stora bilden, rutorna Boka/Kurser/Shop), Boka 1, Kurser 1, Shop 6 (produkterna), Kontakt 1, Galleri 10 (bannern + 9 bilder). Loggan och startbilden ingår INTE (varumärket) – fråga Tommy om de ska med.
+- Per bild: Byt bild (krymps i telefonen med shrinkImage), Ta bort, Återställ original (om ändrad), Ångra (om osparad). Inget sparas förrän "Spara ändringar". Ångra alla.
+- Tommys krav: tas en bild bort utan att ny läggs in → fråga innan sparning: rubrik "Spara utan ny bild?", lista över vilka, "Är du säker på att du vill spara innan du har lagt in en ny bild?", knappar "Nej, gå tillbaka och lägg in en bild" (förvald) / "Ja, spara ändå". Escape/bakåt = Nej.
+- Borttagen bild: banner (Boka/Kurser/Kontakt/Galleri) döljs helt; Startsidans rutor och produkter visar tom ruta/"Bild kommer"; galleribild försvinner ur galleriet. Utbytt inspirationsbild flyttas till "Från Lias salong" (är inte längre AI-bild).
+- Lagring DEMO: IndexedDB 'lias_bilder' (store 'platser'), läses in innan appen ritas (siteImgLoad, max 1,5 s). Demo-Nollställ rensar den. RIKTIGA läget: kräver Supabase Storage (ej byggt).
+- Test: bilder-hemsida.js (38).
+- Hela sviten efter bilder: 32 sviter, 959 kontroller, alla gröna.
