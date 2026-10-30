@@ -218,3 +218,8 @@
 - lokal-testdatabas.sql: ny pg_dump 30 okt (återställning provad: 17 tjänster, trigger och funktioner finns).
 - Test: avbokad-tid-test.js (19).
 - Hela sviten efter avbokningstider: 37 sviter, 1097 kontroller, alla gröna (bekrafta-test uppdaterad för tidraden i loggen).
+
+## 30 okt natt: bekräftelselänken går inte att trycka på i Lias sms-logg
+- DemoSmsBubble har linkable (förval true). Lias sms-logg (DemoSmsLog) skickar linkable={false}: länken visas som vanlig text (samma färg, ingen understrykning, ingen <a>) så Lia inte råkar bekräfta åt kunden. Kundens egen sms-ruta efter bokningen har kvar tryckbar länk.
+- Test: bekrafta-test.js (20) kontrollerar att admin-loggen saknar <a> och att tryck inte gör något.
+- Hela sviten efter länkändringen: 37 sviter, 1099 kontroller, alla gröna.

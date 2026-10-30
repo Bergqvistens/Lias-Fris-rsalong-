@@ -70,6 +70,12 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   const ev = await lia.$$eval('[data-sms="kund-bekraftade"]', es => es.map(e => e.innerText.replace(/\n+/g, ' | ')));
   ok(ev.length === 1 && ev[0] === 'Registrerat mån 2 nov 2026 kl 08:05 | Händelse · Kunden bekräftade sin tid | Anna Andersson bekräftade sin tid tis 3 nov kl 10:00. Bekräftat mån 2 nov kl 08:05.', 'Loggen får en händelse med kund, tid och när den bekräftades', ev.join(' || '));
 
+  // 30 okt (Tommy): i Lias sms-logg är länken bara text – Lia ska inte kunna bekräfta åt kunden
+  const adm = await lia.evaluate(() => { const b = document.querySelector('[data-sms="bekraftelse"]'); return b ? { a: b.querySelectorAll('a').length, txt: (b.querySelector('[data-sms-link-text]') || {}).innerText || '', col: b.querySelector('[data-sms-link-text]') ? getComputedStyle(b.querySelector('[data-sms-link-text]')).color : '', body: getComputedStyle(b).color } : null; });
+  ok(adm && adm.a === 0 && /^https:\/\/lias\.test\/#bekrafta=/.test(adm.txt) && adm.col === adm.body, 'Lias sms-logg: länken syns som vanlig text men går inte att trycka på', JSON.stringify(adm));
+  const before = await lia.evaluate(() => location.href);
+  await lia.click('[data-sms="bekraftelse"] [data-sms-link-text]'); await lia.waitForTimeout(500);
+  ok((await lia.evaluate(() => location.href)) === before && !(await lia.$('[data-bekraftelse]')), 'Tryck på länktexten i admin gör ingenting');
   // --- 4. Länken igen: redan bekräftad, ingen ny händelse ---
   const c2 = await newPage(l1.href, T0 + 30 * 60000);
   await c2.waitForSelector('[data-bekraftelse]', { timeout: 5000 }).catch(() => {});

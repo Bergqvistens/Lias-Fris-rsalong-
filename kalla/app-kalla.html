@@ -1055,7 +1055,8 @@
     }
 
     const SMS_LABELS = { 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
-    function DemoSmsBubble({ sms }) {
+    // linkable=false i Lias sms-logg: länken visas som text men går inte att trycka på (Lia ska inte kunna bekräfta åt kunden, 30 okt)
+    function DemoSmsBubble({ sms, linkable = true }) {
       const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
       if (sms.event) return (
         <div data-sms={sms.kind} data-event="true" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderLeft: `6px solid ${COLORS.rosemary}`, borderRadius: '14px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
@@ -1072,7 +1073,9 @@
             <span data-sms-kind>{toLia ? 'Från ' + sms.from : (SMS_LABELS[sms.kind] || 'Sms') + ' · från ' + sms.from}</span>
           </div>
           <div data-sms-at style={{ fontSize: '13px', fontWeight: '600', color: T.color.textMuted, marginBottom: '4px' }}>Skickat {whenFull(new Date(sms.at).getTime())}</div>
-          {String(sms.text).split(/(https?:\/\/\S+)/).map((part, i) => i % 2 ? <a key={i} href={part} data-sms-link style={{ color: COLORS.rosemary, fontWeight: 700, overflowWrap: 'anywhere' }}>{part}</a> : part)}
+          {String(sms.text).split(/(https?:\/\/\S+)/).map((part, i) => !(i % 2) ? part : linkable
+            ? <a key={i} href={part} data-sms-link style={{ color: COLORS.rosemary, fontWeight: 700, overflowWrap: 'anywhere' }}>{part}</a>
+            : <span key={i} data-sms-link-text style={{ overflowWrap: 'anywhere' }}>{part}</span>)}
         </div>
       );
     }
@@ -1094,7 +1097,7 @@
           <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats. Här syns också när en beställning har hämtats.</p>
           {sms.length === 0
             ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
-            : <div style={{ display: 'grid', gap: '12px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} />)}</div>}
+            : <div style={{ display: 'grid', gap: '12px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} linkable={false} />)}</div>}
         </section>
       );
     }
