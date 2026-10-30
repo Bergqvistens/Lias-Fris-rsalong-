@@ -68,7 +68,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   const cf = await conf();
   ok(cf.length === 1 && cf[0] === 'true: Bekräftad av kunden mån 2 nov kl 08:05', 'Admin uppdateras direkt utan omladdning: "Bekräftad av kunden mån 2 nov kl 08:05"', cf.join(' | '));
   const ev = await lia.$$eval('[data-sms="kund-bekraftade"]', es => es.map(e => e.innerText.replace(/\n+/g, ' | ')));
-  ok(ev.length === 1 && ev[0] === 'Händelse · Kunden bekräftade sin tid | Anna Andersson bekräftade sin tid tis 3 nov kl 10:00. Bekräftat mån 2 nov kl 08:05.', 'Loggen får en händelse med kund, tid och när den bekräftades', ev.join(' || '));
+  ok(ev.length === 1 && ev[0] === 'Registrerat mån 2 nov 2026 kl 08:05 | Händelse · Kunden bekräftade sin tid | Anna Andersson bekräftade sin tid tis 3 nov kl 10:00. Bekräftat mån 2 nov kl 08:05.', 'Loggen får en händelse med kund, tid och när den bekräftades', ev.join(' || '));
 
   // --- 4. Länken igen: redan bekräftad, ingen ny händelse ---
   const c2 = await newPage(l1.href, T0 + 30 * 60000);

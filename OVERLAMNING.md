@@ -208,3 +208,13 @@
 - Databas: bookings.cancel_note text (≤160 tecken, constraint cancel_note_langd), admin får uppdatera status + cancel_note (grant). sqltest 48–52. lokal-testdatabas.sql har ALTER i slutet.
 - Test: fraga-test.js (33). Äldre tester (scenario, grupp-test, kurs-shop, s6check, demo-scenario, bekrafta-test, bilder-hemsida, hamtad-logg) trycker nu "Ja" i appens ruta.
 - Hela sviten efter frågerutan: 36 sviter, 1069 kontroller, alla gröna.
+
+## 30 okt natt: exakt tid för avbokningar (bevis) + 12 månaders lagring
+- **Databas:** bookings.cancelled_at sätts av triggern avbokad_tid (serverns now()) när status blir 'avbokad'. Efter avbokning låses cancelled_at OCH cancel_note (går inte att ändra). Admin har ingen rätt att skriva cancelled_at. sqltest 53–61.
+- **Rensning efter 12 månader** (Tommy valde 12 mån): rensa_gamla_avbokningar_kor() raderar avbokade bokningar där coalesce(cancelled_at, starts_at) är äldre än 12 månader (bara databasen får köra den). rensa_gamla_avbokningar() = samma men bara för admin; anropas varje gång Lia öppnar admin. Dessutom pg_cron kl 03:17 varje natt OM tillägget finns (Supabase: Database → Extensions → pg_cron). OBS: pg_cron-delen kunde inte provas här (finns inte i testdatabasen) – den är inlindad så att setup inte stoppar; rensningen via admin är testad.
+- **Admin:** ny lista "🗓️ Avbokade tider (N)" under Kursbokningar: kund, telefon, bokad tid (med år), tjänst/kurs, **"Avbokad av Lia: mån 2 nov 2026 kl 08:03"**, meddelandet (eller "Inget eget meddelande"). 10 åt gången + "Visa alla". Uppdateras direkt efter Lias avbokning och vid omladdning/60 s-hämtning. Gamla avbokningar utan tid (före 30 okt) visas inte.
+- **Sms-loggen:** varje sms visar "Skickat fre 30 okt 2026 kl 23:05", händelser "Registrerat …" (whenFull, med år).
+- Demo: tiden kommer från telefonens klocka (riktiga läget: databasens). Webbläsarens sista vita ruta (alert vid misslyckad ändring) ersatt med en felruta i appen.
+- lokal-testdatabas.sql: ny pg_dump 30 okt (återställning provad: 17 tjänster, trigger och funktioner finns).
+- Test: avbokad-tid-test.js (19).
+- Hela sviten efter avbokningstider: 37 sviter, 1097 kontroller, alla gröna (bekrafta-test uppdaterad för tidraden i loggen).

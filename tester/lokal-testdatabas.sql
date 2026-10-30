@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 27 okt 2026 (flerpersonsbokning + bokningslås). Öppettider i create_booking ändrade 29 okt 2026 (tis–fre 9–17). Lias 17 tjänster och kategorikontroll mot services-tabellen 29 okt 2026.
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 30 okt 2026 (ny dump: allt i supabase-setup.sql till och med avbokningsmeddelande, avbokningstid och rensning efter 12 månader).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict b7hea4Eh86XumgNeWtGpxo6bq3tfDSBooQyH2OlxMsnNJLEulXQpCRjke2L27B8
+\restrict OP7FvOUPfXb7WfBFlg2zr4FBmnO6bYb2nodoJno8KZqo1gKHiwZwSJrfVpPq9oe
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -21,14 +21,16 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: auth; Type: SCHEMA; Schema: -; Owner: -
+-- Name: auth; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
 CREATE SCHEMA auth;
 
 
+ALTER SCHEMA auth OWNER TO postgres;
+
 --
--- Name: uid(); Type: FUNCTION; Schema: auth; Owner: -
+-- Name: uid(); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
 CREATE FUNCTION auth.uid() RETURNS uuid
@@ -36,8 +38,10 @@ CREATE FUNCTION auth.uid() RETURNS uuid
     AS $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 
 
+ALTER FUNCTION auth.uid() OWNER TO postgres;
+
 --
--- Name: create_booking(jsonb, timestamp with time zone, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: create_booking(jsonb, timestamp with time zone, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) RETURNS json
@@ -110,7 +114,7 @@ begin
   end loop;
   v_end := v_cursor;
 
-  -- Öppettider (svensk tid) för hela kedjan. Söndag stängt.
+  -- Öppettider (svensk tid) för hela kedjan.
   v_local     := p_starts_at at time zone 'Europe/Stockholm';
   v_local_end := v_end       at time zone 'Europe/Stockholm';
   v_dow := extract(isodow from v_local);   -- 1 = måndag … 7 = söndag
@@ -160,8 +164,10 @@ end;
 $_$;
 
 
+ALTER FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) OWNER TO postgres;
+
 --
--- Name: get_busy(timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
+-- Name: get_busy(timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) RETURNS TABLE(starts_at timestamp with time zone, ends_at timestamp with time zone)
@@ -178,8 +184,10 @@ CREATE FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp 
 $$;
 
 
+ALTER FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) OWNER TO postgres;
+
 --
--- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION public.is_admin() RETURNS boolean
@@ -190,12 +198,73 @@ CREATE FUNCTION public.is_admin() RETURNS boolean
 $$;
 
 
+ALTER FUNCTION public.is_admin() OWNER TO postgres;
+
+--
+-- Name: rensa_gamla_avbokningar(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.rensa_gamla_avbokningar() RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.rensa_gamla_avbokningar_kor();
+end $$;
+
+
+ALTER FUNCTION public.rensa_gamla_avbokningar() OWNER TO postgres;
+
+--
+-- Name: rensa_gamla_avbokningar_kor(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.rensa_gamla_avbokningar_kor() RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare n integer;
+begin
+  delete from public.bookings
+   where status = 'avbokad'
+     and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+
+ALTER FUNCTION public.rensa_gamla_avbokningar_kor() OWNER TO postgres;
+
+--
+-- Name: satt_avbokad_tid(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.satt_avbokad_tid() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  if old.status = 'avbokad' then
+    -- redan avbokad: tid och meddelande låses (bevis om en kund ifrågasätter)
+    new.cancelled_at := old.cancelled_at;
+    new.cancel_note  := old.cancel_note;
+  elsif new.status = 'avbokad' then
+    new.cancelled_at := now();
+  else
+    new.cancelled_at := null;
+  end if;
+  return new;
+end $$;
+
+
+ALTER FUNCTION public.satt_avbokad_tid() OWNER TO postgres;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: users; Type: TABLE; Schema: auth; Owner: -
+-- Name: users; Type: TABLE; Schema: auth; Owner: postgres
 --
 
 CREATE TABLE auth.users (
@@ -204,8 +273,10 @@ CREATE TABLE auth.users (
 );
 
 
+ALTER TABLE auth.users OWNER TO postgres;
+
 --
--- Name: admins; Type: TABLE; Schema: public; Owner: -
+-- Name: admins; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.admins (
@@ -213,8 +284,10 @@ CREATE TABLE public.admins (
 );
 
 
+ALTER TABLE public.admins OWNER TO postgres;
+
 --
--- Name: bookings; Type: TABLE; Schema: public; Owner: -
+-- Name: bookings; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.bookings (
@@ -231,13 +304,18 @@ CREATE TABLE public.bookings (
     status text DEFAULT 'bokad'::text NOT NULL,
     person_name text,
     group_id uuid,
+    cancel_note text,
+    cancelled_at timestamp with time zone,
     CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['bokad'::text, 'avbokad'::text]))),
+    CONSTRAINT cancel_note_langd CHECK (((cancel_note IS NULL) OR (char_length(cancel_note) <= 160))),
     CONSTRAINT tid_i_ordning CHECK ((ends_at > starts_at))
 );
 
 
+ALTER TABLE public.bookings OWNER TO postgres;
+
 --
--- Name: services; Type: TABLE; Schema: public; Owner: -
+-- Name: services; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.services (
@@ -252,206 +330,39 @@ CREATE TABLE public.services (
 );
 
 
---
--- Name: users users_pkey; Type: CONSTRAINT; Schema: auth; Owner: -
---
-
-ALTER TABLE ONLY auth.users
-    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
-
+ALTER TABLE public.services OWNER TO postgres;
 
 --
--- Name: admins admins_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Data for Name: users; Type: TABLE DATA; Schema: auth; Owner: postgres
 --
 
-ALTER TABLE ONLY public.admins
-    ADD CONSTRAINT admins_pkey PRIMARY KEY (user_id);
+COPY auth.users (id, email) FROM stdin;
+160d7cf9-251c-40ea-9b1a-db1747232b66	lia@test.se
+\.
 
 
 --
--- Name: bookings bookings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Data for Name: admins; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.bookings
-    ADD CONSTRAINT bookings_pkey PRIMARY KEY (id);
-
-
---
--- Name: bookings ingen_krock; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bookings
-    ADD CONSTRAINT ingen_krock EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((status = 'bokad'::text));
+COPY public.admins (user_id) FROM stdin;
+160d7cf9-251c-40ea-9b1a-db1747232b66
+\.
 
 
 --
--- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Data for Name: bookings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.services
-    ADD CONSTRAINT services_pkey PRIMARY KEY (id);
-
-
---
--- Name: bookings admin_avbokar; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_avbokar ON public.bookings FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at) FROM stdin;
+\.
 
 
 --
--- Name: bookings admin_laser_bokningar; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_laser_bokningar ON public.bookings FOR SELECT TO authenticated USING (public.is_admin());
-
-
---
--- Name: admins; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
-
---
--- Name: services alla_laser_tjanster; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY alla_laser_tjanster ON public.services FOR SELECT USING (true);
-
-
---
--- Name: bookings; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-
---
--- Name: services; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
-
---
--- Name: supabase_realtime; Type: PUBLICATION; Schema: -; Owner: -
---
-
-CREATE PUBLICATION supabase_realtime WITH (publish = 'insert, update, delete, truncate');
-
-
---
--- Name: supabase_realtime bookings; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION supabase_realtime ADD TABLE ONLY public.bookings;
-
-
---
--- Name: SCHEMA auth; Type: ACL; Schema: -; Owner: -
---
-
-GRANT USAGE ON SCHEMA auth TO anon;
-GRANT USAGE ON SCHEMA auth TO authenticated;
-
-
---
--- Name: SCHEMA public; Type: ACL; Schema: -; Owner: -
---
-
-GRANT USAGE ON SCHEMA public TO anon;
-GRANT USAGE ON SCHEMA public TO authenticated;
-
-
---
--- Name: FUNCTION uid(); Type: ACL; Schema: auth; Owner: -
---
-
-GRANT ALL ON FUNCTION auth.uid() TO anon;
-GRANT ALL ON FUNCTION auth.uid() TO authenticated;
-
-
---
--- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO anon;
-GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO authenticated;
-
-
---
--- Name: FUNCTION get_busy(p_from timestamp with time zone, p_to timestamp with time zone); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) TO anon;
-GRANT ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) TO authenticated;
-
-
---
--- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
-
-
---
--- Name: TABLE bookings; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON TABLE public.bookings TO authenticated;
-
-
---
--- Name: COLUMN bookings.status; Type: ACL; Schema: public; Owner: -
---
-
-GRANT UPDATE(status) ON TABLE public.bookings TO authenticated;
-
-
---
--- Name: TABLE services; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON TABLE public.services TO anon;
-GRANT SELECT ON TABLE public.services TO authenticated;
-
-
---
--- PostgreSQL database dump complete
---
-
-\unrestrict b7hea4Eh86XumgNeWtGpxo6bq3tfDSBooQyH2OlxMsnNJLEulXQpCRjke2L27B8
-
---
--- PostgreSQL database dump
---
-
-\restrict YQUkaYBNRf5GrrDCj32RK4OMfY5yWVKPFTejBL8lxLTBK0PZwmudpjM8UT9zts5
-
--- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
--- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
---
--- Data for Name: services; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: services; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.services (id, name, duration, price, category, kind) FROM stdin;
-klipp-45	Klippning 45 min.	45	600	Klippning	klipp
-klipp-lyx	Klippning lyx	60	850	Klippning	klipp
-klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
-putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 farg-botten	Bottenfärg/utväxt	90	1000	Färgbehandling	klipp
 farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
 farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
@@ -465,18 +376,212 @@ tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	kli
 harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
 bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
 frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
+klipp-45	Klippning 45 min.	45	600	Klippning	klipp
+klipp-lyx	Klippning lyx	60	850	Klippning	klipp
+klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
+putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 \.
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
+--
+
+ALTER TABLE ONLY auth.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: admins admins_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.admins
+    ADD CONSTRAINT admins_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: bookings bookings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: bookings ingen_krock; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT ingen_krock EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((status = 'bokad'::text));
+
+
+--
+-- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT services_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: bookings avbokad_tid; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER avbokad_tid BEFORE UPDATE ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.satt_avbokad_tid();
+
+
+--
+-- Name: bookings admin_avbokar; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY admin_avbokar ON public.bookings FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
+--
+-- Name: bookings admin_laser_bokningar; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY admin_laser_bokningar ON public.bookings FOR SELECT TO authenticated USING (public.is_admin());
+
+
+--
+-- Name: admins; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: services alla_laser_tjanster; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY alla_laser_tjanster ON public.services FOR SELECT USING (true);
+
+
+--
+-- Name: bookings; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: services; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: supabase_realtime; Type: PUBLICATION; Schema: -; Owner: postgres
+--
+
+CREATE PUBLICATION supabase_realtime WITH (publish = 'insert, update, delete, truncate');
+
+
+ALTER PUBLICATION supabase_realtime OWNER TO postgres;
+
+--
+-- Name: supabase_realtime bookings; Type: PUBLICATION TABLE; Schema: public; Owner: postgres
+--
+
+ALTER PUBLICATION supabase_realtime ADD TABLE ONLY public.bookings;
+
+
+--
+-- Name: SCHEMA auth; Type: ACL; Schema: -; Owner: postgres
+--
+
+GRANT USAGE ON SCHEMA auth TO anon;
+GRANT USAGE ON SCHEMA auth TO authenticated;
+
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
+--
+
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT USAGE ON SCHEMA public TO authenticated;
+
+
+--
+-- Name: FUNCTION uid(); Type: ACL; Schema: auth; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION auth.uid() TO anon;
+GRANT ALL ON FUNCTION auth.uid() TO authenticated;
+
+
+--
+-- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO anon;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO authenticated;
+
+
+--
+-- Name: FUNCTION get_busy(p_from timestamp with time zone, p_to timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) TO anon;
+GRANT ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) TO authenticated;
+
+
+--
+-- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
+
+
+--
+-- Name: FUNCTION rensa_gamla_avbokningar(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.rensa_gamla_avbokningar() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.rensa_gamla_avbokningar() TO authenticated;
+
+
+--
+-- Name: FUNCTION rensa_gamla_avbokningar_kor(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.rensa_gamla_avbokningar_kor() FROM PUBLIC;
+
+
+--
+-- Name: TABLE bookings; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.bookings TO authenticated;
+
+
+--
+-- Name: COLUMN bookings.status; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE(status) ON TABLE public.bookings TO authenticated;
+
+
+--
+-- Name: COLUMN bookings.cancel_note; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE(cancel_note) ON TABLE public.bookings TO authenticated;
+
+
+--
+-- Name: TABLE services; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.services TO anon;
+GRANT SELECT ON TABLE public.services TO authenticated;
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YQUkaYBNRf5GrrDCj32RK4OMfY5yWVKPFTejBL8lxLTBK0PZwmudpjM8UT9zts5
+\unrestrict OP7FvOUPfXb7WfBFlg2zr4FBmnO6bYb2nodoJno8KZqo1gKHiwZwSJrfVpPq9oe
 
-
--- 30 okt 2026: avbokningsmeddelande (samma som supabase-setup.sql)
-alter table public.bookings add column if not exists cancel_note text;
-alter table public.bookings drop constraint if exists cancel_note_langd;
-alter table public.bookings add constraint cancel_note_langd check (cancel_note is null or char_length(cancel_note) <= 160);
-grant select, update (status, cancel_note) on public.bookings to authenticated;

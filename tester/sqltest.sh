@@ -71,8 +71,25 @@ T "46. Gamla kategorin Herr finns inte längre" anon "" "$(BK "$(P Herr '"klipp-
 T "47. Alla 17 tjänster finns i databasen, i 6 kategorier" anon "" "select count(*)||' '||count(distinct category) from services" "^17 6$"
 
 echo "--- Avbokningsmeddelande (ny 30 okt) ---"
-T "48. Admin sparar ett meddelande vid avbokning" authenticated "$LIA" "update bookings set status='avbokad', cancel_note='Din frisör Lia är tyvärr sjuk och måste avboka din tid.' where id=(select id from bookings order by starts_at limit 1) returning cancel_note" "^Din frisör Lia är tyvärr sjuk och måste avboka din tid\.$"
-T "49. Meddelande längre än 160 tecken stoppas" authenticated "$LIA" "update bookings set cancel_note=repeat('x',161) where id=(select id from bookings order by starts_at limit 1)" "cancel_note_langd"
+T "48. Admin sparar ett meddelande vid avbokning" authenticated "$LIA" "update bookings set status='avbokad', cancel_note='Din frisör Lia är tyvärr sjuk och måste avboka din tid.' where id=(select id from bookings where status='bokad' order by starts_at limit 1) returning cancel_note" "^Din frisör Lia är tyvärr sjuk och måste avboka din tid\.$"
+T "49. Meddelande längre än 160 tecken stoppas" authenticated "$LIA" "update bookings set cancel_note=repeat('x',161) where id=(select id from bookings where status='bokad' order by starts_at limit 1)" "cancel_note_langd"
 T "50. Inloggad men INTE admin kan inte skriva meddelande" authenticated "$ANNAN" "update bookings set cancel_note='hej' returning id" "^$|UPDATE 0"
 T "51. Kund (ej inloggad) kan inte skriva meddelande" anon "" "update bookings set cancel_note='hej'" "permission denied"
 T "52. Admin får fortfarande INTE ändra pris" authenticated "$LIA" "update bookings set price=0" "permission denied"
+
+echo "--- Avbokningstid och rensning efter 12 månader (ny 30 okt) ---"
+$P -c "update bookings set status='bokad', cancel_note=null, cancelled_at=null where customer_name='Tidstest'" >/dev/null 2>&1
+$P -c "delete from bookings where customer_name in ('Tidstest','Gammal13','Gammal11')" >/dev/null
+$P -c "insert into bookings (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status) values ('{klipp-30}','Klippning/Herrklippning 30 min',500, $MON + interval '5 days 8 hours', $MON + interval '5 days 8 hours 30 minutes','Tidstest','0701111111','t@t.se','bokad')" >/dev/null
+T "53. Avbokning: databasen stämplar tiden själv (serverns klocka)" authenticated "$LIA" "update bookings set status='avbokad', cancel_note='Din frisör Lia måste tyvärr boka om din tid.' where customer_name='Tidstest' returning (abs(extract(epoch from (cancelled_at - now()))) < 5)::text" "^true$"
+T "54. Admin kan inte själv ändra avbokningstiden" authenticated "$LIA" "update bookings set cancelled_at = now() - interval '1 day' where customer_name='Tidstest'" "permission denied"
+T "55. Efter avbokning är meddelandet låst (kan inte ändras i efterhand)" authenticated "$LIA" "update bookings set cancel_note='Ändrad text' where customer_name='Tidstest' returning cancel_note" "^Din frisör Lia måste tyvärr boka om din tid\.$"
+T "56. Tiden är också låst vid ny uppdatering" authenticated "$LIA" "with f as (select cancelled_at t from bookings where customer_name='Tidstest') update bookings b set status='avbokad' from f where customer_name='Tidstest' returning (b.cancelled_at = f.t)::text" "^true$"
+$P -c "insert into bookings (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, cancelled_at) values ('{klipp-30}','X',500, now() - interval '14 months', now() - interval '14 months' + interval '30 minutes','Gammal13','0701111111','g@t.se','avbokad', now() - interval '13 months'), ('{klipp-30}','X',500, now() - interval '12 months', now() - interval '12 months' + interval '30 minutes','Gammal11','0701111111','g@t.se','avbokad', now() - interval '11 months')" >/dev/null
+T "57. Kund kan inte köra rensningen" anon "" "select rensa_gamla_avbokningar()" "permission denied"
+T "58. Inloggad men INTE admin kan inte köra rensningen" authenticated "$ANNAN" "select rensa_gamla_avbokningar()" "EJ_ADMIN"
+T "59. Ingen utom databasen kan köra den interna rensningen" authenticated "$LIA" "select rensa_gamla_avbokningar_kor()" "permission denied"
+T "60. Admin: rensningen tar bort avbokningar äldre än 12 månader (1 st)" authenticated "$LIA" "select rensa_gamla_avbokningar()" "^1$"
+R=$($P -c "select string_agg(customer_name, ',' order by customer_name) from bookings where customer_name in ('Tidstest','Gammal13','Gammal11')")
+if [ "$R" = "Gammal11,Tidstest" ]; then echo "OK   61. Kvar efter rensning (11 månader gammal + dagens): $R"; else echo "FEL  61. Kvar efter rensning (11 månader gammal + dagens): $R"; fi
+$P -c "delete from bookings where customer_name in ('Tidstest','Gammal13','Gammal11')" >/dev/null

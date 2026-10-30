@@ -654,6 +654,8 @@
       try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
       return 'demo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     }
+    // Datum med år, för bevis (avbokningar, sms-loggen): "fre 30 okt 2026 kl 22:19"
+    function whenFull(ms) { return new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '') + ' kl ' + fmtTime(ms); }
     function demoWhen(ms) { return new Date(ms).toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + ' kl ' + fmtTime(ms); }
     // Avbokningssms. note = Lias meddelande (valfritt, max 160 tecken). Samma funktion ger förhandsvisningen i frågerutan.
     const CANCEL_REASONS = {
@@ -884,8 +886,11 @@
           if (q.update) {
             list.forEach(r => {
               if (!match(r)) return;
-              const before = r.status; r.status = q.update.status;
+              const before = r.status;
+              if (before === 'avbokad') return;   // som databasens regel: avbokad tid och meddelande går inte att ändra i efterhand
+              r.status = q.update.status;
               if ('cancel_note' in q.update) r.cancel_note = cleanNote(q.update.cancel_note) || null;
+              if ((table === 'bookings' || table === 'course_bookings') && r.status === 'avbokad') r.cancelled_at = new Date().toISOString();   // demo: telefonens klocka (riktiga läget: databasens)
               if (table === 'bookings' && before === 'bokad' && r.status === 'avbokad')
                 demoAddSms(db, r.customer_phone, 'avbokning', r.id, cancelSmsText('bookings', r, r.cancel_note));
               if (table === 'course_bookings' && before === 'bokad' && r.status === 'avbokad')
@@ -939,6 +944,14 @@
           if (fn === 'add_photo') return wait(demoAddPhoto(p));
           if (fn === 'delete_photo') return wait(demoDeletePhoto(p));
           if (fn === 'confirm_booking') return wait(demoConfirmBooking(p));
+          if (fn === 'rensa_gamla_avbokningar') {
+            if (!demoSession()) return wait(fail('EJ_ADMIN'));
+            const db = demoLoad(), cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+            const old = r => r.status === 'avbokad' && new Date(r.cancelled_at || r.starts_at) < cut;
+            const n = db.bookings.filter(old).length + db.courseBookings.filter(old).length;
+            db.bookings = db.bookings.filter(r => !old(r)); db.courseBookings = db.courseBookings.filter(r => !old(r));
+            demoSave(db); return wait({ data: n, error: null });
+          }
           return wait(fail('okänd funktion'));
         },
         from: builder,
@@ -1046,6 +1059,7 @@
       const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
       if (sms.event) return (
         <div data-sms={sms.kind} data-event="true" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderLeft: `6px solid ${COLORS.rosemary}`, borderRadius: '14px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
+          <div data-sms-at style={{ fontSize: '13px', fontWeight: '600', color: T.color.textMuted, marginBottom: '4px' }}>Registrerat {whenFull(new Date(sms.at).getTime())}</div>
           <div data-sms-head style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: COLORS.rosemary, marginBottom: '4px' }}><Icon name="check" size={16} strokeWidth={3} />{EVENT_HEAD[sms.kind] || 'Händelse'}</div>
           {sms.text}
         </div>
@@ -1057,6 +1071,7 @@
             <span data-sms-to={toLia ? 'lia' : 'kund'} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', backgroundColor: toLia ? T.color.forest : COLORS.earthBrown, color: '#FFFFFF', fontSize: '14px', fontWeight: '800', lineHeight: '1.4' }}><Icon name={toLia ? 'user' : 'smartphone'} size={14} strokeWidth={2.5} />{toLia ? 'Till Lia' : 'Till kund ' + sms.to}</span>
             <span data-sms-kind>{toLia ? 'Från ' + sms.from : (SMS_LABELS[sms.kind] || 'Sms') + ' · från ' + sms.from}</span>
           </div>
+          <div data-sms-at style={{ fontSize: '13px', fontWeight: '600', color: T.color.textMuted, marginBottom: '4px' }}>Skickat {whenFull(new Date(sms.at).getTime())}</div>
           {String(sms.text).split(/(https?:\/\/\S+)/).map((part, i) => i % 2 ? <a key={i} href={part} data-sms-link style={{ color: COLORS.rosemary, fontWeight: 700, overflowWrap: 'anywhere' }}>{part}</a> : part)}
         </div>
       );
@@ -2943,6 +2958,17 @@
       const [newIds, setNewIds] = useState([]);
       const [section, setSection] = useState('bokningar');
       const [askEl, ask] = useAppConfirm();
+      const [cancelled, setCancelled] = useState([]);   // avbokade de senaste 12 månaderna (30 okt)
+      const [showAllCancelled, setShowAllCancelled] = useState(false);
+      const [statusErr, setStatusErr] = useState(null);
+      const CANCEL_TABLES = DEMO ? ['bookings', 'course_bookings'] : ['bookings'];
+      const loadCancelled = async () => {
+        try { await sb.rpc('rensa_gamla_avbokningar'); } catch (e) {}   // tar bort avbokningar äldre än 12 månader
+        const cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+        const res = await Promise.all(CANCEL_TABLES.map(t => sb.from(t).select('*').eq('status', 'avbokad').gte('cancelled_at', cut.toISOString()).order('cancelled_at', { ascending: false })));
+        if (res.some(r => r.error)) return;
+        setCancelled(res.flatMap((r, i) => (r.data || []).map(x => ({ ...x, _t: CANCEL_TABLES[i] }))).sort((a, b) => new Date(b.cancelled_at) - new Date(a.cancelled_at)));
+      };
       const [, setTick] = useState(0);
       useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 30000); return () => clearInterval(t); }, []);   // färgerna byter läge av sig själva
       const seen = useRef(new Set());
@@ -2993,6 +3019,7 @@
         });
         loadedOnce.current = true;
         setLists(next); setListState('ok');
+        loadCancelled();
       };
 
       useEffect(() => {
@@ -3041,7 +3068,9 @@
           if (a.msg) patch = { status, cancel_note: a.msg };   // Lias meddelande till kunden (valfritt)
         }
         const { error } = await sb.from(table).update(patch).eq('id', r.id);
-        if (error) { window.alert('Ändringen misslyckades. Försök igen.'); return; }
+        if (error) { setStatusErr('Ändringen misslyckades. Försök igen.'); return; }
+        setStatusErr(null);
+        if (status === 'avbokad') loadCancelled();
         setLists(prev => ({ ...prev, [table]: (status === 'avbokad' || status === 'hamtad') ? prev[table].filter(x => x.id !== r.id) : prev[table].map(x => x.id === r.id ? { ...x, status } : x) }));
       };
 
@@ -3092,6 +3121,7 @@
       return (
         <div style={wrap}>
           {askEl}
+          {statusErr && <div style={{ marginBottom: '12px' }}><ErrorBox text={statusErr} /></div>}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
             <h1 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '24px', fontFamily: T.font.heading, margin: 0 }}>Admin</h1>
             <button onClick={logout} style={{ ...btn(COLORS.rosemary), border: `2px solid ${COLORS.sand1}`, whiteSpace: 'nowrap' }}>Logga ut</button>
@@ -3160,6 +3190,25 @@
                   );
                 })}
               </div>
+
+              <h2 style={H} data-rubrik="avbokade">🗓️ Avbokade tider ({cancelled.length})</h2>
+              <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Avbokningar som Lia har gjort, med exakt tid. Sparas i 12 månader och raderas sedan automatiskt.</p>
+              {cancelled.length === 0
+                ? <div style={{ ...BOX, textAlign: 'center' }}>Inga avbokningar de senaste 12 månaderna.</div>
+                : <div style={{ display: 'grid', gap: '10px' }}>
+                    {(showAllCancelled ? cancelled : cancelled.slice(0, 10)).map(c => {
+                      const st = new Date(c.starts_at).getTime();
+                      return (
+                        <div key={c._t + c.id} data-avbokad={c.id} style={{ ...BOX, borderColor: COLORS.earthBrown }}>
+                          <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{c.person_name ? `${c.person_name} (${c.customer_name})` : c.customer_name}</strong> · <a href={'tel:' + c.customer_phone} style={{ color: COLORS.rosemary }}>{c.customer_phone}</a></div>
+                          <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }}>{c._t === 'course_bookings' ? 'Kursplats' : 'Bokad tid'}: {whenFull(st)} · {c._t === 'course_bookings' ? c.course_name : c.service_names}</div>
+                          <div data-avbokad-tid style={{ margin: '6px 0 0', fontSize: '15px', fontWeight: 800, color: '#7A2A10' }}>Avbokad av Lia: {whenFull(new Date(c.cancelled_at).getTime())}</div>
+                          <div data-avbokad-medd style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5, marginTop: '2px' }}>{c.cancel_note ? <>Meddelande: ”{c.cancel_note}”</> : 'Inget eget meddelande (bara avbokningssms).'}</div>
+                        </div>
+                      );
+                    })}
+                    {cancelled.length > 10 && <button type="button" onClick={() => setShowAllCancelled(v => !v)} style={{ ...btn(COLORS.rosemary), minHeight: '44px' }} data-visa-alla>{showAllCancelled ? 'Visa färre' : `Visa alla (${cancelled.length})`}</button>}
+                  </div>}
 
               <h2 style={H}>🛍️ Beställningar ({lists.orders.length})</h2>
               {lists.orders.length === 0 && <div style={{ ...BOX, textAlign: 'center' }}>Inga beställningar att hantera.</div>}

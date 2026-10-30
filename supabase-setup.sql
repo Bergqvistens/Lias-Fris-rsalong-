@@ -66,6 +66,26 @@ alter table public.bookings add column if not exists group_id    uuid;
 alter table public.bookings add column if not exists cancel_note text;
 alter table public.bookings drop constraint if exists cancel_note_langd;
 alter table public.bookings add constraint cancel_note_langd check (cancel_note is null or char_length(cancel_note) <= 160);
+-- När Lia avbokade (30 okt 2026). Sätts av databasen själv (serverns klocka) och går inte att ändra i efterhand.
+alter table public.bookings add column if not exists cancelled_at timestamptz;
+create or replace function public.satt_avbokad_tid() returns trigger
+language plpgsql as $$
+begin
+  if old.status = 'avbokad' then
+    -- redan avbokad: tid och meddelande låses (bevis om en kund ifrågasätter)
+    new.cancelled_at := old.cancelled_at;
+    new.cancel_note  := old.cancel_note;
+  elsif new.status = 'avbokad' then
+    new.cancelled_at := now();
+  else
+    new.cancelled_at := null;
+  end if;
+  return new;
+end $$;
+drop trigger if exists avbokad_tid on public.bookings;
+create trigger avbokad_tid before update on public.bookings
+  for each row execute function public.satt_avbokad_tid();
+
 
 -- ---------- 3. Vilka konton som är admin (Lia) ----------
 create table if not exists public.admins (
@@ -280,3 +300,41 @@ end $$;
 --    insert into public.admins (user_id)
 --    select id from auth.users where email = 'LIAS-EPOST@EXEMPEL.SE';
 -- =====================================================================
+
+
+-- ---------- Avbokningar sparas i 12 månader (Tommy 30 okt 2026) ----------
+-- Raderar avbokade tider äldre än 12 månader (räknat från avbokningen; äldre utan avbokningstid: från den bokade tiden).
+create or replace function public.rensa_gamla_avbokningar_kor() returns integer
+language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  delete from public.bookings
+   where status = 'avbokad'
+     and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.rensa_gamla_avbokningar_kor() from public, anon, authenticated;
+
+-- Körs varje gång Lia öppnar admin (fungerar alltid), bara för admin.
+create or replace function public.rensa_gamla_avbokningar() returns integer
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.rensa_gamla_avbokningar_kor();
+end $$;
+revoke all on function public.rensa_gamla_avbokningar() from public, anon;
+grant execute on function public.rensa_gamla_avbokningar() to authenticated;
+
+-- Dessutom varje natt kl 03:17 om tillägget pg_cron finns (Supabase: Database → Extensions → pg_cron).
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('rensa-avbokningar', '17 3 * * *', 'select public.rensa_gamla_avbokningar_kor()');
+  else
+    raise notice 'pg_cron finns inte: avbokningar rensas när Lia öppnar admin';
+  end if;
+exception when others then
+  raise notice 'Kunde inte schemalägga rensningen (%). Avbokningar rensas ändå när Lia öppnar admin.', sqlerrm;
+end $$;
