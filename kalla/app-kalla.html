@@ -644,7 +644,7 @@
     const DEMO_STOCK = { 's-cup': 5, 's-bowl': 3, 's-vase': 1, 's-plate': 4, 's-pot': 6, 's-set': 0 };
     const DEMO_SEED_TAKEN = { 'c-begin': [6, 2], 'c-adv': [3], 'c-kids': [12, 4], 'c-drop': [4, 10, 2] };
 
-    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000 });
+    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000, uteblivna: [] });
     function demoLoad() {
       try { const d = JSON.parse(localStorage.getItem(DEMO_KEY)); if (d && Array.isArray(d.bookings)) return { ...demoEmpty(), ...d }; } catch (e) {}
       return demoEmpty();
@@ -869,6 +869,71 @@
       live.forEach(b => demoEmit('bookings', b, 'UPDATE'));
       return { data: { ...info, already: false, confirmed_at: now }, error: null };
     }
+    // ---- Uteblivet besök / sen avbokning (1 nov 2026). Samma regler som i databasen. ----
+    function demoNextNumber(db, phone) {
+      const cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+      const paid = db.uteblivna.filter(u => u.customer_phone === phone && u.status === 'betald').map(u => new Date(u.andrad_at).getTime());
+      const reset = paid.length ? Math.max(...paid) : -Infinity;
+      return 1 + db.uteblivna.filter(u => u.customer_phone === phone && ['ingen_avgift', 'obetald'].includes(u.status) && new Date(u.created_at) > cut && new Date(u.created_at).getTime() > reset).length;
+    }
+    const groupRows = (db, b) => db.bookings.filter(x => (b.group_id && x.group_id === b.group_id) || x.id === b.id);
+    function noshowSms(kind, u, startMs) {
+      const first = String(u.customer_name).split(' ')[0], when = demoWhen(startMs);
+      if (kind === 'kom-anda') return `Hej ${first}! Ursäkta, vi har nu registrerat att du kom. Ingen avgift. Välkommen åter!`;
+      if (u.kind === 'uteblev') return u.belopp > 0
+        ? `Hej ${first}! Du kom inte till din tid ${when} hos Lias Hantverkeri. Enligt avbokningsreglerna debiteras ${u.belopp} kr. Lia skickar betalningsuppgifter. Frågor: ${CONTACT.phone}.`
+        : `Hej ${first}! Vi saknade dig på din tid ${when} hos Lias Hantverkeri. Den här gången kostar det inget, men nästa gång debiteras hela priset. Frågor: ${CONTACT.phone}.`;
+      return u.belopp > 0
+        ? `Hej ${first}! Din avbokning av tiden ${when} kom för sent enligt avbokningsreglerna, så ${u.belopp} kr debiteras. Lia skickar betalningsuppgifter. Frågor: ${CONTACT.phone}.`
+        : `Hej ${first}! Din avbokning av tiden ${when} kom för sent enligt avbokningsreglerna. Den här gången kostar det inget, men nästa gång debiteras hela priset. Frågor: ${CONTACT.phone}.`;
+    }
+    function demoRegistreraUteblivet(p) {
+      if (!demoSession()) return fail('EJ_ADMIN');
+      if (!['uteblev', 'sen_avbokning'].includes(p.p_kind)) return fail('OGILTIG_TYP');
+      const db = demoLoad(), b = db.bookings.find(x => x.id === p.p_booking);
+      if (!b) return fail('OGILTIG_BOKNING');
+      const rows = groupRows(db, b), start = Math.min(...rows.map(x => new Date(x.starts_at).getTime())), sum = rows.reduce((a, x) => a + x.price, 0);
+      if (p.p_kind === 'uteblev') {
+        if (b.status !== 'bokad') return fail('OGILTIG_BOKNING');
+        if (start > Date.now()) return fail('TIDEN_HAR_INTE_BORJAT');
+        if (b.arrived_at) return fail('KUNDEN_HAR_KOMMIT');
+      } else {
+        if (b.status !== 'avbokad' || !b.cancelled_at) return fail('OGILTIG_BOKNING');
+        if (new Date(b.cancelled_at).getTime() < start - cancelHoursFor(b.service_ids || []) * 3600000) return fail('INTE_SEN_AVBOKNING');
+      }
+      const key = b.group_id || b.id;
+      if (db.uteblivna.some(u => (u.group_id || u.booking_id) === key)) return fail('REDAN_REGISTRERAD');
+      const n = demoNextNumber(db, b.customer_phone);
+      const u = { id: demoId(), created_at: new Date().toISOString(), booking_id: b.id, group_id: b.group_id || null, customer_name: b.customer_name, customer_phone: b.customer_phone,
+        kind: p.p_kind, nummer: n, belopp: n === 1 ? 0 : sum, status: n === 1 ? 'ingen_avgift' : 'obetald', andrad_at: null, booking_start: new Date(start).toISOString() };
+      db.uteblivna.push(u);
+      demoAddSms(db, b.customer_phone, p.p_kind === 'uteblev' ? (u.belopp ? 'uteblev-avgift' : 'uteblev-varning') : (u.belopp ? 'sen-avgift' : 'sen-varning'), b.id, noshowSms(null, u, start));
+      demoSave(db);
+      return { data: u, error: null };
+    }
+    function demoMarkeraKommit(p) {
+      if (!demoSession()) return fail('EJ_ADMIN');
+      const db = demoLoad(), b = db.bookings.find(x => x.id === p.p_booking);
+      if (!b || b.status !== 'bokad') return fail('OGILTIG_BOKNING');
+      const now = new Date().toISOString(), rows = groupRows(db, b);
+      rows.forEach(x => { if (!x.arrived_at) x.arrived_at = now; });
+      const key = b.group_id || b.id;
+      db.uteblivna.filter(u => (u.group_id || u.booking_id) === key && ['ingen_avgift', 'obetald'].includes(u.status)).forEach(u => {
+        u.status = 'havd'; u.andrad_at = now;
+        demoAddSms(db, b.customer_phone, 'kom-anda', b.id, noshowSms('kom-anda', u, 0));
+      });
+      demoSave(db);
+      return { data: { arrived_at: b.arrived_at }, error: null };
+    }
+    function demoUteblivetAndra(p) {
+      if (!demoSession()) return fail('EJ_ADMIN');
+      if (!['betald', 'havd'].includes(p.p_status)) return fail('OGILTIG_STATUS');
+      const db = demoLoad(), u = db.uteblivna.find(x => x.id === p.p_id);
+      if (!u || !['ingen_avgift', 'obetald'].includes(u.status) || (p.p_status === 'betald' && u.status !== 'obetald')) return fail('OGILTIG_STATUS');
+      u.status = p.p_status; u.andrad_at = new Date().toISOString();
+      demoSave(db);
+      return { data: u, error: null };
+    }
     function demoDeletePhoto(p) {
       const db = demoLoad(), n = db.photos.length;
       db.photos = db.photos.filter(x => x.id !== p.p_id);
@@ -879,7 +944,7 @@
 
     function createDemoClient() {
       const wait = v => new Promise(r => setTimeout(() => r(v), 250));   // känns som ett nätverksanrop
-      const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders' };
+      const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders', uteblivna: 'uteblivna' };
       const builder = table => {
         const q = { filters: [], update: null, desc: false, orderBy: 'starts_at' };
         const run = () => {
@@ -948,9 +1013,14 @@
           if (fn === 'add_photo') return wait(demoAddPhoto(p));
           if (fn === 'delete_photo') return wait(demoDeletePhoto(p));
           if (fn === 'confirm_booking') return wait(demoConfirmBooking(p));
+          if (fn === 'registrera_uteblivet') return wait(demoRegistreraUteblivet(p));
+          if (fn === 'markera_kommit') return wait(demoMarkeraKommit(p));
+          if (fn === 'uteblivet_andra') return wait(demoUteblivetAndra(p));
+          if (fn === 'uteblivet_forhand') { if (!demoSession()) return wait(fail('EJ_ADMIN')); return wait({ data: demoNextNumber(demoLoad(), String(p.p_phone || '').replace(/\D/g, '')), error: null }); }
           if (fn === 'rensa_gamla_avbokningar') {
             if (!demoSession()) return wait(fail('EJ_ADMIN'));
             const db = demoLoad(), cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+            db.uteblivna = db.uteblivna.filter(u => new Date(u.created_at) >= cut);
             const old = r => r.status === 'avbokad' && new Date(r.cancelled_at || r.starts_at) < cut;
             const n = db.bookings.filter(old).length + db.courseBookings.filter(old).length;
             db.bookings = db.bookings.filter(r => !old(r)); db.courseBookings = db.courseBookings.filter(r => !old(r));
@@ -990,14 +1060,20 @@
       const answer = v => { if (!d) return; const el = d.opener; d.res(v); setD(null); setTimeout(() => { if (el && el.focus && document.contains(el)) el.focus(); }, 0); };
       return [d ? <AppConfirm key="fraga" {...d.opts} onAnswer={answer} /> : null, ask];
     }
-    function AppConfirm({ title, lines = [], note, yes, no = 'Avbryt', danger, reasons, preview, onAnswer }) {
+    function AppConfirm({ title, lines = [], note, yes, no = 'Avbryt', danger, reasons, preview, who, onAnswer }) {
       const [pick, setPick] = useState('inget');   // 'inget' | 0 | 1 | 2 | 'egen'
+      const [whoPick, setWhoPick] = useState(null);   // 'kund' | 'lia' (bara när tiden är närmare än avbokningsgränsen)
+      const [whoErr, setWhoErr] = useState(false);
       const [own, setOwn] = useState('');
       const [err, setErr] = useState(null);
       useBackClose(true, () => onAnswer(false));
       useEffect(() => { const b = document.querySelector('[data-confirm] [data-svar="nej"]'); if (b) b.focus(); }, []);
       const msg = !reasons ? '' : pick === 'egen' ? cleanNote(own) : typeof pick === 'number' ? reasons[pick] : '';
-      const yesClick = () => { if (reasons && pick === 'egen' && !msg) { setErr('Skriv ett meddelande, eller välj "Inget meddelande".'); return; } onAnswer({ ok: true, msg }); };
+      const yesClick = () => {
+        if (who && !whoPick) { setWhoErr(true); return; }
+        if (reasons && pick === 'egen' && !msg) { setErr('Skriv ett meddelande, eller välj "Inget meddelande".'); return; }
+        onAnswer({ ok: true, msg, who: whoPick });
+      };
       const key = e => {
         if (e.key === 'Escape') { onAnswer(false); return; }
         if (e.key !== 'Tab') return;
@@ -1019,6 +1095,22 @@
               <h2 id="fraga-rubrik">{title}</h2>
               {lines.length > 0 && <div className="lh-ask__lines" data-rader>{lines.map((l, i) => <p key={i}>{l}</p>)}</div>}
               {note && <p className="lh-ask__note">{note}</p>}
+              {who && (
+                <fieldset className="lh-ask__reasons" data-vem>
+                  <legend>Vem avbokade?</legend>
+                  <p className="lh-ask__note" style={{ margin: '0 0 8px' }}>{who}</p>
+                  <div className="lh-opts" role="radiogroup">
+                    {[['kund', 'Kunden (räknas som sen avbokning)'], ['lia', 'Jag, Lia (räknas inte mot kunden)']].map(([id, text]) => {
+                      const on = whoPick === id;
+                      return <button key={id} type="button" role="radio" aria-checked={on ? 'true' : 'false'} aria-pressed={on ? 'true' : 'false'} className="lh-opt lh-opt--radio" data-vem-val={id} onClick={() => { setWhoPick(id); setWhoErr(false); }}>
+                        <span className="lh-opt__check" aria-hidden="true">{on && <Icon name="check" size={16} strokeWidth={3} />}</span>
+                        <span className="lh-opt__main"><span className="lh-opt__name">{text}</span></span>
+                      </button>;
+                    })}
+                  </div>
+                  {whoErr && <div className="lh-err-inline" role="alert" data-err="true"><Icon name="alert" size={16} />Välj vem som avbokade.</div>}
+                </fieldset>
+              )}
               {reasons && (
                 <fieldset className="lh-ask__reasons">
                   <legend>Meddelande till kunden (valfritt)</legend>
@@ -1058,7 +1150,7 @@
       );
     }
 
-    const SMS_LABELS = { 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
+    const SMS_LABELS = { 'uteblev-varning': 'Uteblivet besök (ingen avgift)', 'uteblev-avgift': 'Uteblivet besök (avgift)', 'sen-varning': 'Sen avbokning (ingen avgift)', 'sen-avgift': 'Sen avbokning (avgift)', 'kom-anda': 'Kunden kom ändå', 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
     // linkable=false i Lias sms-logg: länken visas som text men går inte att trycka på (Lia ska inte kunna bekräfta åt kunden, 30 okt)
     function DemoSmsBubble({ sms, linkable = true }) {
       const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
@@ -3008,6 +3100,29 @@
       const [cancelled, setCancelled] = useState([]);   // avbokade de senaste 12 månaderna (30 okt)
       const [showAllCancelled, setShowAllCancelled] = useState(false);
       const [statusErr, setStatusErr] = useState(null);
+      const [strikes, setStrikes] = useState([]);   // uteblivna besök / sena avbokningar (1 nov)
+      const loadStrikes = async () => { const { data, error } = await sb.from('uteblivna').select('*').order('created_at', { ascending: false }); if (!error) setStrikes(data || []); };
+      const strikeFor = b => strikes.find(u => (u.group_id || u.booking_id) === (b.group_id || b.id) && u.status !== 'havd');
+      const ordning = n => n + (n === 1 || n === 2 ? ':a' : ':e');
+      const rpcDo = async (fn, args) => { const { data, error } = await sb.rpc(fn, args); if (error) { setStatusErr(bookingErrorText(error).code === 'NATVERK' ? 'Ändringen misslyckades. Försök igen.' : 'Det gick inte: ' + ((error.message || '').match(/[A-Z_]{4,}/) || ['okänt fel'])[0]); return null; } setStatusErr(null); return data || true; };
+      const markArrived = async b => { if (await rpcDo('markera_kommit', { p_booking: b.id })) { await load(); loadStrikes(); } };
+      const markNoShow = async b => {
+        const st = new Date(b.starts_at).getTime();
+        const n = await rpcDo('uteblivet_forhand', { p_phone: b.customer_phone }); if (n === null) return;
+        const rows = lists.bookings.filter(x => (b.group_id && x.group_id === b.group_id) || x.id === b.id), sum = rows.reduce((a, x) => a + x.price, 0);
+        const a = await ask({ title: 'Kunden uteblev?', lines: [b.customer_name + ' · ' + b.customer_phone, `${fmtDayLong(st)} kl ${fmtTime(st)}`, rows.map(x => x.service_names).join(', ')],
+          note: `Det här blir ${ordning(n)} gången för det här telefonnumret de senaste 12 månaderna. Enligt reglerna: ${n === 1 ? 'ingen avgift' : 'hela priset, ' + formatPrice(sum)}. Kunden får ett sms.`,
+          yes: 'Ja, kunden uteblev', no: 'Avbryt', danger: n > 1 });
+        if (!a) return;
+        if (await rpcDo('registrera_uteblivet', { p_booking: b.id, p_kind: 'uteblev' })) loadStrikes();
+      };
+      const strikeChange = async (u, status) => {
+        const a = await ask(status === 'betald'
+          ? { title: 'Markera som betald?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Avgiften markeras som betald och räkningen för kunden börjar om.', yes: 'Ja, den är betald', no: 'Avbryt' }
+          : { title: 'Efterskänka avgiften?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Kunden behöver inte betala, och det här tillfället räknas inte längre.', yes: 'Ja, efterskänk', no: 'Avbryt' });
+        if (!a) return;
+        if (await rpcDo('uteblivet_andra', { p_id: u.id, p_status: status })) loadStrikes();
+      };
       const CANCEL_TABLES = DEMO ? ['bookings', 'course_bookings'] : ['bookings'];
       const loadCancelled = async () => {
         try { await sb.rpc('rensa_gamla_avbokningar'); } catch (e) {}   // tar bort avbokningar äldre än 12 månader
@@ -3076,7 +3191,7 @@
         });
         loadedOnce.current = true;
         setLists(next); setListState('ok');
-        loadCancelled();
+        loadCancelled(); loadStrikes();
       };
 
       useEffect(() => {
@@ -3126,10 +3241,12 @@
         if (opts) {
           const a = await ask(opts); if (!a) return;
           if (a.msg) patch = { status, cancel_note: a.msg };   // Lias meddelande till kunden (valfritt)
+          var who = a.who;
         }
         const { error } = await sb.from(table).update(patch).eq('id', r.id);
         if (error) { setStatusErr('Ändringen misslyckades. Försök igen.'); return; }
         setStatusErr(null);
+        if (table === 'bookings' && status === 'avbokad' && who === 'kund') { await rpcDo('registrera_uteblivet', { p_booking: r.id, p_kind: 'sen_avbokning' }); loadStrikes(); }
         if (status === 'avbokad') loadCancelled();
         setLists(prev => ({ ...prev, [table]: (status === 'avbokad' || status === 'hamtad') ? prev[table].filter(x => x.id !== r.id) : prev[table].map(x => x.id === r.id ? { ...x, status } : x) }));
       };
@@ -3231,8 +3348,20 @@
                         <div className="lh-cut__svc">{b.service_names} · {formatPrice(b.price)}</div>
                         {Array.isArray(b.service_ids) && <div style={{ margin: '-2px 0 8px' }}><SvcNotes list={b.service_ids.map(id => SERVICES.find(x => x.id === id))} /></div>}
                         {'confirm_token' in b && <div className="lh-cut__conf" data-confirmed={b.confirmed_at ? 'true' : 'false'}>{b.confirmed_at ? <><Icon name="check" size={16} strokeWidth={3} />Bekräftad av kunden {demoWhen(new Date(b.confirmed_at).getTime())}</> : <><Icon name="clock" size={16} />Inte bekräftad av kunden än</>}</div>}
+                        {cutState(b, Date.now()) !== 'kommande' && (() => {   // tiden har börjat: kom kunden?
+                          const u = strikeFor(b);
+                          if (b.arrived_at) return <div className="lh-cut__conf" data-narvaro="kom" data-confirmed="true"><Icon name="check" size={16} strokeWidth={3} />Kunden kom (registrerat kl {fmtTime(new Date(b.arrived_at).getTime())})</div>;
+                          if (u) return <div data-narvaro="uteblev" style={{ margin: '0 0 8px' }}>
+                            <div className="lh-cut__conf" style={{ color: '#7A2A10' }}><Icon name="x" size={16} strokeWidth={3} />Uteblev – {ordning(u.nummer)} gången, {u.belopp ? formatPrice(u.belopp) + ' att betala' : 'ingen avgift'}</div>
+                            <button onClick={async () => { if (await ask({ title: 'Kunden kom ändå?', lines: [b.customer_name], note: 'Registreringen hävs och kunden får ett sms om att ingen avgift tas ut.', yes: 'Ja, kunden kom', no: 'Avbryt' })) markArrived(b); }} style={{ ...small(COLORS.rosemary), marginTop: '4px', minHeight: '44px' }} data-kom-anda>Kunden kom ändå</button>
+                          </div>;
+                          return <div data-narvaro="okand" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '0 0 8px' }}>
+                            <button onClick={() => markArrived(b)} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-kom>✓ Kunden har kommit</button>
+                            <button onClick={() => markNoShow(b)} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-uteblev>✗ Kunden uteblev</button>
+                          </div>;
+                        })()}
                         {contact(b)}
-                        {cutState(b, Date.now()) !== 'klar' && <button onClick={() => setStatus('bookings', b, 'avbokad', { title: 'Avboka tiden?', lines: [b.person_name ? `${b.person_name} (${b.customer_name})` : b.customer_name, `${fmtDayLong(s)} kl ${fmtTime(s)}`, b.service_names], note: 'Tiden blir ledig för andra kunder och kunden får ett sms.', yes: 'Ja, avboka', no: 'Nej, behåll tiden', danger: true, reasons: CANCEL_REASONS.bookings, preview: m => cancelSmsText('bookings', b, m) })} style={small(COLORS.error)}>Avboka</button>}
+                        {cutState(b, Date.now()) !== 'klar' && !b.arrived_at && !strikeFor(b) && <button onClick={() => setStatus('bookings', b, 'avbokad', { title: 'Avboka tiden?', lines: [b.person_name ? `${b.person_name} (${b.customer_name})` : b.customer_name, `${fmtDayLong(s)} kl ${fmtTime(s)}`, b.service_names], note: 'Tiden blir ledig för andra kunder och kunden får ett sms.', yes: 'Ja, avboka', no: 'Nej, behåll tiden', danger: true, reasons: CANCEL_REASONS.bookings, preview: m => cancelSmsText('bookings', b, m), who: Date.now() >= s - cancelHoursFor(b.service_ids || []) * 3600000 ? `Tiden är närmare än ${cancelHoursFor(b.service_ids || [])} timmar (sista avbokningstid har passerat).` : null })} style={small(COLORS.error)}>Avboka</button>}
                       </div>
                     );
                   })}
@@ -3258,6 +3387,24 @@
                   );
                 })}
               </div>
+
+              {(() => { const debts = strikes.filter(u => u.status === 'obetald'); return <>
+              <h2 style={H} data-rubrik="avgifter">💳 Obetalda avgifter ({debts.length})</h2>
+              <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Uteblivna besök och sena avbokningar enligt avbokningsreglerna. Lia tar betalt själv (till exempel Swish) och markerar sedan som betald.</p>
+              {debts.length === 0
+                ? <div style={{ ...BOX, textAlign: 'center' }}>Inga obetalda avgifter.</div>
+                : <div style={{ display: 'grid', gap: '10px' }}>{debts.map(u => (
+                    <div key={u.id} data-avgift={u.id} style={{ ...BOX, borderColor: '#A33A1C' }}>
+                      <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{u.customer_name}</strong> · <a href={'tel:' + u.customer_phone} style={{ color: COLORS.rosemary }}>{u.customer_phone}</a></div>
+                      <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }}>{u.kind === 'uteblev' ? 'Uteblivet besök' : 'Sen avbokning'} · {ordning(u.nummer)} gången · registrerat {whenFull(new Date(u.created_at).getTime())}</div>
+                      <div style={{ margin: '6px 0 4px', fontSize: '18px', fontWeight: 800, color: '#7A2A10' }} data-belopp>{formatPrice(u.belopp)}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        <button onClick={() => strikeChange(u, 'betald')} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-betald>Markera som betald</button>
+                        <button onClick={() => strikeChange(u, 'havd')} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-efterskank>Efterskänk avgiften</button>
+                      </div>
+                    </div>))}
+                  </div>}
+              </>; })()}
 
               <h2 style={H} data-rubrik="avbokade">🗓️ Avbokade tider ({cancelled.length})</h2>
               <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Avbokningar som Lia har gjort, med exakt tid. Sparas i 12 månader och raderas sedan automatiskt.</p>

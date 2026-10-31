@@ -363,3 +363,141 @@ begin
 exception when others then
   raise notice 'Kunde inte schemalägga rensningen (%). Avbokningar rensas ändå när Lia öppnar admin.', sqlerrm;
 end $$;
+
+-- ---------- Uteblivet besök och sen avbokning (Lia 1 nov 2026) ----------
+-- Regeln: räknas per telefonnummer de senaste 12 månaderna. 1:a gången utan kostnad, 2:a och följande = hela
+-- priset för den bokade behandlingen. När en avgift är betald börjar räkningen om. "Kunden kom ändå" häver.
+-- En registrering gäller hela bokningen (alla personer i samma grupp).
+alter table public.bookings add column if not exists arrived_at timestamptz;   -- Lia bekräftade att kunden kom
+
+create table if not exists public.uteblivna (
+  id             uuid primary key default gen_random_uuid(),
+  created_at     timestamptz not null default now(),
+  booking_id     uuid not null references public.bookings(id) on delete cascade,
+  group_id       uuid,
+  customer_name  text not null,
+  customer_phone text not null,
+  kind           text not null check (kind in ('uteblev', 'sen_avbokning')),
+  nummer         integer not null check (nummer >= 1),
+  belopp         integer not null check (belopp >= 0),
+  status         text not null check (status in ('ingen_avgift', 'obetald', 'betald', 'havd')),
+  andrad_at      timestamptz
+);
+create unique index if not exists uteblivna_en_per_bokning on public.uteblivna (coalesce(group_id, booking_id));
+create index if not exists uteblivna_telefon on public.uteblivna (customer_phone, created_at);
+alter table public.uteblivna enable row level security;
+revoke all on public.uteblivna from anon, authenticated;
+grant select on public.uteblivna to authenticated;
+drop policy if exists "admin_laser_uteblivna" on public.uteblivna;
+create policy "admin_laser_uteblivna" on public.uteblivna for select to authenticated using (public.is_admin());
+
+-- Vilken gång i ordningen nästa registrering blir för ett telefonnummer
+create or replace function public.uteblivet_nasta_nummer(p_phone text) returns integer
+language sql stable security definer set search_path = public as $$
+  select 1 + count(*)::integer from public.uteblivna u
+   where u.customer_phone = p_phone
+     and u.status in ('ingen_avgift', 'obetald')
+     and u.created_at > now() - interval '12 months'
+     and u.created_at > coalesce((select max(b.andrad_at) from public.uteblivna b
+                                   where b.customer_phone = p_phone and b.status = 'betald'), '-infinity'::timestamptz);
+$$;
+revoke all on function public.uteblivet_nasta_nummer(text) from public, anon, authenticated;
+
+create or replace function public.registrera_uteblivet(p_booking uuid, p_kind text) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  b       public.bookings%rowtype;
+  v_hours integer;
+  v_n     integer;
+  v_sum   integer;
+  v_start timestamptz;
+  v_row   public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
+  select * into b from public.bookings where id = p_booking;
+  if not found then raise exception 'OGILTIG_BOKNING'; end if;
+  select min(starts_at), sum(price) into v_start, v_sum from public.bookings
+   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+  if p_kind = 'uteblev' then
+    if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+    if v_start > now() then raise exception 'TIDEN_HAR_INTE_BORJAT'; end if;
+    if b.arrived_at is not null then raise exception 'KUNDEN_HAR_KOMMIT'; end if;
+  else
+    if b.status <> 'avbokad' or b.cancelled_at is null then raise exception 'OGILTIG_BOKNING'; end if;
+    -- 48 timmar för färg och permanent, annars 24 (samma som appens avbokningsregler)
+    select case when exists (select 1 from public.services s
+                              where s.id = any(b.service_ids) and s.category in ('Färgbehandling', 'Permanent'))
+                then 48 else 24 end into v_hours;
+    if b.cancelled_at < v_start - make_interval(hours => v_hours) then raise exception 'INTE_SEN_AVBOKNING'; end if;
+  end if;
+  if exists (select 1 from public.uteblivna where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id)) then
+    raise exception 'REDAN_REGISTRERAD';
+  end if;
+  v_n := public.uteblivet_nasta_nummer(b.customer_phone);
+  insert into public.uteblivna (booking_id, group_id, customer_name, customer_phone, kind, nummer, belopp, status)
+  values (b.id, b.group_id, b.customer_name, b.customer_phone, p_kind, v_n,
+          case when v_n = 1 then 0 else v_sum end, case when v_n = 1 then 'ingen_avgift' else 'obetald' end)
+  returning * into v_row;
+  return row_to_json(v_row);
+end $$;
+
+-- Kunden kom (även för sent): bokningen markeras, och en registrering för den häves
+create or replace function public.markera_kommit(p_booking uuid) returns json
+language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  select * into b from public.bookings where id = p_booking;
+  if not found or b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+  update public.bookings set arrived_at = coalesce(arrived_at, now())
+   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+  update public.uteblivna set status = 'havd', andrad_at = now()
+   where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id) and status in ('ingen_avgift', 'obetald');
+  return json_build_object('arrived_at', (select arrived_at from public.bookings where id = p_booking));
+end $$;
+
+create or replace function public.uteblivet_andra(p_id uuid, p_status text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_row public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_status not in ('betald', 'havd') then raise exception 'OGILTIG_STATUS'; end if;
+  update public.uteblivna set status = p_status, andrad_at = now()
+   where id = p_id and status = case when p_status = 'betald' then 'obetald' else status end
+     and status in ('ingen_avgift', 'obetald')
+  returning * into v_row;
+  if not found then raise exception 'OGILTIG_STATUS'; end if;
+  return row_to_json(v_row);
+end $$;
+
+-- Hur många gånger ett nummer redan har (för Lias förhandsbesked i frågerutan)
+create or replace function public.uteblivet_forhand(p_phone text) returns integer
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.uteblivet_nasta_nummer(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'));
+end $$;
+
+revoke all on function public.registrera_uteblivet(uuid, text) from public, anon;
+revoke all on function public.markera_kommit(uuid) from public, anon;
+revoke all on function public.uteblivet_andra(uuid, text) from public, anon;
+revoke all on function public.uteblivet_forhand(text) from public, anon;
+grant execute on function public.registrera_uteblivet(uuid, text) to authenticated;
+grant execute on function public.markera_kommit(uuid) to authenticated;
+grant execute on function public.uteblivet_andra(uuid, text) to authenticated;
+grant execute on function public.uteblivet_forhand(text) to authenticated;
+
+-- Registreringar äldre än 12 månader raderas tillsammans med gamla avbokningar
+create or replace function public.rensa_gamla_avbokningar_kor() returns integer
+language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  delete from public.uteblivna where created_at < now() - interval '12 months';
+  delete from public.bookings
+   where status = 'avbokad'
+     and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.rensa_gamla_avbokningar_kor() from public, anon, authenticated;

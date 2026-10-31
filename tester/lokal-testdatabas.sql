@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med krav på godkända avbokningsregler).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med uteblivna besök del 2).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict 6sfCpezYIhYkZyWbce8PmrBCSCRynO4KGGecP8bIFTrHjDp2mBcgSwxGqVx0NbA
+\restrict BRgjPmhjysS8i4Um8SvP7rEPIAPgxQgKhy6KhPqcfCBPLhkZ1dwAGOpV1QlrzL4
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -222,6 +222,77 @@ $$;
 ALTER FUNCTION public.is_admin() OWNER TO postgres;
 
 --
+-- Name: markera_kommit(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.markera_kommit(p_booking uuid) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare b public.bookings%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  select * into b from public.bookings where id = p_booking;
+  if not found or b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+  update public.bookings set arrived_at = coalesce(arrived_at, now())
+   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+  update public.uteblivna set status = 'havd', andrad_at = now()
+   where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id) and status in ('ingen_avgift', 'obetald');
+  return json_build_object('arrived_at', (select arrived_at from public.bookings where id = p_booking));
+end $$;
+
+
+ALTER FUNCTION public.markera_kommit(p_booking uuid) OWNER TO postgres;
+
+--
+-- Name: registrera_uteblivet(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  b       public.bookings%rowtype;
+  v_hours integer;
+  v_n     integer;
+  v_sum   integer;
+  v_start timestamptz;
+  v_row   public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
+  select * into b from public.bookings where id = p_booking;
+  if not found then raise exception 'OGILTIG_BOKNING'; end if;
+  select min(starts_at), sum(price) into v_start, v_sum from public.bookings
+   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+  if p_kind = 'uteblev' then
+    if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+    if v_start > now() then raise exception 'TIDEN_HAR_INTE_BORJAT'; end if;
+    if b.arrived_at is not null then raise exception 'KUNDEN_HAR_KOMMIT'; end if;
+  else
+    if b.status <> 'avbokad' or b.cancelled_at is null then raise exception 'OGILTIG_BOKNING'; end if;
+    -- 48 timmar för färg och permanent, annars 24 (samma som appens avbokningsregler)
+    select case when exists (select 1 from public.services s
+                              where s.id = any(b.service_ids) and s.category in ('Färgbehandling', 'Permanent'))
+                then 48 else 24 end into v_hours;
+    if b.cancelled_at < v_start - make_interval(hours => v_hours) then raise exception 'INTE_SEN_AVBOKNING'; end if;
+  end if;
+  if exists (select 1 from public.uteblivna where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id)) then
+    raise exception 'REDAN_REGISTRERAD';
+  end if;
+  v_n := public.uteblivet_nasta_nummer(b.customer_phone);
+  insert into public.uteblivna (booking_id, group_id, customer_name, customer_phone, kind, nummer, belopp, status)
+  values (b.id, b.group_id, b.customer_name, b.customer_phone, p_kind, v_n,
+          case when v_n = 1 then 0 else v_sum end, case when v_n = 1 then 'ingen_avgift' else 'obetald' end)
+  returning * into v_row;
+  return row_to_json(v_row);
+end $$;
+
+
+ALTER FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) OWNER TO postgres;
+
+--
 -- Name: rensa_gamla_avbokningar(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -247,6 +318,7 @@ CREATE FUNCTION public.rensa_gamla_avbokningar_kor() RETURNS integer
     AS $$
 declare n integer;
 begin
+  delete from public.uteblivna where created_at < now() - interval '12 months';
   delete from public.bookings
    where status = 'avbokad'
      and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
@@ -279,6 +351,64 @@ end $$;
 
 
 ALTER FUNCTION public.satt_avbokad_tid() OWNER TO postgres;
+
+--
+-- Name: uteblivet_andra(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.uteblivet_andra(p_id uuid, p_status text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare v_row public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_status not in ('betald', 'havd') then raise exception 'OGILTIG_STATUS'; end if;
+  update public.uteblivna set status = p_status, andrad_at = now()
+   where id = p_id and status = case when p_status = 'betald' then 'obetald' else status end
+     and status in ('ingen_avgift', 'obetald')
+  returning * into v_row;
+  if not found then raise exception 'OGILTIG_STATUS'; end if;
+  return row_to_json(v_row);
+end $$;
+
+
+ALTER FUNCTION public.uteblivet_andra(p_id uuid, p_status text) OWNER TO postgres;
+
+--
+-- Name: uteblivet_forhand(text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.uteblivet_forhand(p_phone text) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.uteblivet_nasta_nummer(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'));
+end $$;
+
+
+ALTER FUNCTION public.uteblivet_forhand(p_phone text) OWNER TO postgres;
+
+--
+-- Name: uteblivet_nasta_nummer(text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.uteblivet_nasta_nummer(p_phone text) RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  select 1 + count(*)::integer from public.uteblivna u
+   where u.customer_phone = p_phone
+     and u.status in ('ingen_avgift', 'obetald')
+     and u.created_at > now() - interval '12 months'
+     and u.created_at > coalesce((select max(b.andrad_at) from public.uteblivna b
+                                   where b.customer_phone = p_phone and b.status = 'betald'), '-infinity'::timestamptz);
+$$;
+
+
+ALTER FUNCTION public.uteblivet_nasta_nummer(p_phone text) OWNER TO postgres;
 
 SET default_tablespace = '';
 
@@ -328,6 +458,7 @@ CREATE TABLE public.bookings (
     cancel_note text,
     cancelled_at timestamp with time zone,
     rules_version text,
+    arrived_at timestamp with time zone,
     CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['bokad'::text, 'avbokad'::text]))),
     CONSTRAINT cancel_note_langd CHECK (((cancel_note IS NULL) OR (char_length(cancel_note) <= 160))),
     CONSTRAINT tid_i_ordning CHECK ((ends_at > starts_at))
@@ -355,12 +486,36 @@ CREATE TABLE public.services (
 ALTER TABLE public.services OWNER TO postgres;
 
 --
+-- Name: uteblivna; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.uteblivna (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    booking_id uuid NOT NULL,
+    group_id uuid,
+    customer_name text NOT NULL,
+    customer_phone text NOT NULL,
+    kind text NOT NULL,
+    nummer integer NOT NULL,
+    belopp integer NOT NULL,
+    status text NOT NULL,
+    andrad_at timestamp with time zone,
+    CONSTRAINT uteblivna_belopp_check CHECK ((belopp >= 0)),
+    CONSTRAINT uteblivna_kind_check CHECK ((kind = ANY (ARRAY['uteblev'::text, 'sen_avbokning'::text]))),
+    CONSTRAINT uteblivna_nummer_check CHECK ((nummer >= 1)),
+    CONSTRAINT uteblivna_status_check CHECK ((status = ANY (ARRAY['ingen_avgift'::text, 'obetald'::text, 'betald'::text, 'havd'::text])))
+);
+
+
+ALTER TABLE public.uteblivna OWNER TO postgres;
+
+--
 -- Data for Name: users; Type: TABLE DATA; Schema: auth; Owner: postgres
 --
 
 COPY auth.users (id, email) FROM stdin;
-f02f2460-3f5b-4965-91a2-b7180894d7e4	lia@test.se
-89252a35-6f94-4825-aff1-8c2ed2dc4e90	annan@test.se
+40bc0b32-226c-41c5-9aec-89376b79d769	lia@test.se
 \.
 
 
@@ -369,7 +524,7 @@ f02f2460-3f5b-4965-91a2-b7180894d7e4	lia@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-f02f2460-3f5b-4965-91a2-b7180894d7e4
+40bc0b32-226c-41c5-9aec-89376b79d769
 \.
 
 
@@ -377,9 +532,7 @@ f02f2460-3f5b-4965-91a2-b7180894d7e4
 -- Data for Name: bookings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at, rules_version) FROM stdin;
-00cf3f5d-2128-4019-8159-c1f33a568af3	2026-11-01 00:28:08.132587+01	{nyansering}	Nyansering	1100	2026-11-04 09:00:00+01	2026-11-04 10:00:00+01	Pia Persson	0702223344	pia@p.se	bokad	Maja	ba1a33bf-04f1-4f8f-882a-a75baad7660e	\N	\N	2026-11-01
-9b95487e-2533-42f6-b88f-3a916e92def9	2026-11-01 00:28:08.132587+01	{putsning}	Putsning, kort hår med maskinklippn. sidor & nacke.	250	2026-11-04 10:00:00+01	2026-11-04 10:15:00+01	Pia Persson	0702223344	pia@p.se	bokad	Leo	ba1a33bf-04f1-4f8f-882a-a75baad7660e	\N	\N	2026-11-01
+COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at, rules_version, arrived_at) FROM stdin;
 \.
 
 
@@ -388,10 +541,6 @@ COPY public.bookings (id, created_at, service_ids, service_names, price, starts_
 --
 
 COPY public.services (id, name, duration, price, category, kind) FROM stdin;
-klipp-45	Klippning 45 min.	45	600	Klippning	klipp
-klipp-lyx	Klippning lyx	60	850	Klippning	klipp
-klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
-putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 farg-botten	Bottenfärg/utväxt	90	1000	Färgbehandling	klipp
 farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
 farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
@@ -405,6 +554,18 @@ tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	kli
 harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
 bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
 frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
+klipp-45	Klippning 45 min.	45	600	Klippning	klipp
+klipp-lyx	Klippning lyx	60	850	Klippning	klipp
+klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
+putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
+\.
+
+
+--
+-- Data for Name: uteblivna; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.uteblivna (id, created_at, booking_id, group_id, customer_name, customer_phone, kind, nummer, belopp, status, andrad_at) FROM stdin;
 \.
 
 
@@ -449,10 +610,40 @@ ALTER TABLE ONLY public.services
 
 
 --
+-- Name: uteblivna uteblivna_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.uteblivna
+    ADD CONSTRAINT uteblivna_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: uteblivna_en_per_bokning; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX uteblivna_en_per_bokning ON public.uteblivna USING btree (COALESCE(group_id, booking_id));
+
+
+--
+-- Name: uteblivna_telefon; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX uteblivna_telefon ON public.uteblivna USING btree (customer_phone, created_at);
+
+
+--
 -- Name: bookings avbokad_tid; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER avbokad_tid BEFORE UPDATE ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.satt_avbokad_tid();
+
+
+--
+-- Name: uteblivna uteblivna_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.uteblivna
+    ADD CONSTRAINT uteblivna_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id) ON DELETE CASCADE;
 
 
 --
@@ -467,6 +658,13 @@ CREATE POLICY admin_avbokar ON public.bookings FOR UPDATE TO authenticated USING
 --
 
 CREATE POLICY admin_laser_bokningar ON public.bookings FOR SELECT TO authenticated USING (public.is_admin());
+
+
+--
+-- Name: uteblivna admin_laser_uteblivna; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY admin_laser_uteblivna ON public.uteblivna FOR SELECT TO authenticated USING (public.is_admin());
 
 
 --
@@ -493,6 +691,12 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: uteblivna; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.uteblivna ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: supabase_realtime; Type: PUBLICATION; Schema: -; Owner: postgres
@@ -561,6 +765,22 @@ GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
 
 
 --
+-- Name: FUNCTION markera_kommit(p_booking uuid); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.markera_kommit(p_booking uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.markera_kommit(p_booking uuid) TO authenticated;
+
+
+--
+-- Name: FUNCTION registrera_uteblivet(p_booking uuid, p_kind text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) TO authenticated;
+
+
+--
 -- Name: FUNCTION rensa_gamla_avbokningar(); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -573,6 +793,29 @@ GRANT ALL ON FUNCTION public.rensa_gamla_avbokningar() TO authenticated;
 --
 
 REVOKE ALL ON FUNCTION public.rensa_gamla_avbokningar_kor() FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION uteblivet_andra(p_id uuid, p_status text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.uteblivet_andra(p_id uuid, p_status text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.uteblivet_andra(p_id uuid, p_status text) TO authenticated;
+
+
+--
+-- Name: FUNCTION uteblivet_forhand(p_phone text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.uteblivet_forhand(p_phone text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.uteblivet_forhand(p_phone text) TO authenticated;
+
+
+--
+-- Name: FUNCTION uteblivet_nasta_nummer(p_phone text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.uteblivet_nasta_nummer(p_phone text) FROM PUBLIC;
 
 
 --
@@ -605,8 +848,15 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 
 
 --
+-- Name: TABLE uteblivna; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.uteblivna TO authenticated;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6sfCpezYIhYkZyWbce8PmrBCSCRynO4KGGecP8bIFTrHjDp2mBcgSwxGqVx0NbA
+\unrestrict BRgjPmhjysS8i4Um8SvP7rEPIAPgxQgKhy6KhPqcfCBPLhkZ1dwAGOpV1QlrzL4
 

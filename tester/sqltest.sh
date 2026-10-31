@@ -113,3 +113,42 @@ T "72. Bokning med fel/gammal regelversion stoppas" anon "" "select create_booki
 T "73. Med godkända regler går det att boka" anon "" "$(BK "$(P Klippning '"klipp-30"')" '8 days 9 hours' 'Rut R' '0701212121' 'r@t.se')" "^Klippning/Herrklippning 30 min$"
 T "74. Regelversionen sparas på bokningen (bevis)" authenticated "$LIA" "select rules_version || ' ' || (abs(extract(epoch from created_at - now())) < 60)::text from bookings where customer_name='Rut R'" "^2026-11-01 true$"
 $P -c "delete from bookings where customer_name='Rut R'" >/dev/null
+
+echo "--- Uteblivet besök och sen avbokning (ny 1 nov) ---"
+$P -c "delete from uteblivna where customer_phone in ('0709990000','0709990001')" >/dev/null
+$P -c "delete from bookings where customer_phone in ('0709990000','0709990001')" >/dev/null
+INS() { $P -c "insert into bookings (id, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, group_id) values ('$1', '{$2}', 'X', $3, $4, $4 + interval '30 minutes', 'Ute Test', '${6:-0709990000}', 'u@t.se', 'bokad', ${5:-null})" >/dev/null; }
+INS 00000000-0000-4000-8000-000000000001 klipp-30 500 "now() - interval '10 days'"
+INS 00000000-0000-4000-8000-000000000002 farg-150 1200 "now() - interval '9 days'"
+INS 00000000-0000-4000-8000-000000000003 klipp-45 600 "now() - interval '8 days'"
+INS 00000000-0000-4000-8000-000000000004 klipp-30 500 "now() - interval '7 days'"
+INS 00000000-0000-4000-8000-000000000005 klipp-30 500 "now() + interval '3 days'"
+U1=00000000-0000-4000-8000-000000000001; U2=00000000-0000-4000-8000-000000000002; U3=00000000-0000-4000-8000-000000000003; U4=00000000-0000-4000-8000-000000000004; U5=00000000-0000-4000-8000-000000000005
+T "75. Kund kan inte registrera uteblivet" anon "" "select registrera_uteblivet('$U1', 'uteblev')" "permission denied"
+T "76. Inloggad men INTE admin kan inte registrera" authenticated "$ANNAN" "select registrera_uteblivet('$U1', 'uteblev')" "EJ_ADMIN"
+T "77. Tid som inte har börjat kan inte registreras som utebliven" authenticated "$LIA" "select registrera_uteblivet('$U5', 'uteblev')" "TIDEN_HAR_INTE_BORJAT"
+T "78. 1:a gången: ingen avgift" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp')||' '||(r->>'status') from (select registrera_uteblivet('$U1', 'uteblev')::json r) x" "^1 0 ingen_avgift$"
+T "79. Samma bokning kan inte registreras två gånger" authenticated "$LIA" "select registrera_uteblivet('$U1', 'uteblev')" "REDAN_REGISTRERAD"
+T "80. 2:a gången: hela priset för behandlingen (1200 kr)" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp')||' '||(r->>'status') from (select registrera_uteblivet('$U2', 'uteblev')::json r) x" "^2 1200 obetald$"
+T "81. 3:e gången: hela priset (600 kr)" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp')||' '||(r->>'status') from (select registrera_uteblivet('$U3', 'uteblev')::json r) x" "^3 600 obetald$"
+T "82. Kunden kom ändå (3:e): avgiften hävs" authenticated "$LIA" "select markera_kommit('$U3') is not null; select status from uteblivna where booking_id='$U3'" "havd$"
+T "83. Lia kan inte skriva direkt i tabellen (bara via funktionerna)" authenticated "$LIA" "update uteblivna set belopp = 0" "permission denied"
+T "84. Annan inloggad (inte admin) ser inga registreringar" authenticated "$ANNAN" "select count(*) from uteblivna where customer_phone='0709990000'" "^0$"
+T "85. Avgift kan inte markeras betald om den var gratis" authenticated "$LIA" "select uteblivet_andra((select id from uteblivna where booking_id='$U1'), 'betald')" "OGILTIG_STATUS"
+T "86. 2:a gångens avgift betald" authenticated "$LIA" "select uteblivet_andra((select id from uteblivna where booking_id='$U2'), 'betald')->>'status'" "^betald$"
+T "87. Efter betalning börjar räkningen om: nästa = 1:a gången, ingen avgift" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('$U4', 'uteblev')::json r) x" "^1 0$"
+INS 00000000-0000-4000-8000-000000000006 klipp-30 500 "now() + interval '5 hours'"
+INS 00000000-0000-4000-8000-000000000007 klipp-30 500 "now() + interval '5 days'"
+T "88. Lia avbokar (kunden ringde 5 h före): sen avbokning registreras, 2:a gången = 500 kr" authenticated "$LIA" "with a as (update bookings set status='avbokad' where id='00000000-0000-4000-8000-000000000006' returning id) select (r->>'kind')||' '||(r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('00000000-0000-4000-8000-000000000006', 'sen_avbokning')::json r from a) x" "sen_avbokning 2 500"
+$P -c "update bookings set status='avbokad' where id='00000000-0000-4000-8000-000000000007'" >/dev/null
+T "89. Avbokning 5 dagar före räknas inte som sen" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-000000000007', 'sen_avbokning')" "INTE_SEN_AVBOKNING"
+G=00000000-0000-4000-8000-0000000000aa
+INS 00000000-0000-4000-8000-000000000008 klipp-30 500 "now() - interval '5 days'" "'$G'" 0709990001
+INS 00000000-0000-4000-8000-000000000009 bryn 200 "now() - interval '5 days' + interval '30 minutes'" "'$G'" 0709990001
+INS 00000000-0000-4000-8000-000000000010 klipp-30 500 "now() - interval '6 days'" null 0709990001
+T "90. Annat nummer räknas för sig: 1:a gången" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-000000000010', 'uteblev')->>'nummer'" "^1$"
+T "91. Gruppbokning (2 personer) räknas som EN gång, beloppet = hela bokningen (500 + 200)" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('00000000-0000-4000-8000-000000000009', 'uteblev')::json r) x" "^2 700$"
+T "92. Gruppens andra person kan inte registreras igen" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-000000000008', 'uteblev')" "REDAN_REGISTRERAD"
+T "93. Förhandsbesked för Lia: nästa gång för 0709990001 blir 3:e" authenticated "$LIA" "select uteblivet_forhand('070-999 00 01')" "^3$"
+$P -c "delete from uteblivna where customer_phone in ('0709990000','0709990001')" >/dev/null
+$P -c "delete from bookings where customer_phone in ('0709990000','0709990001')" >/dev/null

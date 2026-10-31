@@ -249,3 +249,10 @@
 - Gäller frisörbokningar (inte keramikkurser).
 - Test: regler-test.js (9), sqltest 71–74 (BK och krock-parallell skickar nu regelversionen), e2e.js skickar p_rules. Äldre tester kryssar i rutan före "Boka".
 - Hela sviten: 40 sviter, 1144 kontroller, alla gröna. lokal-testdatabas.sql ny dump 1 nov (återställning provad).
+
+## 1 nov: uteblivet besök, del 2 – Admin
+- Databas: bookings.arrived_at; tabell uteblivna (en rad per bokning/grupp: kind uteblev|sen_avbokning, nummer, belopp, status ingen_avgift|obetald|betald|havd). Bara admin läser; ändras bara via funktioner: registrera_uteblivet (räknar per telefon, 12 mån, efter senaste betalda; 1:a = 0 kr, annars summan av gruppens priser; uteblev kräver att tiden börjat och att kunden inte kommit; sen_avbokning kräver avbokning inom 24/48 h), markera_kommit (häver), uteblivet_andra (betald|havd), uteblivet_forhand (vilken gång nästa blir). Rensas efter 12 månader. sqltest 75–93.
+- Admin: när tiden har börjat visar kortet "✓ Kunden har kommit" / "✗ Kunden uteblev" (fråga med vilken gång och belopp). Efter: "Kunden kom (registrerat kl …)" eller "Uteblev – 2:a gången, 600 kr att betala" + "Kunden kom ändå". Avboka döljs efter kom/uteblev. Vid avbokning efter sista avbokningstid: "Vem avbokade? Kunden (räknas som sen avbokning) / Jag, Lia (räknas inte)". Ny lista "💳 Obetalda avgifter" med "Markera som betald" (nollställer räkningen) och "Efterskänk avgiften".
+- Sms (demo): uteblev-varning/uteblev-avgift, sen-varning/sen-avgift, kom-anda. I del 2 skickas uteblev-sms när Lia trycker; del 3 gör tiden automatisk (+15 min).
+- Test: ute-test.js (27).
+- Hela sviten efter del 2: 41 sviter, 1190 kontroller, alla gröna (schema-test letar nu efter just Avboka-knappen). lokal-testdatabas.sql ny dump (återställning provad).

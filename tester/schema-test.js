@@ -43,7 +43,7 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await p.evaluate(d => localStorage.setItem('lias_demo_db', JSON.stringify(d)), db);
   await p.click('footer >> text=Admin'); await p.waitForTimeout(400);
   await p.fill('input[type=email]', 'lia@demo.se'); await p.fill('input[type=password]', 'demo1234'); await p.click('button:has-text("Logga in")'); await p.waitForTimeout(1500);
-  const read = () => p.$$eval('[data-booking]', cs => cs.map(c => ({ id: c.getAttribute('data-booking'), st: c.getAttribute('data-state'), badge: c.querySelector('[data-badge]').innerText.trim(), title: c.querySelector('[data-cut-title]').innerText.trim(), avboka: !!c.querySelector('button'), bg: getComputedStyle(c).backgroundColor })));
+  const read = () => p.$$eval('[data-booking]', cs => cs.map(c => ({ id: c.getAttribute('data-booking'), st: c.getAttribute('data-state'), badge: c.querySelector('[data-badge]').innerText.trim(), title: c.querySelector('[data-cut-title]').innerText.trim(), avboka: [...c.querySelectorAll('button')].some(b => b.innerText.trim() === 'Avboka')   /* 1 nov: korten har nu även knapparna kom/uteblev */, bg: getComputedStyle(c).backgroundColor })));
 
   console.log('--- Kl 12:00 ---');
   let r = await read();
