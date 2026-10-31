@@ -80,7 +80,12 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   await k2.click('nav >> text=Boka'); await k2.click('[data-cat="Frans och/eller brynfärg"]'); await k2.click('[data-service="bryn"]'); await k2.click('text=Fortsätt');   // bryn 30 min: ryms 09:00–09:30 före kund 1:s tid
   await (await k2.$$('main div[style*="overflow-x"] button'))[1].click(); await k2.waitForTimeout(500);
   const t2 = await times(k2);
-  ok(t2[0] === t1[0], 'Samma svenska tider trots annan tidszon', 'första tid ' + t2[0]);
+  // 31 okt: jämför med en kund i Sverige som väljer samma tjänst (luckregeln gör att första tiden inte alltid är 09:00)
+  const k2sv = await newCtx(browser);
+  await k2sv.click('nav >> text=Boka'); await k2sv.click('[data-cat="Frans och/eller brynfärg"]'); await k2sv.click('[data-service="bryn"]'); await k2sv.click('text=Fortsätt');
+  await (await k2sv.$$('main div[style*="overflow-x"] button'))[1].click(); await k2sv.waitForTimeout(500);
+  const t2sv = await times(k2sv);
+  ok(t2.length > 0 && JSON.stringify(t2) === JSON.stringify(t2sv), 'Samma svenska tider trots annan tidszon', 'första tid ' + t2[0] + ' (Sverige: ' + t2sv[0] + ')');
   ok(!t2.includes(chosenTime), 'Den bokade tiden ' + chosenTime + ' är borta för andra');
 
   // ===== Krock: två kunder har samma tid uppe =====

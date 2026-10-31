@@ -724,6 +724,8 @@
       if (!hours || a.hour * 60 + a.minute < hours[0] * 60 || z.day !== a.day || z.hour * 60 + z.minute > hours[1] * 60) return fail('UTANFOR_OPPETTID');
       const db = demoLoad();
       if (db.bookings.some(b => b.status === 'bokad' && start < new Date(b.ends_at).getTime() && end > new Date(b.starts_at).getTime())) return fail('TIDEN_UPPTAGEN');
+      { const busyD = db.bookings.filter(b => b.status === 'bokad').map(b => ({ s: new Date(b.starts_at).getTime(), e: new Date(b.ends_at).getTime() }));
+        if (!gapOk(start, end, stockholmMs(a.year, a.month, a.day, hours[0], 0), stockholmMs(a.year, a.month, a.day, hours[1], 0), busyD, Date.now() + 30 * 60000)) return fail('KORT_LUCKA'); }
       const group = demoId(), created = new Date().toISOString(), token = demoId();   // token: kundens bekräftelselänk i sms:et (30 okt)
       const rows = plan.map(x => ({ id: demoId(), created_at: created, service_ids: x.ids, service_names: x.names, price: x.price,
         starts_at: new Date(x.s).toISOString(), ends_at: new Date(x.e).toISOString(),
@@ -1283,10 +1285,21 @@
       return out;
     }
 
+    // Inga korta luckor i Lias schema (Lia valde B, 31 okt): luckan före och efter en bokning måste vara 0 min (direkt i följd)
+    // eller minst MIN_GAP_MIN. Tid före "tidigast bokningsbar" (nu + 30 min) räknas inte som lucka. Samma regel i databasen.
+    const MIN_GAP_MIN = 45;
+    function gapOk(s, e, openMs, closeMs, busy, earliest) {
+      const G = MIN_GAP_MIN * 60000;
+      const prev = Math.max(openMs, ...busy.filter(b => b.e <= s).map(b => b.e));
+      const next = Math.min(closeMs, ...busy.filter(b => b.s >= e).map(b => b.s));
+      const before = prev < earliest || s - prev === 0 || s - prev >= G;
+      const after = next - e === 0 || next - e >= G;
+      return before && after;
+    }
     // Lediga starttider en viss dag, givet total längd och upptagna tider
     function daySlots(day, durationMin, busy) {
       const out = [];
-      const closeMs = stockholmMs(day.y, day.m, day.d, day.close, 0);
+      const closeMs = stockholmMs(day.y, day.m, day.d, day.close, 0), openMs = stockholmMs(day.y, day.m, day.d, day.open, 0);
       const earliest = Date.now() + 30 * 60000;
       for (let h = day.open; h < day.close; h++) {
         for (let mm = 0; mm < 60; mm += 15) {
@@ -1294,6 +1307,7 @@
           const e = s + durationMin * 60000;
           if (s < earliest || e > closeMs) continue;
           if (busy.some(b => s < b.e && e > b.s)) continue;
+          if (!gapOk(s, e, openMs, closeMs, busy, earliest)) continue;
           out.push(s);
         }
       }
@@ -1302,6 +1316,7 @@
 
     const BOOKING_ERRORS = {
       TIDEN_UPPTAGEN: 'Någon hann boka den tiden precis före dig. Välj en annan tid.',
+      KORT_LUCKA: 'Någon hann boka precis bredvid, så den tiden skulle lämna en kort lucka i Lias schema. Välj en annan tid.',
       OGILTIG_TID: 'Den tiden går inte längre att boka. Välj en annan tid.',
       UTANFOR_OPPETTID: 'Tiden ligger utanför öppettiderna. Välj en annan tid.',
       OGILTIGT_NAMN: 'Skriv ditt namn (minst 2 tecken).',
@@ -1625,7 +1640,7 @@
         } catch (e) {
           const r = bookingErrorText(e);
           setError(r.text);
-          if (['TIDEN_UPPTAGEN', 'OGILTIG_TID', 'UTANFOR_OPPETTID'].includes(r.code)) { setSlot(null); setStep(2); if (day) loadBusy(day); }
+          if (['TIDEN_UPPTAGEN', 'KORT_LUCKA', 'OGILTIG_TID', 'UTANFOR_OPPETTID'].includes(r.code)) { setSlot(null); setStep(2); if (day) loadBusy(day); }
           if (['EN_KLIPPNING_PER_PERSON', 'OGILTIGT_PERSONNAMN', 'OGILTIGT_ANTAL_PERSONER', 'OGILTIGA_TJANSTER'].includes(r.code)) setStep(1);
         }
         setSending(false);

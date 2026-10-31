@@ -61,11 +61,11 @@ T "38. Grupp som slutar efter stängning (fre 16:00, 30+30+30 min)" anon "" "$(B
 T "39. En person: inget förnamn behövs, sparas utan person_name" anon "" "$(BK "$(P Hårbottenmassage '"harbotten"')" '2 days 10 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "^Hårbottenmassage$"
 T "40. Pris och tid från servern, inte webbsidan (Permanent kort = 1650 kr, 120 min)" anon "" "select (r->>'price')||' '||(r->>'duration') from (select create_booking('[{\"category\":\"Permanent\",\"service_ids\":[\"perm-kort\"],\"price\":1}]'::jsonb, (($MON + interval '2 days 14 hours') at time zone 'Europe/Stockholm'), 'Pia P', '0706666666', 'pia@test.se') r) x" "^1650 120$"
 T "41. Kunden kan inte läsa förnamnen via get_busy" anon "" "select count(*) from get_busy(now(), now() + interval '14 days') g where row_to_json(g)::text like '%Kalle%'" "^0$"
-T "42. Torsdag 09:00, första tiden (öppnar 09)" anon "" "$(BK "$(P Klippning '"klipp-30"')" '2 days 9 hours' 'Gun G' '0707777777' 'gun@test.se')" "^Klippning/Herrklippning 30 min$"
+T "42. Torsdag 09:00, första tiden (öppnar 09), slutar 10:00 direkt före nästa bokning" anon "" "$(BK "$(P 'Styling, tvätt & föning' '"tvatt-fon-60"')" '2 days 9 hours' 'Gun G' '0707777777' 'gun@test.se')" "^Tvätt & fön/ styling 1 timma$"
 T "43. Söndag 11:00 (stängt)" anon "" "$(BK "$(P Klippning '"klipp-30"')" '5 days 11 hours' 'Gun G' '0707777777' 'gun@test.se')" "UTANFOR_OPPETTID"
 
 echo "--- Lias tjänster (ny 29 okt) ---"
-T "44. Längsta tjänsten (Färgbehandling 3 h) fre 13:00–16:00 går att boka" anon "" "$(BK "$(P Färgbehandling '"farg-180"')" '3 days 13 hours' 'Hans H' '0708888888' 'hans@test.se')" "^Färgbehandling 3 timmar, klippning ingår\.$"
+T "44. Längsta tjänsten (Färgbehandling 3 h) fre 13:30–16:30 går att boka (direkt före nästa)" anon "" "$(BK "$(P Färgbehandling '"farg-180"')" '3 days 13 hours 30 minutes' 'Hans H' '0708888888' 'hans@test.se')" "^Färgbehandling 3 timmar, klippning ingår\.$"
 T "45. Färgbehandling 3 h tis 14:15 slutar 17:15 (efter stängning)" anon "" "$(BK "$(P Färgbehandling '"farg-180"')" '14 hours 15 minutes' 'Hans H' '0708888888' 'hans@test.se')" "UTANFOR_OPPETTID"
 T "46. Gamla kategorin Herr finns inte längre" anon "" "$(BK "$(P Herr '"klipp-30"')" '2 days 11 hours' 'Hans H' '0708888888' 'hans@test.se')" "OGILTIGA_TJANSTER"
 T "47. Alla 17 tjänster finns i databasen, i 6 kategorier" anon "" "select count(*)||' '||count(distinct category) from services" "^17 6$"
@@ -93,3 +93,16 @@ T "60. Admin: rensningen tar bort avbokningar äldre än 12 månader (1 st)" aut
 R=$($P -c "select string_agg(customer_name, ',' order by customer_name) from bookings where customer_name in ('Tidstest','Gammal13','Gammal11')")
 if [ "$R" = "Gammal11,Tidstest" ]; then echo "OK   61. Kvar efter rensning (11 månader gammal + dagens): $R"; else echo "FEL  61. Kvar efter rensning (11 månader gammal + dagens): $R"; fi
 $P -c "delete from bookings where customer_name in ('Tidstest','Gammal13','Gammal11')" >/dev/null
+
+echo "--- Inga korta luckor (ny 31 okt, Lia valde B: lucka 0 eller minst 45 min) ---"
+$P -c "delete from bookings where customer_name like 'Lucka%'" >/dev/null
+T "62. Grund: tisdag om en vecka 10:00–10:45" anon "" "$(BK "$(P Klippning '"klipp-45"')" '7 days 10 hours' 'Lucka A' '0701010101' 'l@t.se')" "^Klippning 45 min\.$"
+T "63. 11:00 lämnar 15 min lucka efter 10:45 → stoppas" anon "" "$(BK "$(P Klippning '"klipp-30"')" '7 days 11 hours' 'Lucka B' '0701010102' 'l@t.se')" "KORT_LUCKA"
+T "64. 09:15–10:00 lämnar 15 min lucka efter öppning → stoppas" anon "" "$(BK "$(P Klippning '"klipp-45"')" '7 days 9 hours 15 minutes' 'Lucka C' '0701010103' 'l@t.se')" "KORT_LUCKA"
+T "65. 09:00–09:30 lämnar 30 min lucka före 10:00 → stoppas" anon "" "$(BK "$(P Klippning '"klipp-30"')" '7 days 9 hours' 'Lucka D' '0701010104' 'l@t.se')" "KORT_LUCKA"
+T "66. 10:45 direkt efter → går att boka" anon "" "$(BK "$(P Klippning '"klipp-30"')" '7 days 10 hours 45 minutes' 'Lucka E' '0701010105' 'l@t.se')" "^Klippning/Herrklippning 30 min$"
+T "67. 12:00 lämnar 45 min lucka (11:15–12:00) → går att boka" anon "" "$(BK "$(P Klippning '"klipp-30"')" '7 days 12 hours' 'Lucka F' '0701010106' 'l@t.se')" "^Klippning/Herrklippning 30 min$"
+T "68. 16:15–17:00 slutar vid stängning (0 min) → går att boka" anon "" "$(BK "$(P Klippning '"klipp-45"')" '7 days 16 hours 15 minutes' 'Lucka G' '0701010107' 'l@t.se')" "^Klippning 45 min\.$"
+T "69. 15:45–16:00 (putsning) lämnar 15 min före 16:15 → stoppas" anon "" "$(BK "$(P Klippning '"putsning"')" '7 days 15 hours 45 minutes' 'Lucka H' '0701010108' 'l@t.se')" "KORT_LUCKA"
+T "70. Grupp 09:00 (30+30 min) slutar 10:00 direkt före → går att boka" anon "" "$(BK '[{"category":"Klippning","service_ids":["klipp-30"],"name":"G1"},{"category":"Frans och/eller brynfärg","service_ids":["bryn"],"name":"G2"}]' '7 days 9 hours' 'Lucka I' '0701010109' 'l@t.se')" "G1: Klippning/Herrklippning 30 min"
+$P -c "delete from bookings where customer_name like 'Lucka%'" >/dev/null

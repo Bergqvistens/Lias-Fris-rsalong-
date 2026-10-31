@@ -183,6 +183,10 @@ declare
   v_close     time;
   v_id        uuid;
   v_all_names text := '';
+  v_day_open  timestamptz;
+  v_day_close timestamptz;
+  v_prev      timestamptz;
+  v_next      timestamptz;
 begin
   -- Kontaktuppgifter
   p_name  := btrim(coalesce(p_name, ''));
@@ -239,6 +243,21 @@ begin
   -- Bokningar sparas en i taget (låset släpps när anropet är klart). Då kan två samtidiga
   -- bokningar aldrig låsa varandra; den som kommer sist får TIDEN_UPPTAGEN.
   perform pg_advisory_xact_lock(hashtext('lias_bokning'));
+
+  -- Inga korta luckor i Lias schema (Lia 31 okt 2026): luckan före och efter måste vara 0 minuter
+  -- (direkt i följd) eller minst 45 minuter. Tid före nu + 30 min räknas inte som lucka (kan ändå inte bokas).
+  v_day_open  := (v_local::date + v_open)  at time zone 'Europe/Stockholm';
+  v_day_close := (v_local::date + v_close) at time zone 'Europe/Stockholm';
+  select greatest(v_day_open, coalesce(max(ends_at), v_day_open)) into v_prev
+    from public.bookings where status = 'bokad' and ends_at <= p_starts_at and ends_at > v_day_open;
+  select least(v_day_close, coalesce(min(starts_at), v_day_close)) into v_next
+    from public.bookings where status = 'bokad' and starts_at >= v_end and starts_at < v_day_close;
+  if v_prev >= now() + interval '30 minutes' and p_starts_at > v_prev and p_starts_at - v_prev < interval '45 minutes' then
+    raise exception 'KORT_LUCKA';
+  end if;
+  if v_next > v_end and v_next - v_end < interval '45 minutes' then
+    raise exception 'KORT_LUCKA';
+  end if;
 
   -- Andra genomgången: spara en rad per person. Krockspärren stoppar dubbelbokning;
   -- ett fel avbryter hela anropet, så inga halva grupper sparas.

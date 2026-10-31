@@ -233,3 +233,10 @@
 ## 31 okt: e-post och sms-kostnad (beslut/underlag, ingen kodändring)
 - E-post: Tommy vill skaffa egen domän via Loopia (förslag liashantverkeri.se; adresser hej@ / boka@ / info@ / lia@ – Lia väljer) och vidarekoppla till lias.hantverkeri@gmail.com. Skicka-som från Gmail rekommenderas inte: Google slutar stödja "Send as" för tredjepartsadresser från januari 2027 (support.google.com/mail/answer/22370). Vid behov att svara från nya adressen: Google Workspace eller Loopias e-post. När adressen är vald: byt CONTACT.email i appen.
 - Sms-pris (företagens sidor 30 okt): 46elks 0,52 kr/sms-del exkl. moms, ingen månadsavgift; Cellsynt 0,65 kr exkl. moms. Bokningssms ≈ 297 tecken = 2 delar; avbokning utan meddelande 1 del.
+
+## 31 okt: inga korta luckor i Lias schema (Lia valde B)
+- Regel: luckan före och efter en bokning (eller gruppbokningens hela block) ska vara 0 min (direkt i följd) eller minst 45 min (MIN_GAP_MIN). Öppning 09:00 och stängning 17:00 räknas som gränser. Tid före nu + 30 min räknas inte som lucka. 45 min = Claudes förslag som Tommy godkände med "kör" (inte uttryckligen valt av Lia) – lätt att ändra (MIN_GAP_MIN i appen + '45 minutes' i create_booking).
+- Appen: gapOk() i daySlots döljer sådana tider; demo create_booking ger KORT_LUCKA. Databasen: create_booking kontrollerar samma sak efter bokningslåset → KORT_LUCKA. Felmeddelande: "Någon hann boka precis bredvid, så den tiden skulle lämna en kort lucka i Lias schema. Välj en annan tid." → tillbaka till tidsvalet.
+- Exempel tom dag, 45 min: 09:00, 09:45–15:30, 16:15. Avbokningar kan fortfarande skapa luckor (går inte att förhindra).
+- Test: lucka-test.js (11), sqltest 62–70 (42 och 44 ändrade så de följer regeln), scenario jämför tider mot en kund i Sverige. lokal-testdatabas.sql ny dump 31 okt (återställning provad).
+- Hela sviten: 39 sviter, 1131 kontroller, alla gröna.

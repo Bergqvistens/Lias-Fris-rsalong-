@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 30 okt 2026 (ny dump: allt i supabase-setup.sql till och med avbokningsmeddelande, avbokningstid och rensning efter 12 månader).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 31 okt 2026 (allt i supabase-setup.sql till och med regeln mot korta luckor).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict OP7FvOUPfXb7WfBFlg2zr4FBmnO6bYb2nodoJno8KZqo1gKHiwZwSJrfVpPq9oe
+\restrict 7piNTSOJDuwzJB4FevGBI4KHBrGbcEWJxz0NoBCK027XizeFwsNk0qRgn89QOsY
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -72,6 +72,10 @@ declare
   v_close     time;
   v_id        uuid;
   v_all_names text := '';
+  v_day_open  timestamptz;
+  v_day_close timestamptz;
+  v_prev      timestamptz;
+  v_next      timestamptz;
 begin
   -- Kontaktuppgifter
   p_name  := btrim(coalesce(p_name, ''));
@@ -128,6 +132,21 @@ begin
   -- Bokningar sparas en i taget (låset släpps när anropet är klart). Då kan två samtidiga
   -- bokningar aldrig låsa varandra; den som kommer sist får TIDEN_UPPTAGEN.
   perform pg_advisory_xact_lock(hashtext('lias_bokning'));
+
+  -- Inga korta luckor i Lias schema (Lia 31 okt 2026): luckan före och efter måste vara 0 minuter
+  -- (direkt i följd) eller minst 45 minuter. Tid före nu + 30 min räknas inte som lucka (kan ändå inte bokas).
+  v_day_open  := (v_local::date + v_open)  at time zone 'Europe/Stockholm';
+  v_day_close := (v_local::date + v_close) at time zone 'Europe/Stockholm';
+  select greatest(v_day_open, coalesce(max(ends_at), v_day_open)) into v_prev
+    from public.bookings where status = 'bokad' and ends_at <= p_starts_at and ends_at > v_day_open;
+  select least(v_day_close, coalesce(min(starts_at), v_day_close)) into v_next
+    from public.bookings where status = 'bokad' and starts_at >= v_end and starts_at < v_day_close;
+  if v_prev >= now() + interval '30 minutes' and p_starts_at > v_prev and p_starts_at - v_prev < interval '45 minutes' then
+    raise exception 'KORT_LUCKA';
+  end if;
+  if v_next > v_end and v_next - v_end < interval '45 minutes' then
+    raise exception 'KORT_LUCKA';
+  end if;
 
   -- Andra genomgången: spara en rad per person. Krockspärren stoppar dubbelbokning;
   -- ett fel avbryter hela anropet, så inga halva grupper sparas.
@@ -337,7 +356,8 @@ ALTER TABLE public.services OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-160d7cf9-251c-40ea-9b1a-db1747232b66	lia@test.se
+dd98dcf2-4d29-4367-a935-aaab25906140	lia@test.se
+f15551f7-0a02-40f2-88c3-2e342406c8f0	annan@test.se
 \.
 
 
@@ -346,7 +366,7 @@ COPY auth.users (id, email) FROM stdin;
 --
 
 COPY public.admins (user_id) FROM stdin;
-160d7cf9-251c-40ea-9b1a-db1747232b66
+dd98dcf2-4d29-4367-a935-aaab25906140
 \.
 
 
@@ -355,6 +375,8 @@ COPY public.admins (user_id) FROM stdin;
 --
 
 COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at) FROM stdin;
+d0499f4b-8796-4ba5-bac3-bfd534c866b2	2026-10-31 15:48:26.592696+01	{bryn}	Färg och form av bryn.	200	2026-11-04 16:30:00+01	2026-11-04 17:00:00+01	Kund Tre	0709999999	k@test.se	bokad	\N	bcb526e8-f4bb-4224-b8c6-0600acb0e576	\N	\N
+65a3a380-9b58-475e-9eb8-97ccd338a9d0	2026-10-31 15:48:04.071699+01	{klipp-45}	Klippning 45 min.	600	2026-11-04 10:00:00+01	2026-11-04 10:45:00+01	Anna Andersson	0701234567	anna@test.se	avbokad	\N	8a6e1626-084e-4be8-b3af-0da23344943f	\N	2026-10-31 15:48:29.734975+01
 \.
 
 
@@ -363,6 +385,10 @@ COPY public.bookings (id, created_at, service_ids, service_names, price, starts_
 --
 
 COPY public.services (id, name, duration, price, category, kind) FROM stdin;
+klipp-45	Klippning 45 min.	45	600	Klippning	klipp
+klipp-lyx	Klippning lyx	60	850	Klippning	klipp
+klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
+putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 farg-botten	Bottenfärg/utväxt	90	1000	Färgbehandling	klipp
 farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
 farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
@@ -376,10 +402,6 @@ tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	kli
 harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
 bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
 frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
-klipp-45	Klippning 45 min.	45	600	Klippning	klipp
-klipp-lyx	Klippning lyx	60	850	Klippning	klipp
-klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
-putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 \.
 
 
@@ -583,5 +605,5 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OP7FvOUPfXb7WfBFlg2zr4FBmnO6bYb2nodoJno8KZqo1gKHiwZwSJrfVpPq9oe
+\unrestrict 7piNTSOJDuwzJB4FevGBI4KHBrGbcEWJxz0NoBCK027XizeFwsNk0qRgn89QOsY
 
