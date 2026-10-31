@@ -732,13 +732,13 @@
       const total = plan.reduce((a2, x) => a2 + x.price, 0);
       const first = c.name.split(' ')[0];
       const cDl = start - cancelHoursFor(plan.flatMap(x => x.ids)) * 3600000;
-      const cTxt = cDl > Date.now() ? `Avboka/ändra senast ${demoWhen(cDl)}: ring eller sms:a ${CONTACT.phone}.` : `Avboka/ändra: ring ${CONTACT.phone}.`;
+      const cTxt = cDl > Date.now() ? `Avboka/ändra senast ${demoWhen(cDl)} på ${CONTACT.phone}.` : `Avboka/ändra: ring ${CONTACT.phone}.`;
       if (!multi) {
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Bekräfta din tid: ${confirmUrl(token)} ${cTxt} Välkommen!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Bekräfta din tid genom att trycka på länken: ${confirmUrl(token)} ${cTxt} Välkommen!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, från ${total} kr. Tel ${c.phone}`);
       } else {
         const list = plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ');
-        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Bekräfta era tider: ${confirmUrl(token)} ${cTxt} Välkomna!`);
+        demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Era tider hos Lias Hantverkeri är bokade ${demoWhen(start).replace(/ kl .*/, '')}: ${list}. Bekräfta era tider genom att trycka på länken: ${confirmUrl(token)} ${cTxt} Välkomna!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning (${plan.length} personer): ${c.name}, ${demoWhen(start).replace(/ kl .*/, '')}: ${list}, totalt ${total} kr. Tel ${c.phone}`);
       }
       demoSave(db);
@@ -2489,6 +2489,18 @@
 
     // Kort pling-ljud utan ljudfil
     let AUDIO_CTX = null;
+    // Webbläsaren får bara spela ljud efter att användaren tryckt på sidan (Chromes regel). unlockAudio försöker starta ljudet;
+    // på en sida som lagts på startskärmen kan det gå direkt (enligt Google), annars vid första trycket.
+    function unlockAudio() {
+      try {
+        if (!AUDIO_CTX) AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+        if (AUDIO_CTX.state !== 'running') return AUDIO_CTX.resume().then(() => AUDIO_CTX.state === 'running', () => false);
+        return Promise.resolve(true);
+      } catch (e) { return Promise.resolve(false); }
+    }
+    const ALARM_KEY = 'lias_larm';   // 'pa' / 'av' – Lias val sparas i telefonen (Tommy 31 okt)
+    const alarmSaved = () => { try { return localStorage.getItem(ALARM_KEY) === 'pa'; } catch (e) { return false; } };
+    const alarmSave = on => { try { localStorage.setItem(ALARM_KEY, on ? 'pa' : 'av'); } catch (e) {} };
     function playChime() {
       try {
         if (!AUDIO_CTX) AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
@@ -2956,7 +2968,8 @@
       const [lists, setLists] = useState({ bookings: [], course_bookings: [], orders: [] });
       const [listState, setListState] = useState('idle');
       const [live, setLive] = useState(false);
-      const [alarmOn, setAlarmOn] = useState(false);
+      const [alarmOn, setAlarmOn] = useState(alarmSaved);
+      const [soundReady, setSoundReady] = useState(false);
       const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
       const [newIds, setNewIds] = useState([]);
       const [section, setSection] = useState('bokningar');
@@ -2980,6 +2993,16 @@
       const baseTitle = useRef(document.title);
 
       useEffect(() => { alarmRef.current = alarmOn; }, [alarmOn]);
+      // Sparat larm: försök starta ljudet direkt, annars vid Lias första tryck var som helst på sidan
+      useEffect(() => {
+        if (!alarmOn || soundReady) return;
+        let done = false;
+        const tryUnlock = () => { if (done) return; unlockAudio().then(ok => { if (ok && !done) { done = true; setSoundReady(true); } }); };
+        tryUnlock();
+        const evs = ['pointerdown', 'keydown', 'touchend', 'click'];
+        evs.forEach(ev => document.addEventListener(ev, tryUnlock, true));
+        return () => { done = true; evs.forEach(ev => document.removeEventListener(ev, tryUnlock, true)); };
+      }, [alarmOn, soundReady]);
       useEffect(() => {
         sb.auth.getSession().then(({ data }) => setSession((data && data.session) || null)).catch(() => setSession(null));
       }, []);
@@ -3057,7 +3080,10 @@
         setPwd(''); setSession(data.session);
       };
       const logout = async () => { await sb.auth.signOut(); setSession(null); document.title = baseTitle.current; dispatch({ type: 'TAB', p: 'home' }); };
+      const deactivateAlarm = () => { setAlarmOn(false); setSoundReady(false); alarmSave(false); };
       const activateAlarm = async () => {
+        alarmSave(true);
+        unlockAudio().then(ok => { if (ok) setSoundReady(true); });
         playChime();
         if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
           try { setNotifState(await Notification.requestPermission()); } catch (e) { console.error(e); }
@@ -3141,8 +3167,16 @@
               {live ? '🟢 Live – nya bokningar dyker upp direkt' : '🟡 Ansluter… (listan uppdateras ändå varje minut)'}
             </div>
             {alarmOn
-              ? <div style={{ fontSize: '14px', color: COLORS.dark }}>🔔 <strong>Larmet är på.</strong> {notifState === 'granted' ? 'Ljud och skärmnotis vid ny bokning.' : 'Ljud vid ny bokning (skärmnotiser är inte tillåtna i webbläsaren).'} <button onClick={playChime} style={{ marginLeft: '6px', background: 'none', border: 'none', color: COLORS.sandBrown, textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}>Testa ljud</button></div>
-              : <div><button onClick={activateAlarm} style={{ ...btn(COLORS.sandBrown), width: '100%', padding: '14px' }}>🔔 Slå på larm (ljud + notis)</button><div style={{ fontSize: '12px', color: COLORS.dark, marginTop: '6px' }}>Webbläsaren kräver ett tryck här varje gång sidan öppnas, annars får den inte spela ljud.</div></div>}
+              ? <div data-larm={soundReady ? 'pa' : 'vantar'} style={{ fontSize: '14px', color: COLORS.dark, lineHeight: 1.5 }}>
+                  {soundReady
+                    ? <>🔔 <strong>Larmet är på</strong> {notifState === 'granted' ? '(ljud + notis).' : '(ljud). Skärmnotiser är inte tillåtna i webbläsaren.'}</>
+                    : <>🔔 <strong>Larmet är på.</strong> Ljudet startar när du trycker någonstans på sidan.{notifState === 'granted' ? ' Skärmnotiser fungerar redan.' : ''}</>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                    <button onClick={playChime} data-testa-ljud style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }}>Testa ljudet</button>
+                    <button onClick={deactivateAlarm} data-larm-av style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }}>Stäng av larmet</button>
+                  </div>
+                </div>
+              : <div><button onClick={activateAlarm} data-larm-pa style={{ ...btn(COLORS.sandBrown), width: '100%', padding: '14px' }}>🔔 Slå på larm (ljud + notis)</button><div style={{ fontSize: '12px', color: COLORS.dark, marginTop: '6px' }}>Valet sparas i den här telefonen, så du behöver bara göra det en gång.</div></div>}
           </div>
 
           {listState === 'loading' && <div style={{ ...BOX, marginTop: '18px' }}>Hämtar bokningar…</div>}

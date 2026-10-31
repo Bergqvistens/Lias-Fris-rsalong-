@@ -67,7 +67,7 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
   await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
   const d = await p.evaluate(() => ({ cancel: (document.querySelector('.lh-done .lh-cancel, .lh-cancel') || {}).innerText, sms: [...document.querySelectorAll('[data-sms="bekraftelse"]')].map(e => e.innerText).join(' '), body: document.querySelector('main').innerText }));
   ok(d.body.includes('Din tid är bokad!') && d.cancel && d.cancel.includes('senast måndag 2 november kl 10:00'), 'Bekräftelsen visar samma sista avbokningstid', (d.cancel || '').replace(/\n+/g, ' | '));
-  ok(d.sms.includes('Avboka/ändra senast mån 2 nov kl 10:00: ring eller sms:a 073-642 30 18.'), 'Bekräftelse-sms innehåller sista avbokningstid', d.sms.replace(/\n/g, ' '));
+  ok(d.sms.includes('Avboka/ändra senast mån 2 nov kl 10:00 på 073-642 30 18.'), 'Bekräftelse-sms innehåller sista avbokningstid', d.sms.replace(/\n/g, ' '));
   await p.screenshot({ path: '/tmp/t/avbok-bekraftelse.png', fullPage: true });
 
   // --- Färgbehandling onsdag 4 nov 09:00 -> 48 h -> senast måndag 2 nov 09:00 ---

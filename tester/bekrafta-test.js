@@ -49,7 +49,10 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   await book(k, [['Klippning', 'klipp-45']]);
   const l1 = await smsLink(k);
   ok(l1 && /^https:\/\/lias\.test\/#bekrafta=[0-9a-f-]{36}$/.test(l1.href) && l1.text === l1.href, 'Bekräftelse-sms:et har en länk "Bekräfta din tid"', l1 && l1.href);
-  ok(l1 && l1.bubble.includes('(Klippning 45 min.). Bekräfta din tid: ' + l1.href + ' Avboka/ändra senast mån 2 nov kl 10:00'), 'Sms-texten i rätt ordning: tid, länk, avbokning', l1 && l1.bubble.split('\n').pop());
+  ok(l1 && l1.bubble.includes('(Klippning 45 min.). Bekräfta din tid genom att trycka på länken: ' + l1.href + ' Avboka/ändra senast mån 2 nov kl 10:00 på 073-642 30 18. Välkommen!'), 'Sms-texten i rätt ordning: tid, länk, avbokning', l1 && l1.bubble.split('\n').pop());
+
+  const realLen = l1.bubble.split('\n').pop().replace('https://lias.test/', 'https://bergqvistens.github.io/Lias-Fris-rsalong-/').length;
+  ok(realLen <= 306, 'Med den riktiga adressen ryms sms:et i 2 delar (' + realLen + ' tecken, max 306)');
 
   // --- 2. Lia i admin: inte bekräftad än ---
   const lia = await newPage();
@@ -97,7 +100,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   await k.click('[data-bekraftelse] button, .lh-done button:has-text("Klar")').catch(() => {}); await k.waitForTimeout(300);
   await book(k, [['Klippning', 'klipp-30', 'Anna'], ['Frans och/eller brynfärg', 'bryn', 'Bo']]);
   const l2 = await smsLink(k);
-  ok(l2 && l2.bubble.includes('Bekräfta era tider: ' + l2.href), 'Gruppbokning: "Bekräfta era tider" + länk', l2 && l2.href);
+  ok(l2 && l2.bubble.includes('Bekräfta era tider genom att trycka på länken: ' + l2.href), 'Gruppbokning: "Bekräfta era tider genom att trycka på länken:" + länk', l2 && l2.href);
   await k.click('[data-sms="bekraftelse"] [data-sms-link]'); await k.waitForTimeout(900);
   const v4 = await k.evaluate(() => { const d = document.querySelector('[data-bekraftelse]'); return d ? d.innerText.replace(/\n+/g, ' | ') : null; });
   ok(v4 && v4.startsWith('Tack! Era tider är bekräftade') && /Anna: Klippning\/Herrklippning 30 min/.test(v4) && /Bo: Färg och form av bryn\./.test(v4), 'Tryck på länken direkt i appen fungerar; båda personerna visas', v4 && v4.slice(0, 160));

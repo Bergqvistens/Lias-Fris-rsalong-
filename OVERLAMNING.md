@@ -223,3 +223,9 @@
 - DemoSmsBubble har linkable (förval true). Lias sms-logg (DemoSmsLog) skickar linkable={false}: länken visas som vanlig text (samma färg, ingen understrykning, ingen <a>) så Lia inte råkar bekräfta åt kunden. Kundens egen sms-ruta efter bokningen har kvar tryckbar länk.
 - Test: bekrafta-test.js (20) kontrollerar att admin-loggen saknar <a> och att tryck inte gör något.
 - Hela sviten efter länkändringen: 37 sviter, 1099 kontroller, alla gröna.
+
+## 31 okt: sms-text för bekräftelselänken + larmet sparas
+- **Sms:** "Bekräfta din tid genom att trycka på länken: <länk>" (grupp: "Bekräfta era tider genom att trycka på länken:"). Avbokningsraden kortad till "Avboka/ändra senast mån 2 nov kl 10:00 på 073-642 30 18." så att ett vanligt bokningssms med riktiga adressen blir 297 tecken = 2 delar (förut 285; utan kortning hade det blivit 312 = 3 delar). Test: bekrafta-test kontrollerar ≤ 306 tecken.
+- **Larmet:** valet sparas i telefonen (localStorage 'lias_larm' = pa/av). Nästa gång: larmet redan på, notiser fungerar direkt. Ljud: Chrome tillåter inte ljud förrän användaren tryckt på sidan → ljudet startas automatiskt vid första tryck var som helst (pointerdown/keydown/touchend/click). Text: "Larmet är på. Ljudet startar när du trycker någonstans på sidan." → "Larmet är på (ljud + notis)." Knappar: Testa ljudet, Stäng av larmet (sparas). Enligt Google får sidor på mobilens startskärm spela ljud utan tryck – inte provat på riktig telefon.
+- Test: larm-test.js (11). OBS: testwebbläsaren (headless Chromium) spelar ljud utan tryck, så mobilens regel efterliknas i testet (AudioContext avstängd tills tryck).
+- Hela sviten 31 okt: 38 sviter, 1111 kontroller, alla gröna.
