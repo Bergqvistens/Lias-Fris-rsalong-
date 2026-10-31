@@ -87,7 +87,7 @@ const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
   ok(oT.includes('13:00'), 'Testdagen har 13:00 ledigt', dayLabel);
   await o.click('.lh-time:text-is("13:00")'); await o.click('text=Fortsätt');
   await o.fill('input[type=text]', 'Annan Kund'); await o.fill('input[type=tel]', '0709998877'); await o.fill('input[type=email]', 'a@k.se');
-  await o.click('button:has-text("Boka ·")'); await o.waitForTimeout(900);
+  await o.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await o.click('button:has-text("Boka ·")'); await o.waitForTimeout(900);
   ok((await main(o)).includes('Din tid är bokad!'), 'Annan kund bokade 13:00–13:30');
   await o.close();
   await (await k.$$('.lh-day'))[2].click(); await k.waitForTimeout(600);
@@ -104,7 +104,7 @@ const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
   await k.click('text=Fortsätt'); await k.waitForTimeout(300);
   ok((await k.$eval('[data-summary="bokning"]', x => x.innerText)).includes('12:30–13:00'), 'Steg 3 visar varje persons tid');
   await k.fill('input[type=text]', 'Eva Ek'); await k.fill('input[type=tel]', '0701112233'); await k.fill('input[type=email]', 'eva@ek.se');
-  await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900);
+  await k.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900);
   const d = await main(k);
   ok(d.includes('3 tider är bokade!') && d.includes('11:30–12:00 Kalle: Klippning/Herrklippning 30 min') && d.includes('12:30–13:00 Lisa: Tvätt & fön') && d.includes('från 1 100'), 'Bekräftelse: 3 tider med namn och "från"-totalpris');
   const sms = await k.$eval('[data-sms="bekraftelse"]', x => x.innerText).catch(() => '');
@@ -147,7 +147,7 @@ const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
   const st = await s.$$eval('.lh-time', bs => bs.map(b => b.innerText.trim()));
   await s.click(`.lh-time:text-is("${st[0]}")`); await s.click('text=Fortsätt');
   await s.fill('input[type=text]', 'Pia Persson'); await s.fill('input[type=tel]', '0702223344'); await s.fill('input[type=email]', 'pia@p.se');
-  await s.click('button:has-text("Boka ·")'); await s.waitForTimeout(1500);
+  await s.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await s.click('button:has-text("Boka ·")'); await s.waitForTimeout(1500);
   ok((await s.evaluate(() => document.querySelector('main').innerText)).includes('2 tider är bokade!'), 'Supabase-läge: kunden får "2 tider är bokade!"');
   const rows = admin("select string_agg(person_name||' '||to_char(starts_at at time zone 'Europe/Stockholm','HH24:MI')||'-'||to_char(ends_at at time zone 'Europe/Stockholm','HH24:MI')||' '||service_names||' '||price, ' | ' order by starts_at) || ' / grupper ' || count(distinct group_id) from bookings where customer_name='Pia Persson'");
   const t0 = hm(st[0]);

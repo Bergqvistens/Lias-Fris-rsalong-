@@ -40,7 +40,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
     const t = await p.$$eval('.lh-time', ts => ts.map(x => x.innerText.trim()));
     await p.click(`.lh-time:text-is("${people.length > 1 ? t[0] : '10:00'}")`); await p.click('text=Fortsätt'); await p.waitForTimeout(300);
     await p.fill('input[type=text]', 'Anna Andersson'); await p.fill('input[type=tel]', '070-123 45 67'); await p.fill('input[type=email]', 'anna@test.se');
-    await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
+    await p.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
   };
   const smsLink = p => p.$eval('[data-sms="bekraftelse"] [data-sms-link]', a => ({ href: a.href, text: a.innerText, bubble: a.closest('[data-sms]').innerText })).catch(() => null);
 

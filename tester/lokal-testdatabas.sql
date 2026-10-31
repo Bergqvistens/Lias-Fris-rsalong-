@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 31 okt 2026 (allt i supabase-setup.sql till och med regeln mot korta luckor).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med krav på godkända avbokningsregler).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict 7piNTSOJDuwzJB4FevGBI4KHBrGbcEWJxz0NoBCK027XizeFwsNk0qRgn89QOsY
+\restrict 6sfCpezYIhYkZyWbce8PmrBCSCRynO4KGGecP8bIFTrHjDp2mBcgSwxGqVx0NbA
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -41,10 +41,10 @@ CREATE FUNCTION auth.uid() RETURNS uuid
 ALTER FUNCTION auth.uid() OWNER TO postgres;
 
 --
--- Name: create_booking(jsonb, timestamp with time zone, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: create_booking(jsonb, timestamp with time zone, text, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) RETURNS json
+CREATE FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text DEFAULT NULL::text) RETURNS json
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $_$
@@ -84,6 +84,8 @@ begin
   if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
+  if p_rules is distinct from '2026-11-01' then raise exception 'REGLER_EJ_GODKANDA'; end if;
 
   -- Personer
   if p_people is null or jsonb_typeof(p_people) <> 'array' then raise exception 'OGILTIGA_TJANSTER'; end if;
@@ -161,9 +163,9 @@ begin
       from public.services where id = any(v_ids) and category = v_cat;
     begin
       insert into public.bookings
-        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id)
+        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id, rules_version)
       values
-        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group)
+        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group, p_rules)
       returning id into v_id;
     exception when exclusion_violation then
       raise exception 'TIDEN_UPPTAGEN';
@@ -183,7 +185,7 @@ end;
 $_$;
 
 
-ALTER FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) OWNER TO postgres;
+ALTER FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text) OWNER TO postgres;
 
 --
 -- Name: get_busy(timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
@@ -325,6 +327,7 @@ CREATE TABLE public.bookings (
     group_id uuid,
     cancel_note text,
     cancelled_at timestamp with time zone,
+    rules_version text,
     CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['bokad'::text, 'avbokad'::text]))),
     CONSTRAINT cancel_note_langd CHECK (((cancel_note IS NULL) OR (char_length(cancel_note) <= 160))),
     CONSTRAINT tid_i_ordning CHECK ((ends_at > starts_at))
@@ -356,8 +359,8 @@ ALTER TABLE public.services OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-dd98dcf2-4d29-4367-a935-aaab25906140	lia@test.se
-f15551f7-0a02-40f2-88c3-2e342406c8f0	annan@test.se
+f02f2460-3f5b-4965-91a2-b7180894d7e4	lia@test.se
+89252a35-6f94-4825-aff1-8c2ed2dc4e90	annan@test.se
 \.
 
 
@@ -366,7 +369,7 @@ f15551f7-0a02-40f2-88c3-2e342406c8f0	annan@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-dd98dcf2-4d29-4367-a935-aaab25906140
+f02f2460-3f5b-4965-91a2-b7180894d7e4
 \.
 
 
@@ -374,9 +377,9 @@ dd98dcf2-4d29-4367-a935-aaab25906140
 -- Data for Name: bookings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at) FROM stdin;
-d0499f4b-8796-4ba5-bac3-bfd534c866b2	2026-10-31 15:48:26.592696+01	{bryn}	Färg och form av bryn.	200	2026-11-04 16:30:00+01	2026-11-04 17:00:00+01	Kund Tre	0709999999	k@test.se	bokad	\N	bcb526e8-f4bb-4224-b8c6-0600acb0e576	\N	\N
-65a3a380-9b58-475e-9eb8-97ccd338a9d0	2026-10-31 15:48:04.071699+01	{klipp-45}	Klippning 45 min.	600	2026-11-04 10:00:00+01	2026-11-04 10:45:00+01	Anna Andersson	0701234567	anna@test.se	avbokad	\N	8a6e1626-084e-4be8-b3af-0da23344943f	\N	2026-10-31 15:48:29.734975+01
+COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at, rules_version) FROM stdin;
+00cf3f5d-2128-4019-8159-c1f33a568af3	2026-11-01 00:28:08.132587+01	{nyansering}	Nyansering	1100	2026-11-04 09:00:00+01	2026-11-04 10:00:00+01	Pia Persson	0702223344	pia@p.se	bokad	Maja	ba1a33bf-04f1-4f8f-882a-a75baad7660e	\N	\N	2026-11-01
+9b95487e-2533-42f6-b88f-3a916e92def9	2026-11-01 00:28:08.132587+01	{putsning}	Putsning, kort hår med maskinklippn. sidor & nacke.	250	2026-11-04 10:00:00+01	2026-11-04 10:15:00+01	Pia Persson	0702223344	pia@p.se	bokad	Leo	ba1a33bf-04f1-4f8f-882a-a75baad7660e	\N	\N	2026-11-01
 \.
 
 
@@ -532,12 +535,12 @@ GRANT ALL ON FUNCTION auth.uid() TO authenticated;
 
 
 --
--- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text); Type: ACL; Schema: public; Owner: postgres
+-- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text); Type: ACL; Schema: public; Owner: postgres
 --
 
-REVOKE ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO anon;
-GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text) TO authenticated;
+REVOKE ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text) TO anon;
+GRANT ALL ON FUNCTION public.create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text) TO authenticated;
 
 
 --
@@ -605,5 +608,5 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7piNTSOJDuwzJB4FevGBI4KHBrGbcEWJxz0NoBCK027XizeFwsNk0qRgn89QOsY
+\unrestrict 6sfCpezYIhYkZyWbce8PmrBCSCRynO4KGGecP8bIFTrHjDp2mBcgSwxGqVx0NbA
 

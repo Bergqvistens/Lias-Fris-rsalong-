@@ -49,7 +49,7 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
     const t = await k.$$eval('.lh-time', ts => ts.map(x => x.innerText.trim()));
     await k.click(`.lh-time:text-is("${t[Math.floor(Math.random() * t.length)]}")`); await k.click('text=Fortsätt');
     await k.fill('input[type=text]', 'Kund Test'); await k.fill('input[type=tel]', '0701234567'); await k.fill('input[type=email]', 'k@t.se');
-    await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900); await k.close();
+    await k.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900); await k.close();
   };
   const reopen = async () => { await p.close(); const q = await ctx.newPage(); q.on('pageerror', e => errs.push(e.message)); q.on('console', x => { if (x.type() === 'error' && !/Failed to load resource/.test(x.text())) errs.push(x.text()); }); await q.goto('https://lias.test/'); await q.waitForSelector('.lh-splash', { state: 'detached', timeout: 10000 }).catch(() => {}); await q.evaluate(() => { const b = [...document.querySelectorAll('footer button')].find(x => x.innerText.trim() === 'Admin'); b && b.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); await q.waitForTimeout(1500); return q; };
   const audio = () => p.evaluate(() => { try { return AUDIO_CTX ? AUDIO_CTX.state : 'ingen'; } catch (e) { return 'okänd'; } });

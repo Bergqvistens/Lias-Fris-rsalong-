@@ -26,8 +26,8 @@ function handle(path, body) {
   }
   if (path === 'rpc/create_booking') {
     const p = body.params;
-    const r = sql(t, `select create_booking(:'ppl'::jsonb, :'st'::timestamptz, :'n', :'ph', :'em')::text;`,
-      { ppl: JSON.stringify(p.p_people || null), st: p.p_starts_at, n: p.p_name, ph: p.p_phone, em: p.p_email });
+    const r = sql(t, `select create_booking(:'ppl'::jsonb, :'st'::timestamptz, :'n', :'ph', :'em', nullif(:'ru', ''))::text;`,
+      { ppl: JSON.stringify(p.p_people || null), st: p.p_starts_at, n: p.p_name, ph: p.p_phone, em: p.p_email, ru: p.p_rules || '' });   // 1 nov: godkända avbokningsregler
     return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
   }
   if (path === 'rpc/get_busy') {

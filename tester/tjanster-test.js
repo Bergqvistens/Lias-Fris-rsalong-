@@ -96,7 +96,7 @@ const shownName = x => x.id === 'farg-botten' ? 'Bottenfärg/utväxt' : x.name;
   await p.fill('input[type=text]', 'Test Testsson'); await p.fill('input[type=tel]', '0701234567'); await p.fill('input[type=email]', 'test@exempel.se');
   const bok = norm(await p.$eval('.lh-actionbar button', b => b.innerText));
   ok(bok === 'Boka · från ' + norm(kr(1650)), 'Steg 3: "Boka · från 1 650 kr"', bok);
-  await p.click('.lh-actionbar button'); await p.waitForTimeout(900);
+  await p.check('#boka-regler'); /* 1 nov: kunden godkänner avbokningsreglerna */ await p.click('.lh-actionbar button'); await p.waitForTimeout(900);
   const done = norm(await p.evaluate(() => document.body.innerText));
   ok(done.includes('Din tid är bokad!') && done.includes('Permanent inkl. klippning kort hår.') && done.includes('från ' + norm(kr(1650)) + ' (betalas på plats)'), 'Bekräftelsen visar tjänsten och "från 1 650 kr (betalas på plats)"');
   const smsLia = await p.evaluate(() => JSON.parse(localStorage.getItem('lias_demo_db')).sms.find(m => m.kind === 'till-lia').text);

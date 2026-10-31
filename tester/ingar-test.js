@@ -68,7 +68,7 @@ const EXCL_B = 'Detta ingår inte: Klippning eller slingor. Boka till klippning 
   const s3 = await p.$eval('[data-summary="bokning"]', e => e.innerText);
   ok(s3.includes(EXCL_B) && s3.includes(EXTRA_B), 'Steg 3 (innan bokning): rutorna syns');
   await p.fill('input[type=text]', 'Tommy Bergqvist'); await p.fill('input[type=tel]', '073-634 49 54'); await p.fill('input[type=email]', 't@test.se');
-  await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
+  await p.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
   const dn = await p.evaluate(() => ({ t: document.querySelector('.lh-done').innerText, sms: [...document.querySelectorAll('[data-sms]')].map(e => e.innerText).join(' || '), link: (document.querySelector('[data-sms-link]') || {}).href }));
   ok(dn.t.includes(EXCL_B) && dn.t.includes(EXTRA_B), 'Bekräftelsen visar rutorna');
   ok(dn.sms.includes('(Bottenfärg/utväxt)') && !/ingår ej/.test(dn.sms), 'Sms:et använder det korta namnet', dn.sms.slice(0, 140));

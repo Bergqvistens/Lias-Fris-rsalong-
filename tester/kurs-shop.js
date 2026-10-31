@@ -62,9 +62,9 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
   b = await bar(k1); ok(b.text.includes('2 platser') && b.text.includes('2 400'), 'Pris räknas för 2 platser', b.text);
   await k1.click('text=Fortsätt'); await k1.waitForTimeout(200);
   ok((await mainText(k1)).includes('STEG 2 AV 2'), 'Uppgiftssteget visas');
-  await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(200);
+  await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(200);
   ok((await k1.$$('[data-err]')).length === 3, 'Tomma fält stoppas med 3 felmeddelanden');
-  await fill(k1, 'Eva Ek'); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(700);
+  await fill(k1, 'Eva Ek'); await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(700);
   const kd = await mainText(k1);
   ok(kd.includes('Du är anmäld!') && kd.includes('Keramik för nybörjare') && kd.includes('2 platser'), 'Kunden får "Du är anmäld!"');
   const ksms = await k1.$eval('[data-sms="kurs-bekraftelse"]', e => e.innerText).catch(() => '');
@@ -94,8 +94,8 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
     for (let i = 0; i < 3; i++) await k.click('button[aria-label="Fler"]');
     await k.click('text=Fortsätt'); await fill(k, n);
   }
-  await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(700);
-  await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(900);
+  await k3.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(700);
+  await k4.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(900);
   ok((await mainText(k3)).includes('Du är anmäld!'), 'Första kunden får 4 platser');
   const k4t = await mainText(k4);
   ok(k4t.includes('Det finns inte så många platser kvar') && k4t.includes('STEG 1 AV 2'), 'Andra kunden får besked och skickas tillbaka');

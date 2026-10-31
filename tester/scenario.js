@@ -48,15 +48,15 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   a = await bar(); ok(!a.disabled && a.text.includes(chosenTime), 'Tid vald', a.text);
   await k1.click('text=Fortsätt'); await k1.waitForTimeout(200);
   ok((await mainText(k1)).includes('STEG 3 AV 3'), 'Steg 3 visas med sammanfattning', (await mainText(k1)).split('\n').filter(l => /🕐|💰/.test(l)).join(' | '));
-  await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(200);
+  await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(200);
   const errs3 = await k1.$$eval('[data-err]', es => es.map(e => e.innerText));
   ok(errs3.length === 3, 'Tomma fält ger tydliga felmeddelanden', errs3.length + ' st');
   await k1.fill('input[type=text]', 'Anna Andersson'); await k1.fill('input[type=tel]', '070 123 45'); await k1.fill('input[type=email]', 'anna@test.se');
-  await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(300);
+  await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(300);
   ok((await mainText(k1)).includes('Mobilnumret ska vara 10 siffror'), 'För kort telefonnummer stoppas');
   await k1.fill('input[type=tel]', '070-123 45 67');
   await k1.screenshot({ path: '/tmp/t/s3.png' });
-  await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(800);
+  await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(800);
   const done = await mainText(k1);
   ok(done.includes('Din tid är bokad!'), 'Kunden får bekräftelse', done.split('\n').filter(l => /🕐|✂️|💰/.test(l)).join(' | '));
   await k1.screenshot({ path: '/tmp/t/s4.png' });
@@ -98,8 +98,8 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
     await k.click(`main button:text-is("${freeT}")`); await k.click('text=Fortsätt');
     await k.fill('input[type=text]', 'Kund ' + (k === k3 ? 'Tre' : 'Fyra')); await k.fill('input[type=tel]', '0709999999'); await k.fill('input[type=email]', 'k@test.se');
   }
-  await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(600);
-  await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(800);
+  await k3.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(600);
+  await k4.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(800);
   ok((await mainText(k3)).includes('Din tid är bokad!'), 'Första kunden får tiden ' + freeT);
   const k4t = await mainText(k4);
   ok(k4t.includes('Någon hann boka den tiden') && k4t.includes('STEG 2 AV 3') && !(await times(k4)).includes(freeT), 'Andra kunden får tydligt besked, skickas till tidsvalet, tiden borttagen');

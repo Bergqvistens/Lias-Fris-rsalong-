@@ -32,9 +32,10 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
   await p.click('nav >> text=Kontakt'); await p.waitForTimeout(400);
   const k = await p.evaluate(() => { const s = document.querySelector('[data-section="avbokning"]'); return s ? { h: s.querySelector('h2').innerText, rows: [...s.querySelectorAll('[data-rule]')].map(t => t.innerText.replace(/\s+/g, ' ').trim()), txt: s.innerText, tel: (s.querySelector('a[href^="tel:"]') || {}).href, mail: (s.querySelector('a[href^="mailto:"]') || {}).href, border: getComputedStyle(s).borderTopWidth + ' ' + getComputedStyle(s).borderTopColor } : null; });
   ok(k && k.h === 'Avbokningsregler', 'Kontaktsidan har rubriken Avbokningsregler', k && k.h);
-  ok(k && k.rows[0] === 'Senast 24 timmar före Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage' && k.rows[1] === 'Senast 48 timmar före Färgbehandling och permanent', 'Två regler: 24 h och 48 h', k && k.rows.join(' / '));
+  ok(k && k.rows[0] === 'Senast 24 timmar före Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage' && k.rows[1] === 'Senast 48 timmar före Färgbehandling och permanent', 'Tidsgränser: 24 h och 48 h', k && k.rows.join(' / '));
   ok(k && k.tel === 'tel:+46736423018' && k.mail === 'mailto:lias.hantverkeri@gmail.com', 'Telefon och e-post går att trycka på');
-  ok(k && !/avgift|debiter/i.test(k.txt), 'Ingen avgift nämns (beslut: ingen avgift än)');
+  // 1 nov: Lia inför avgift vid uteblivet besök (andra gången) – regeln står nu som tredje punkt
+  ok(k && k.rows.length === 3 && k.rows[2].startsWith('Uteblivet besök eller sen avbokning Uteblir du'), 'Tredje regeln: uteblivet besök (avgift från andra gången)', k && k.rows[2] && k.rows[2].slice(0, 60));
   ok(k && k.border === '1px rgb(145, 116, 74)', 'Brun ram som övriga kort', k && k.border);
   const ordning = await p.evaluate(() => [...document.querySelectorAll('.lh-page h2')].map(h => h.innerText));
   ok(ordning.indexOf('Avbokningsregler') === ordning.indexOf('Öppettider') + 1, 'Ligger direkt under Öppettider', ordning.join(' > '));
@@ -64,7 +65,7 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
   ok(s3.border === '1px rgb(145, 116, 74)' && s3.w <= s3.vw, 'Ljus ruta med brun ram, ryms på skärmen', s3.bg + ' / ' + s3.border);
   await p.locator('.lh-cancel').screenshot({ path: '/tmp/t/avbok-steg3.png' });
   await p.fill('input[type=text]', 'Anna Andersson'); await p.fill('input[type=tel]', '070-123 45 67'); await p.fill('input[type=email]', 'anna@test.se');
-  await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
+  await p.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
   const d = await p.evaluate(() => ({ cancel: (document.querySelector('.lh-done .lh-cancel, .lh-cancel') || {}).innerText, sms: [...document.querySelectorAll('[data-sms="bekraftelse"]')].map(e => e.innerText).join(' '), body: document.querySelector('main').innerText }));
   ok(d.body.includes('Din tid är bokad!') && d.cancel && d.cancel.includes('senast måndag 2 november kl 10:00'), 'Bekräftelsen visar samma sista avbokningstid', (d.cancel || '').replace(/\n+/g, ' | '));
   ok(d.sms.includes('Avboka/ändra senast mån 2 nov kl 10:00 på 073-642 30 18.'), 'Bekräftelse-sms innehåller sista avbokningstid', d.sms.replace(/\n/g, ' '));

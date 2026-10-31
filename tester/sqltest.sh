@@ -5,7 +5,7 @@ T() { # T "beskrivning" roll uid "sql" förväntat-mönster
   if echo "$out" | grep -qE "$5"; then r="OK  "; else r="FEL "; fi
   echo "$r $1  ->  $(echo "$out" | cut -c1-110)"
 }
-BK() { echo "select (create_booking('$1'::jsonb, (($MON + interval '$2') at time zone 'Europe/Stockholm'), '$3', '$4', '$5'))->>'service_names'"; }
+BK() { echo "select (create_booking('$1'::jsonb, (($MON + interval '$2') at time zone 'Europe/Stockholm'), '$3', '$4', '$5', '2026-11-01'))->>'service_names'"; }
 P() { echo "[{\"category\":\"$1\",\"service_ids\":[$2]}]"; }   # en person: P Klippning '"klipp-45"'
 # Lias tjänster (29 okt 2026): klipp-45 45 min 600 kr, klipp-30 30 min 500 kr, klipp-lyx 60 min 850 kr, bryn 30 min 200 kr,
 # tvatt-fon 30 min 400 kr, harbotten 45 min 750 kr, perm-kort 120 min 1650 kr, farg-180 180 min 2500 kr. Öppet tis–fre 09–17.
@@ -24,7 +24,7 @@ T "6. Före öppning tis 08:45 (öppnar 09)" anon "" "$(BK "$(P Klippning '"klip
 T "7. Slutar efter stängning tis 16:30 + 45 min (stänger 17)" anon "" "$(BK "$(P Klippning '"klipp-45"')" '16 hours 30 minutes' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
 T "8. Fredag 16:30–17:00, sista tiden före stängning" anon "" "$(BK "$(P Klippning '"klipp-30"')" '3 days 16 hours 30 minutes' 'Cia C' '0702222222' 'cia@test.se')" "^Klippning/Herrklippning 30 min$"
 T "9. Lördag 11:00 (öppet vid förfrågan, ingen onlinebokning)" anon "" "$(BK "$(P Klippning '"klipp-30"')" '4 days 11 hours' 'Cia C' '0702222222' 'cia@test.se')" "UTANFOR_OPPETTID"
-T "10. Tid i dåtid" anon "" "select create_booking('[{\"category\":\"Klippning\",\"service_ids\":[\"klipp-30\"]}]'::jsonb, now() - interval '1 day', 'Cia C', '0702222222', 'cia@test.se')" "OGILTIG_TID"
+T "10. Tid i dåtid" anon "" "select create_booking('[{\"category\":\"Klippning\",\"service_ids\":[\"klipp-30\"]}]'::jsonb, now() - interval '1 day', 'Cia C', '0702222222', 'cia@test.se', '2026-11-01')" "OGILTIG_TID"
 T "11. Fel telefon (9 siffror)" anon "" "$(BK "$(P Klippning '"klipp-30"')" '1 day 12 hours' 'Cia C' '070222222' 'cia@test.se')" "OGILTIGT_TELEFON"
 T "12. Fel e-post" anon "" "$(BK "$(P Klippning '"klipp-30"')" '1 day 12 hours' 'Cia C' '0702222222' 'cia.test.se')" "OGILTIG_EPOST"
 T "13. Tomt namn" anon "" "$(BK "$(P Klippning '"klipp-30"')" '1 day 12 hours' ' ' '0702222222' 'cia@test.se')" "OGILTIGT_NAMN"
@@ -59,7 +59,7 @@ T "36. Ny grupp ons 11:30 (30+30 min) krockar med Kalle kl 12:00" anon "" "$(BK 
 T "37. Inget sparades av den krockande gruppen (allt eller inget)" authenticated "$LIA" "select count(*) from bookings where customer_name='Ulf U'" "^0$"
 T "38. Grupp som slutar efter stängning (fre 16:00, 30+30+30 min)" anon "" "$(BK '[{"category":"Styling, tvätt & föning","service_ids":["tvatt-fon"],"name":"B1"},{"category":"Styling, tvätt & föning","service_ids":["tvatt-fon"],"name":"B2"},{"category":"Styling, tvätt & föning","service_ids":["tvatt-fon"],"name":"B3"}]' '3 days 16 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "UTANFOR_OPPETTID"
 T "39. En person: inget förnamn behövs, sparas utan person_name" anon "" "$(BK "$(P Hårbottenmassage '"harbotten"')" '2 days 10 hours' 'Ulf U' '0705555555' 'ulf@test.se')" "^Hårbottenmassage$"
-T "40. Pris och tid från servern, inte webbsidan (Permanent kort = 1650 kr, 120 min)" anon "" "select (r->>'price')||' '||(r->>'duration') from (select create_booking('[{\"category\":\"Permanent\",\"service_ids\":[\"perm-kort\"],\"price\":1}]'::jsonb, (($MON + interval '2 days 14 hours') at time zone 'Europe/Stockholm'), 'Pia P', '0706666666', 'pia@test.se') r) x" "^1650 120$"
+T "40. Pris och tid från servern, inte webbsidan (Permanent kort = 1650 kr, 120 min)" anon "" "select (r->>'price')||' '||(r->>'duration') from (select create_booking('[{\"category\":\"Permanent\",\"service_ids\":[\"perm-kort\"],\"price\":1}]'::jsonb, (($MON + interval '2 days 14 hours') at time zone 'Europe/Stockholm'), 'Pia P', '0706666666', 'pia@test.se', '2026-11-01') r) x" "^1650 120$"
 T "41. Kunden kan inte läsa förnamnen via get_busy" anon "" "select count(*) from get_busy(now(), now() + interval '14 days') g where row_to_json(g)::text like '%Kalle%'" "^0$"
 T "42. Torsdag 09:00, första tiden (öppnar 09), slutar 10:00 direkt före nästa bokning" anon "" "$(BK "$(P 'Styling, tvätt & föning' '"tvatt-fon-60"')" '2 days 9 hours' 'Gun G' '0707777777' 'gun@test.se')" "^Tvätt & fön/ styling 1 timma$"
 T "43. Söndag 11:00 (stängt)" anon "" "$(BK "$(P Klippning '"klipp-30"')" '5 days 11 hours' 'Gun G' '0707777777' 'gun@test.se')" "UTANFOR_OPPETTID"
@@ -106,3 +106,10 @@ T "68. 16:15–17:00 slutar vid stängning (0 min) → går att boka" anon "" "$
 T "69. 15:45–16:00 (putsning) lämnar 15 min före 16:15 → stoppas" anon "" "$(BK "$(P Klippning '"putsning"')" '7 days 15 hours 45 minutes' 'Lucka H' '0701010108' 'l@t.se')" "KORT_LUCKA"
 T "70. Grupp 09:00 (30+30 min) slutar 10:00 direkt före → går att boka" anon "" "$(BK '[{"category":"Klippning","service_ids":["klipp-30"],"name":"G1"},{"category":"Frans och/eller brynfärg","service_ids":["bryn"],"name":"G2"}]' '7 days 9 hours' 'Lucka I' '0701010109' 'l@t.se')" "G1: Klippning/Herrklippning 30 min"
 $P -c "delete from bookings where customer_name like 'Lucka%'" >/dev/null
+
+echo "--- Avbokningsregler måste godkännas (ny 1 nov) ---"
+T "71. Bokning utan godkända regler stoppas" anon "" "select create_booking('[{\"category\":\"Klippning\",\"service_ids\":[\"klipp-30\"]}]'::jsonb, (($MON + interval '8 days 9 hours') at time zone 'Europe/Stockholm'), 'Rut R', '0701212121', 'r@t.se')" "REGLER_EJ_GODKANDA"
+T "72. Bokning med fel/gammal regelversion stoppas" anon "" "select create_booking('[{\"category\":\"Klippning\",\"service_ids\":[\"klipp-30\"]}]'::jsonb, (($MON + interval '8 days 9 hours') at time zone 'Europe/Stockholm'), 'Rut R', '0701212121', 'r@t.se', '2025-01-01')" "REGLER_EJ_GODKANDA"
+T "73. Med godkända regler går det att boka" anon "" "$(BK "$(P Klippning '"klipp-30"')" '8 days 9 hours' 'Rut R' '0701212121' 'r@t.se')" "^Klippning/Herrklippning 30 min$"
+T "74. Regelversionen sparas på bokningen (bevis)" authenticated "$LIA" "select rules_version || ' ' || (abs(extract(epoch from created_at - now())) < 60)::text from bookings where customer_name='Rut R'" "^2026-11-01 true$"
+$P -c "delete from bookings where customer_name='Rut R'" >/dev/null

@@ -68,6 +68,8 @@ alter table public.bookings drop constraint if exists cancel_note_langd;
 alter table public.bookings add constraint cancel_note_langd check (cancel_note is null or char_length(cancel_note) <= 160);
 -- När Lia avbokade (30 okt 2026). Sätts av databasen själv (serverns klocka) och går inte att ändra i efterhand.
 alter table public.bookings add column if not exists cancelled_at timestamptz;
+-- Vilken version av avbokningsreglerna kunden godkände vid bokningen (tidpunkt = created_at), 1 nov 2026
+alter table public.bookings add column if not exists rules_version text;
 create or replace function public.satt_avbokad_tid() returns trigger
 language plpgsql as $$
 begin
@@ -147,13 +149,15 @@ $$;
 -- Personerna klipps efter varandra (en frisör): person 2 börjar när person 1 är klar osv.
 -- Allt eller inget: krockar någon del sparas ingenting.
 drop function if exists public.create_booking(text[], timestamptz, text, text, text);
+drop function if exists public.create_booking(jsonb, timestamptz, text, text, text);   -- ersatt 1 nov 2026 (kräver godkända avbokningsregler)
 
 create or replace function public.create_booking(
   p_people    jsonb,
   p_starts_at timestamptz,
   p_name      text,
   p_phone     text,
-  p_email     text
+  p_email     text,
+  p_rules     text default null   -- version av avbokningsreglerna som kunden godkände ('2026-11-01')
 )
 returns json
 language plpgsql security definer
@@ -195,6 +199,8 @@ begin
   if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
+  if p_rules is distinct from '2026-11-01' then raise exception 'REGLER_EJ_GODKANDA'; end if;
 
   -- Personer
   if p_people is null or jsonb_typeof(p_people) <> 'array' then raise exception 'OGILTIGA_TJANSTER'; end if;
@@ -272,9 +278,9 @@ begin
       from public.services where id = any(v_ids) and category = v_cat;
     begin
       insert into public.bookings
-        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id)
+        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id, rules_version)
       values
-        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group)
+        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group, p_rules)
       returning id into v_id;
     exception when exclusion_violation then
       raise exception 'TIDEN_UPPTAGEN';
@@ -294,10 +300,10 @@ end;
 $$;
 
 revoke all on function public.get_busy(timestamptz, timestamptz) from public;
-revoke all on function public.create_booking(jsonb, timestamptz, text, text, text) from public;
+revoke all on function public.create_booking(jsonb, timestamptz, text, text, text, text) from public;
 revoke all on function public.is_admin() from public;
 grant execute on function public.get_busy(timestamptz, timestamptz) to anon, authenticated;
-grant execute on function public.create_booking(jsonb, timestamptz, text, text, text) to anon, authenticated;
+grant execute on function public.create_booking(jsonb, timestamptz, text, text, text, text) to anon, authenticated;
 grant execute on function public.is_admin() to authenticated;
 
 -- ---------- 7. Live-larm till admin-sidan ----------

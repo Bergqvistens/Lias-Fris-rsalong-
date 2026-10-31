@@ -95,14 +95,14 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await b.click('text=Fortsätt'); await b.waitForTimeout(300);
   ok((await mainText(b)).includes('STEG 3 AV 3'), 'Steg 3 av 3');
   ok(await b.$$eval('[data-summary="bokning"] .lh-row svg', x => x.length) === 4, 'Sammanfattningen har fyra rader med linjeikoner');
-  await b.click('button:has-text("Boka ·")'); await b.waitForTimeout(200);
+  await b.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await b.click('button:has-text("Boka ·")'); await b.waitForTimeout(200);
   const fe = await b.$$eval('[data-err]', es => es.map(e => { const f = e.closest('.lh-field'); const inp = f.querySelector('input'); return { t: e.innerText, inv: inp.getAttribute('aria-invalid'), desc: (inp.getAttribute('aria-describedby') || '').includes(e.id), below: e.getBoundingClientRect().top >= inp.getBoundingClientRect().bottom }; }));
   ok(fe.length === 3 && fe.every(x => x.inv === 'true' && x.desc && x.below), 'Feltexter under rätt fält, kopplade med aria-describedby', fe.map(x => x.t).join(' | '));
   const lab = await b.$$eval('.lh-field', fs => fs.every(f => { const l = f.querySelector('label'), i = f.querySelector('input'); return l && l.htmlFor === i.id && l.getBoundingClientRect().bottom <= i.getBoundingClientRect().top + 1; }));
   ok(lab, 'Etiketter ligger ovanför fälten och är kopplade (for/id)');
   await b.fill('input[type=text]', 'Stina Svensson'); await b.fill('input[type=tel]', '0701112233'); await b.fill('input[type=email]', 'stina@exempel.se');
   await b.screenshot({ path: '/tmp/t/s4-boka3.png' });
-  await b.click('button:has-text("Boka ·")'); await b.waitForTimeout(900);
+  await b.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await b.click('button:has-text("Boka ·")'); await b.waitForTimeout(900);
   const done = await mainText(b);
   ok(done.includes('Din tid är bokad!') && done.includes('Välkommen, Stina!') && !EMOJI.test(done.split('Demo: sms')[0]), 'Bekräftelse utan emojis', done.split('\n').slice(0, 3).join(' | '));
   ok(!!(await b.$('[data-sms="bekraftelse"]')), 'Demo-sms visas i bekräftelsen');

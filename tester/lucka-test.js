@@ -65,9 +65,9 @@ const q = (a, b) => { const out = []; let [h, m] = a.split(':').map(Number); con
   ok(t.includes('10:45'), 'Kund B ser 10:45');
   await B.click('.lh-time:text-is("10:45")'); await B.click('text=Fortsätt'); await B.waitForTimeout(300);
   await B.fill('input[type=text]', 'Kund B'); await B.fill('input[type=tel]', '0702222222'); await B.fill('input[type=email]', 'b@t.se');
-  await B.click('button:has-text("Boka ·")'); await B.waitForTimeout(900);
+  await B.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await B.click('button:has-text("Boka ·")'); await B.waitForTimeout(900);
   ok((await B.evaluate(() => document.querySelector('main').innerText)).includes('Din tid är bokad!'), 'Kund B bokar 10:45–11:15');
-  await A.click('button:has-text("Boka ·")'); await A.waitForTimeout(1200);
+  await A.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await A.click('button:has-text("Boka ·")'); await A.waitForTimeout(1200);
   const at = await A.evaluate(() => document.querySelector('main').innerText);
   const aTimes = await A.$$eval('.lh-time', ts => ts.map(x => x.innerText.trim()));
   ok(at.includes('Någon hann boka precis bredvid, så den tiden skulle lämna en kort lucka i Lias schema. Välj en annan tid.') && at.includes('STEG 2 AV 3') && !aTimes.includes('11:30') && aTimes.includes('12:00'), 'Kund A: tydligt besked, tillbaka till tidsvalet, 11:30 borta, 12:00 finns', aTimes.slice(0, 3).join(' '));

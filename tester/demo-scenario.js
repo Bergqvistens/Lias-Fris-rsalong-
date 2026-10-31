@@ -65,7 +65,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   console.log('--- Kund bokar i flik 2 ---');
   const k1 = await open();
   const t1 = await book(k1, 'klipp-45', t => t[2], 'Anna Andersson');
-  await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(800);
+  await k1.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k1.click('button:has-text("Boka ·")'); await k1.waitForTimeout(800);
   const d1 = await mainText(k1);
   ok(d1.includes('Din tid är bokad!'), 'Kunden får "Din tid är bokad!"', 'tid ' + t1);
   const bubble = await k1.$eval('[data-sms="bekraftelse"]', e => e.innerText).catch(() => '');
@@ -87,13 +87,13 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   const tFree = await book(k2, 'bryn', t => t[t.length - 1], 'Bo Berg');
   await book(k3, 'bryn', t => t[t.length - 1], 'Cia Carlsson');
   ok(!(await times(k2)).includes(t1), 'Den bokade tiden ' + t1 + ' saknas för nästa kund');
-  await k2.click('button:has-text("Boka ·")'); await k2.waitForTimeout(700);
-  await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(700);
+  await k2.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k2.click('button:has-text("Boka ·")'); await k2.waitForTimeout(700);
+  await k3.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k3.click('button:has-text("Boka ·")'); await k3.waitForTimeout(700);
   ok((await mainText(k2)).includes('Din tid är bokad!'), 'Första kunden får ' + tFree);
   ok((await mainText(k3)).includes('Någon hann boka den tiden') && (await mainText(k3)).includes('STEG 2 AV 3'), 'Andra kunden får besked och skickas till tidsvalet');
   const k4 = await open();
   await book(k4, 'bryn', t => t[0], 'D');
-  await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(400);
+  await k4.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k4.click('button:has-text("Boka ·")'); await k4.waitForTimeout(400);
   ok((await mainText(k4)).includes('Skriv ditt namn'), 'För kort namn stoppas');
 
   console.log('--- Lia avbokar ---');

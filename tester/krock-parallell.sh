@@ -4,7 +4,7 @@ P="psql -h /tmp/pg -p 5433 -U postgres -d lias -tA -q"
 DAG="(date_trunc('week', now() at time zone 'Europe/Stockholm') + interval '8 days')"   # tisdag nästa vecka
 pass=0; fail=0
 boka() { # $1 personer-json  $2 starttid  $3 kundnamn
-  $P -c "set role anon" -c "select create_booking('$1'::jsonb, (($DAG + interval '$2') at time zone 'Europe/Stockholm'), '$3', '0701234567', 'x@y.se')->>'service_names'" 2>&1 | grep -oE "TIDEN_UPPTAGEN|ERROR.*|[A-Za-zåäö].*" | head -1
+  $P -c "set role anon" -c "select create_booking('$1'::jsonb, (($DAG + interval '$2') at time zone 'Europe/Stockholm'), '$3', '0701234567', 'x@y.se', '2026-11-01')->>'service_names'" 2>&1 | grep -oE "TIDEN_UPPTAGEN|ERROR.*|[A-Za-zåäö].*" | head -1
 }
 GRUPP='[{"category":"Klippning","service_ids":["klipp-30"],"name":"Kalle"},{"category":"Frans och/eller brynfärg","service_ids":["bryn"],"name":"Anna"},{"category":"Styling, tvätt & föning","service_ids":["tvatt-fon"],"name":"Lisa"}]'   # 12:00–13:30 (30+30+30 min)
 EN='[{"category":"Klippning","service_ids":["klipp-lyx"]}]'   # 60 min

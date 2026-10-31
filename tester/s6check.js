@@ -135,7 +135,7 @@ const H = 3600000, D = 86400000;
   await (await k.$$('.lh-day'))[1].click(); await k.waitForTimeout(500);
   await k.click('.lh-time >> nth=0'); await k.click('text=Fortsätt');
   await k.fill('input[type=text]', 'Nils Nyman'); await k.fill('input[type=tel]', '0701231231'); await k.fill('input[type=email]', 'n@b.se');
-  await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900);
+  await k.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await k.click('button:has-text("Boka ·")'); await k.waitForTimeout(900);
   await lia.waitForTimeout(800);
   ok((await lia.evaluate(() => window.__chimes)) > ch0 && (await lia.evaluate(() => window.__notifs)).some(n => n.includes('Nils Nyman')), 'Ny bokning ger ljud och notis även när Lia är på ekonomifliken');
   await lia.click('[data-admintab="bokningar"]'); await lia.waitForTimeout(300);

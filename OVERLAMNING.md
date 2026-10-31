@@ -240,3 +240,12 @@
 - Exempel tom dag, 45 min: 09:00, 09:45–15:30, 16:15. Avbokningar kan fortfarande skapa luckor (går inte att förhindra).
 - Test: lucka-test.js (11), sqltest 62–70 (42 och 44 ändrade så de följer regeln), scenario jämför tider mot en kund i Sverige. lokal-testdatabas.sql ny dump 31 okt (återställning provad).
 - Hela sviten: 39 sviter, 1131 kontroller, alla gröna.
+
+## 1 nov: uteblivet besök, del 1 – regeln för kunderna + godkännande
+- Lias regel (svar 1 nov): uteblivet besök och sen avbokning räknas lika; kund känns igen på telefonnummer; senaste 12 månaderna; 1:a gången utan kostnad, 2:a och alla följande = hela priset för den bokade behandlingen; när skulden är betald nollställs räkningen (nästa gång räknas som första igen); sms automatiskt 15 min efter starttid (del 3), Lia kan bekräfta att kunden kom.
+- Godkända av Tommy ("Kör på 1–3"): notis till Lia efter 10 min; "Kunden kom ändå" häver; vid Lias avbokning nära inpå frågar appen "Vem avbokade?"; betald skuld nollställer.
+- Del 1 byggd: NOSHOW_TEXT på Kontakt (tredje regeln), i Mer info (kort rad), i avbokningsrutan i steg 3 och i bekräftelsen. Kryssruta "Jag har läst och godkänner avbokningsreglerna, även att uteblivna besök kan debiteras." – krävs för att boka. RULES_VERSION '2026-11-01' skickas som p_rules; create_booking (nu 6 parametrar) kräver den (REGLER_EJ_GODKANDA) och sparar bookings.rules_version (bevis; tidpunkt = created_at).
+- Inte i sms:et: att lägga till regeltexten där skulle göra bokningssms:et 3 delar i stället för 2.
+- Gäller frisörbokningar (inte keramikkurser).
+- Test: regler-test.js (9), sqltest 71–74 (BK och krock-parallell skickar nu regelversionen), e2e.js skickar p_rules. Äldre tester kryssar i rutan före "Boka".
+- Hela sviten: 40 sviter, 1144 kontroller, alla gröna. lokal-testdatabas.sql ny dump 1 nov (återställning provad).
