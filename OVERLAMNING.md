@@ -229,3 +229,7 @@
 - **Larmet:** valet sparas i telefonen (localStorage 'lias_larm' = pa/av). Nästa gång: larmet redan på, notiser fungerar direkt. Ljud: Chrome tillåter inte ljud förrän användaren tryckt på sidan → ljudet startas automatiskt vid första tryck var som helst (pointerdown/keydown/touchend/click). Text: "Larmet är på. Ljudet startar när du trycker någonstans på sidan." → "Larmet är på (ljud + notis)." Knappar: Testa ljudet, Stäng av larmet (sparas). Enligt Google får sidor på mobilens startskärm spela ljud utan tryck – inte provat på riktig telefon.
 - Test: larm-test.js (11). OBS: testwebbläsaren (headless Chromium) spelar ljud utan tryck, så mobilens regel efterliknas i testet (AudioContext avstängd tills tryck).
 - Hela sviten 31 okt: 38 sviter, 1111 kontroller, alla gröna.
+
+## 31 okt: e-post och sms-kostnad (beslut/underlag, ingen kodändring)
+- E-post: Tommy vill skaffa egen domän via Loopia (förslag liashantverkeri.se; adresser hej@ / boka@ / info@ / lia@ – Lia väljer) och vidarekoppla till lias.hantverkeri@gmail.com. Skicka-som från Gmail rekommenderas inte: Google slutar stödja "Send as" för tredjepartsadresser från januari 2027 (support.google.com/mail/answer/22370). Vid behov att svara från nya adressen: Google Workspace eller Loopias e-post. När adressen är vald: byt CONTACT.email i appen.
+- Sms-pris (företagens sidor 30 okt): 46elks 0,52 kr/sms-del exkl. moms, ingen månadsavgift; Cellsynt 0,65 kr exkl. moms. Bokningssms ≈ 297 tecken = 2 delar; avbokning utan meddelande 1 del.
