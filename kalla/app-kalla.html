@@ -646,7 +646,7 @@
     const DEMO_STOCK = { 's-cup': 5, 's-bowl': 3, 's-vase': 1, 's-plate': 4, 's-pot': 6, 's-set': 0 };
     const DEMO_SEED_TAKEN = { 'c-begin': [6, 2], 'c-adv': [3], 'c-kids': [12, 4], 'c-drop': [4, 10, 2] };
 
-    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000, uteblivna: [] });
+    const demoEmpty = () => ({ bookings: [], sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000, uteblivna: [], sparrade: [] });
     function demoLoad() {
       try { const d = JSON.parse(localStorage.getItem(DEMO_KEY)); if (d && Array.isArray(d.bookings)) return { ...demoEmpty(), ...d }; } catch (e) {}
       return demoEmpty();
@@ -697,6 +697,7 @@
     // opt (bara internt, från demoKundOmboka): { rebookFrom: gamla starttiden, late } – annan sms-text och bekräftad direkt
     function demoCreateBooking(p, opt) {
       const c = demoCheckContact(p); if (c.err) return fail(c.err);
+      if (demoLoad().sparrade.some(x => x.customer_phone === c.phone)) return fail('SPARRAD');   // Lia spärrade kunden (1 nov 2026)
       if (p.p_rules !== RULES_VERSION) return fail('REGLER_EJ_GODKANDA');
       const people = p.p_people;
       if (!Array.isArray(people)) return fail('OGILTIGA_TJANSTER');
@@ -769,6 +770,7 @@
     }
     function demoBookCourse(p) {
       const c = demoCheckContact(p); if (c.err) return fail(c.err);
+      if (demoLoad().sparrade.some(x => x.customer_phone === c.phone)) return fail('SPARRAD');   // spärren gäller även kurser (Tommy 1 nov 2026)
       const course = COURSES_DATA.find(x => x.id === p.p_course_id);
       if (!course) return fail('OGILTIG_OMGANG');
       const occ = courseOccasions(course).find(o => o.key === p.p_occasion_key);
@@ -869,7 +871,8 @@
       const h = demoKundHours(live), dl = start - h * 3600000;
       const info = { starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(), customer_name: live[0].customer_name,
         items: live.map(b => ({ person_name: b.person_name, service_ids: b.service_ids, service_names: b.service_names, price: b.price, starts_at: b.starts_at, ends_at: b.ends_at })),
-        price: live.reduce((a, b) => a + b.price, 0), cancel_hours: h, deadline: new Date(dl).toISOString(), late: Date.now() >= dl, can_change: start > Date.now() };
+        price: live.reduce((a, b) => a + b.price, 0), cancel_hours: h, deadline: new Date(dl).toISOString(), late: Date.now() >= dl, can_change: start > Date.now(),
+        sparrad: db.sparrade.some(x => x.customer_phone === live[0].customer_phone) };
       if (live[0].confirmed_at) return { data: { ...info, already: true, confirmed_at: live[0].confirmed_at }, error: null };
       const now = new Date().toISOString();
       live.forEach(b => { b.confirmed_at = now; });
@@ -910,6 +913,7 @@
       const live = k.live, start = new Date(live[0].starts_at).getTime(), ny = new Date(p.p_starts_at).getTime();
       if (start <= Date.now()) return fail('TIDEN_HAR_BORJAT');
       if (ny === start) return fail('SAMMA_TID');
+      if (db.sparrade.some(x => x.customer_phone === live[0].customer_phone)) return fail('SPARRAD');
       const h = demoKundHours(live), late = Date.now() >= start - h * 3600000, now = new Date().toISOString(), ids = live.map(b => b.id);
       const people = live.map(b => ({ category: (SERVICES.find(s => s.id === (b.service_ids || [])[0]) || {}).cat, service_ids: b.service_ids, name: b.person_name || '' }));
       live.forEach(b => { b.status = 'avbokad'; b.cancelled_at = now; b.cancelled_by = 'kund'; b.ombokad_till = isFinite(ny) ? new Date(ny).toISOString() : null; });
@@ -930,10 +934,10 @@
     // ---- Uteblivet besök / sen avbokning (1 nov 2026). Samma regler som i databasen. ----
     function demoNextNumber(db, phone) {
       const cut = new Date(); cut.setMonth(cut.getMonth() - 12);
-      const paid = db.uteblivna.filter(u => u.customer_phone === phone && u.status === 'betald').map(u => new Date(u.andrad_at).getTime());
-      const reset = paid.length ? Math.max(...paid) : -Infinity;
-      return 1 + db.uteblivna.filter(u => u.customer_phone === phone && ['ingen_avgift', 'obetald'].includes(u.status) && new Date(u.created_at) > cut && new Date(u.created_at).getTime() > reset).length;
+      // Lia 1 nov 2026: räkningen börjar inte om vid betalning; efterskänkt räknas, "kunden kom ändå" (havd) räknas inte
+      return 1 + db.uteblivna.filter(u => u.customer_phone === phone && UTE_RAKNAS.includes(u.status) && new Date(u.created_at) > cut).length;
     }
+    const UTE_RAKNAS = ['ingen_avgift', 'obetald', 'betald', 'efterskankt'];
     const groupRows = (db, b) => db.bookings.filter(x => (b.group_id && x.group_id === b.group_id) || x.id === b.id);
     // Betalningsuppgifter för debiteringssms (Tommy lägger in dem senare, t.ex. 'Swish 123 456 78 90'). Tom = debitering kan inte skickas.
     // Läggs in i window.LH_PAYMENT_INFO överst i index.html (skriptet med bildfilerna). Tom = debitering kan inte skickas.
@@ -1018,12 +1022,42 @@
     }
     function demoUteblivetAndra(p) {
       if (!demoSession()) return fail('EJ_ADMIN');
-      if (!['betald', 'havd'].includes(p.p_status)) return fail('OGILTIG_STATUS');
+      if (!['betald', 'efterskankt'].includes(p.p_status)) return fail('OGILTIG_STATUS');
       const db = demoLoad(), u = db.uteblivna.find(x => x.id === p.p_id);
       if (!u || !['ingen_avgift', 'obetald'].includes(u.status) || (p.p_status === 'betald' && u.status !== 'obetald')) return fail('OGILTIG_STATUS');
       u.status = p.p_status; u.andrad_at = new Date().toISOString();
       demoSave(db);
       return { data: u, error: null };
+    }
+    // ---- Spärr från onlinebokning (1 nov 2026). Samma regler som sparra_kund/hav_sparr i databasen. ----
+    const SPARR_TEXT = 'Du kan inte boka tid på nätet just nu. Kontakta Lia på 073-642 30 18 eller kom in till salongen så löser ni det tillsammans.';
+    function demoSparra(p) {
+      if (!demoSession()) return fail('EJ_ADMIN');
+      const phone = String(p.p_phone || '').replace(/\D/g, '');
+      if (!/^0\d{9}$/.test(phone)) return fail('OGILTIGT_TELEFON');
+      const db = demoLoad();
+      if (db.sparrade.some(x => x.customer_phone === phone)) return fail('REDAN_SPARRAD');
+      const n = demoNextNumber(db, phone) - 1;
+      if (n < 3) return fail('FOR_FA_GANGER');
+      const last = db.uteblivna.filter(u => u.customer_phone === phone).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      db.sparrade.push({ customer_phone: phone, customer_name: last.customer_name, sparrad_at: new Date().toISOString() });
+      const now = new Date().toISOString(), avb = [];
+      [['bookings', 'bookings'], ['courseBookings', 'course_bookings']].forEach(([key, table]) => db[key].filter(r => r.customer_phone === phone && r.status === 'bokad' && new Date(r.starts_at).getTime() > Date.now()).forEach(r => {
+        r.status = 'avbokad'; r.cancelled_at = now; r.cancelled_by = 'lia'; r.cancel_note = SPARR_TEXT; avb.push([table, r]);
+        const when = demoWhen(new Date(r.starts_at).getTime());
+        demoAddSms(db, phone, table === 'bookings' ? 'avbokning' : 'kurs-avbokning', r.id, (table === 'bookings' ? `Din tid hos Lias Hantverkeri ${when} är avbokad. ` : `Din plats på ${r.course_name} hos Lias Hantverkeri (${when}) är avbokad. `) + SPARR_TEXT);
+      }));
+      demoSave(db);
+      avb.forEach(([t, r]) => demoEmit(t, r, 'UPDATE'));
+      return { data: { customer_phone: phone, customer_name: last.customer_name, ganger: n, avbokade: avb.length }, error: null };
+    }
+    function demoHavSparr(p) {
+      if (!demoSession()) return fail('EJ_ADMIN');
+      const phone = String(p.p_phone || '').replace(/\D/g, ''), db = demoLoad(), n = db.sparrade.length;
+      db.sparrade = db.sparrade.filter(x => x.customer_phone !== phone);
+      if (db.sparrade.length === n) return fail('INTE_SPARRAD');
+      demoSave(db);
+      return { data: { customer_phone: phone }, error: null };
     }
     function demoDeletePhoto(p) {
       const db = demoLoad(), n = db.photos.length;
@@ -1035,7 +1069,7 @@
 
     function createDemoClient() {
       const wait = v => new Promise(r => setTimeout(() => r(v), 250));   // känns som ett nätverksanrop
-      const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders', uteblivna: 'uteblivna' };
+      const TABLE = { bookings: 'bookings', course_bookings: 'courseBookings', orders: 'orders', uteblivna: 'uteblivna', sparrade: 'sparrade' };
       const builder = table => {
         const q = { filters: [], update: null, desc: false, orderBy: 'starts_at' };
         const run = () => {
@@ -1120,6 +1154,8 @@
             return wait({ data: n, error: null });
           }
           if (fn === 'uteblivet_andra') return wait(demoUteblivetAndra(p));
+          if (fn === 'sparra_kund') return wait(demoSparra(p));
+          if (fn === 'hav_sparr') return wait(demoHavSparr(p));
           if (fn === 'uteblivet_skicka') return wait(demoUteblivetSkicka(p));
           if (fn === 'uteblivet_forhand') { if (!demoSession()) return wait(fail('EJ_ADMIN')); return wait({ data: demoNextNumber(demoLoad(), String(p.p_phone || '').replace(/\D/g, '')), error: null }); }
           if (fn === 'rensa_gamla_avbokningar') {
@@ -1518,6 +1554,7 @@
 
     const BOOKING_ERRORS = {
       TIDEN_UPPTAGEN: 'Någon hann boka den tiden precis före dig. Välj en annan tid.',
+      SPARRAD: 'Du kan inte boka tid på nätet just nu. Kontakta Lia på 073-642 30 18 eller kom in till salongen så löser ni det tillsammans.',
       REGLER_EJ_GODKANDA: 'Du behöver godkänna avbokningsreglerna för att kunna boka.',
       KORT_LUCKA: 'Någon hann boka precis bredvid, så den tiden skulle lämna en kort lucka i Lias schema. Välj en annan tid.',
       OGILTIG_TID: 'Den tiden går inte längre att boka. Välj en annan tid.',
@@ -3204,8 +3241,11 @@
       const [askEl, ask] = useAppConfirm();
       const [cancelled, setCancelled] = useState([]);   // avbokade de senaste 12 månaderna (30 okt)
       const [showAllCancelled, setShowAllCancelled] = useState(false);
+      const [showAllPaid, setShowAllPaid] = useState(false);
       const [statusErr, setStatusErr] = useState(null);
       const [strikes, setStrikes] = useState([]);   // uteblivna besök / sena avbokningar (1 nov)
+      const [sparrade, setSparrade] = useState([]);   // spärrade kunder (1 nov)
+      const loadSparr = async () => { const { data, error } = await sb.from('sparrade').select('*').order('sparrad_at', { ascending: false }); if (!error) setSparrade(data || []); };
       const loadStrikes = async () => { const { data, error } = await sb.from('uteblivna').select('*').order('created_at', { ascending: false }); if (!error) setStrikes(data || []); };
       const strikeFor = b => strikes.find(u => (u.group_id || u.booking_id) === (b.group_id || b.id) && u.status !== 'havd');
       const ordning = n => n + (n === 1 || n === 2 ? ':a' : ':e');
@@ -3257,10 +3297,23 @@
         if (!a) return;
         if (await rpcDo('uteblivet_skicka', { p_id: u.id, p_orsak: orsak })) loadStrikes();
       };
+      // Spärr (1 nov 2026): Lia väljer med knapp när kunden har 3 eller fler gånger på 12 månader
+      const sparra = async r => {
+        const k = [...lists.bookings, ...lists.course_bookings].filter(x => x.customer_phone === r.phone && x.status === 'bokad' && new Date(x.starts_at).getTime() > Date.now()).length;
+        const a = await ask({ title: 'Spärra ' + r.name + ' från onlinebokning?', lines: [r.phone, r.n + ' gånger de senaste 12 månaderna', k ? k + (k === 1 ? ' kommande tid avbokas' : ' kommande tider avbokas') + ' automatiskt' : 'Inga kommande tider att avboka'],
+          note: 'Kunden kan inte boka frisörtider eller kurser på nätet förrän du häver spärren. Kommande tider avbokas med texten: ”' + SPARR_TEXT + '”', yes: 'Ja, spärra', no: 'Avbryt', danger: true });
+        if (!a) return;
+        if (await rpcDo('sparra_kund', { p_phone: r.phone })) load();
+      };
+      const havSparr = async r => {
+        const a = await ask({ title: 'Häva spärren för ' + r.name + '?', lines: [r.phone], note: 'Kunden kan boka på nätet igen. Tider som avbokades vid spärren kommer inte tillbaka.', yes: 'Ja, häv spärren', no: 'Avbryt' });
+        if (!a) return;
+        if (await rpcDo('hav_sparr', { p_phone: r.phone })) loadSparr();
+      };
       const strikeChange = async (u, status) => {
         const a = await ask(status === 'betald'
-          ? { title: 'Markera som betald?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Avgiften markeras som betald och räkningen för kunden börjar om.', yes: 'Ja, den är betald', no: 'Avbryt' }
-          : { title: 'Efterskänka avgiften?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Kunden behöver inte betala, och det här tillfället räknas inte längre.', yes: 'Ja, efterskänk', no: 'Avbryt' });
+          ? { title: 'Markera som betald?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Avgiften markeras som betald. Tillfället räknas fortfarande i 12 månader, så nästa gång blir det debitering igen.', yes: 'Ja, den är betald', no: 'Avbryt' }
+          : { title: 'Efterskänka avgiften?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Kunden behöver inte betala den här gången. Tillfället räknas ändå i 12 månader, så nästa gång blir det debitering.', yes: 'Ja, efterskänk', no: 'Avbryt' });
         if (!a) return;
         if (await rpcDo('uteblivet_andra', { p_id: u.id, p_status: status })) loadStrikes();
       };
@@ -3332,7 +3385,7 @@
         });
         loadedOnce.current = true;
         setLists(next); setListState('ok');
-        loadCancelled(); loadStrikes();
+        loadCancelled(); loadStrikes(); loadSparr();
       };
 
       useEffect(() => {
@@ -3403,13 +3456,20 @@
       const H = { color: 'var(--flow-fg, #F4EDE0)', fontSize: '19px', fontFamily: T.font.heading, margin: '22px 0 10px 0' };
       const card = id => ({ ...BOX, borderColor: newIds.includes(id) ? COLORS.sandBrown : COLORS.earthBrown, boxShadow: newIds.includes(id) ? '0 0 0 3px #E8B863' : 'none' });
       const nyBadge = id => newIds.includes(id) && <span style={{ backgroundColor: '#E8B863', color: COLORS.dark, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>NY</span>;
-      const contact = r => (
+      // Obetalda avgifter för en kund (telefonnummer): röd ruta på kundens kort (Lia 1 nov 2026)
+      const unpaidFor = phone => strikes.filter(u => u.customer_phone === phone && u.status === 'obetald');
+      const KIND_TXT = { uteblev: 'uteblivet besök', sen_avbokning: 'sen avbokning', sen_ombokning: 'sen ombokning', sen_ankomst: 'sen ankomst' };
+      const contact = r => { const un = unpaidFor(r.customer_phone); return (
         <div style={{ fontSize: '14px', color: COLORS.dark, lineHeight: '1.7' }}>
           <div>👤 <strong>{r.customer_name}</strong></div>
           <div>📞 <a href={'tel:' + r.customer_phone} style={{ color: COLORS.primary }}>{r.customer_phone}</a></div>
           <div>📧 <a href={'mailto:' + r.customer_email} style={{ color: COLORS.primary }}>{r.customer_email}</a></div>
+          {un.length > 0 && <div data-skuld style={{ margin: '6px 0 8px', padding: '10px 12px', borderRadius: '10px', background: '#FBE3DD', border: '2px solid #B3261E', color: '#7A1410' }}>
+            <div style={{ fontSize: '15px', fontWeight: 800 }}>❌ Ej betald: {formatPrice(un.reduce((a, u) => a + u.belopp, 0))}</div>
+            {un.map(u => <div key={u.id} style={{ fontSize: '14px' }}>{KIND_TXT[u.kind].replace(/^./, c => c.toUpperCase())} (registrerad {dayKeyLabel(dayKey(new Date(u.created_at).getTime())).toLowerCase()}) · {formatPrice(u.belopp)}{u.skickat_at ? '' : ' · debitering inte skickad'}</div>)}
+          </div>}
         </div>
-      );
+      ); };
 
       if (!sb) return <div style={wrap}><div style={BOX}><strong style={{ color: COLORS.earthBrown }}>Admin är inte kopplad till Supabase ännu.</strong></div></div>;
       if (session === undefined) return <div style={wrap}><div style={BOX}>Kontrollerar inloggning…</div></div>;
@@ -3559,7 +3619,7 @@
                 })}
               </div>
 
-              {(() => { const debts = strikes.filter(u => u.status === 'obetald' || (u.status === 'ingen_avgift' && !u.skickat_at)); return <>
+              {(() => { const debts = strikes.filter(u => u.status === 'obetald' || (u.status === 'ingen_avgift' && !u.skickat_at)); const paidList = strikes.filter(u => u.status === 'betald').sort((a, b) => new Date(b.andrad_at) - new Date(a.andrad_at)); return <>
               <h2 style={H} data-rubrik="avgifter">💳 Avgifter och varningar ({debts.length})</h2>
               <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Sen ankomst, uteblivna besök, sena av- och ombokningar. 1:a gången: skicka en varning. Från 2:a gången: skicka debitering (betala inom 7 dagar) och markera som betald när pengarna kommit. Du kan alltid efterskänka.</p>
               {debts.length === 0
@@ -3568,7 +3628,12 @@
                     <div key={u.id} data-avgift={u.id} style={{ ...BOX, borderColor: '#A33A1C' }}>
                       <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{u.customer_name}</strong> · <a href={'tel:' + u.customer_phone} style={{ color: COLORS.rosemary }}>{u.customer_phone}</a></div>
                       <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }}>{{ uteblev: 'Uteblivet besök', sen_avbokning: 'Sen avbokning', sen_ombokning: 'Sen ombokning', sen_ankomst: 'Sen ankomst' }[u.kind]} · {ordning(u.nummer)} gången · registrerat {whenFull(new Date(u.created_at).getTime())}</div>
-                      <div style={{ margin: '6px 0 4px', fontSize: '18px', fontWeight: 800, color: '#7A2A10' }} data-belopp>{u.belopp ? formatPrice(u.belopp) : 'Ingen avgift (1:a gången)'}</div>
+                      {u.status === 'obetald'
+                        ? <div data-betalstatus="obetald" style={{ margin: '6px 0 8px', padding: '10px 12px', borderRadius: '10px', background: '#FBE3DD', border: '2px solid #B3261E', color: '#7A1410' }}>
+                            <div style={{ fontSize: '18px', fontWeight: 800 }} data-belopp>❌ Ej betald · {formatPrice(u.belopp)}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 600 }}>{!u.skickat_at ? 'Debiteringen är inte skickad än.' : u.forfaller && u.forfaller < dayKey(Date.now()) ? 'Förfallen – sista betalningsdag var ' + dayKeyLabel(u.forfaller).toLowerCase() + '.' : 'Betala senast ' + (u.forfaller ? dayKeyLabel(u.forfaller).toLowerCase() : '') + '.'}</div>
+                          </div>
+                        : <div style={{ margin: '6px 0 4px', fontSize: '18px', fontWeight: 800, color: '#7A2A10' }} data-belopp>Ingen avgift (1:a gången)</div>}
                       {!u.skickat_at
                         ? <div data-skicka-ruta style={{ display: 'grid', gap: '8px', margin: '6px 0 8px' }}>
                             <label style={{ fontSize: '14px', fontWeight: 700, color: COLORS.dark }} htmlFor={'orsak-' + u.id}>Orsak i sms:et</label>
@@ -3582,12 +3647,55 @@
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {u.status === 'obetald' && u.skickat_at && <button onClick={() => strikeChange(u, 'betald')} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-betald>Markera som betald</button>}
                         {u.belopp
-                          ? <button onClick={() => strikeChange(u, 'havd')} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-efterskank>Efterskänk avgiften</button>
+                          ? <button onClick={() => strikeChange(u, 'efterskankt')} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-efterskank>Efterskänk avgiften</button>
                           : <button onClick={async () => { if (await ask({ title: 'Ingen varning?', lines: [u.customer_name + ' · ' + u.customer_phone], note: 'Inget sms skickas. Tillfället räknas ändå enligt reglerna (nästa gång blir debitering).', yes: 'Ja, skicka inget', no: 'Avbryt' })) { if (await rpcDo('uteblivet_skicka', { p_id: u.id, p_orsak: orsakVal[u.id] || STRIKE_ORSAK[u.kind], p_utan_sms: true })) loadStrikes(); } }} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-utan-sms>Skicka ingen varning</button>}
                       </div>
                     </div>))}
                   </div>}
+              {paidList.length > 0 && <>
+                <h3 style={{ ...H, fontSize: '17px', margin: '16px 0 8px' }} data-rubrik="betalda">✅ Betalda avgifter ({paidList.length})</h3>
+                <div style={{ display: 'grid', gap: '10px' }}>{(showAllPaid ? paidList : paidList.slice(0, 5)).map(u => (
+                  <div key={u.id} data-avgift-betald={u.id} style={{ ...BOX, borderColor: '#2E7D32' }}>
+                    <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{u.customer_name}</strong> · <a href={'tel:' + u.customer_phone} style={{ color: COLORS.rosemary }}>{u.customer_phone}</a></div>
+                    <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }}>{{ uteblev: 'Uteblivet besök', sen_avbokning: 'Sen avbokning', sen_ombokning: 'Sen ombokning', sen_ankomst: 'Sen ankomst' }[u.kind]} · {ordning(u.nummer)} gången · registrerat {whenFull(new Date(u.created_at).getTime())}</div>
+                    <div data-betalstatus="betald" style={{ margin: '6px 0 8px', padding: '10px 12px', borderRadius: '10px', background: '#E2F1E4', border: '2px solid #2E7D32', color: '#1B5E20' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 800 }}>✓ Betald · {formatPrice(u.belopp)}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Markerad som betald {whenFull(new Date(u.andrad_at).getTime())}</div>
+                    </div>
+                  </div>))}
+                </div>
+                {paidList.length > 5 && <button type="button" onClick={() => setShowAllPaid(v => !v)} style={{ ...btn(COLORS.rosemary), minHeight: '44px', marginTop: '10px' }} data-visa-betalda>{showAllPaid ? 'Visa färre' : `Visa alla (${paidList.length})`}</button>}
+              </>}
               </>; })()}
+
+              {(() => {
+                const cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+                const by = {};
+                strikes.filter(u => UTE_RAKNAS.includes(u.status) && new Date(u.created_at) > cut).forEach(u => { (by[u.customer_phone] = by[u.customer_phone] || []).push(u); });
+                const phones = [...new Set([...Object.keys(by).filter(ph => by[ph].length >= 3), ...sparrade.map(x => x.customer_phone)])];
+                const rows = phones.map(ph => { const sp = sparrade.find(x => x.customer_phone === ph), list = by[ph] || [];
+                  return { phone: ph, sp, list, n: list.length, name: (list[0] || sp).customer_name, unpaid: unpaidFor(ph).reduce((a, u) => a + u.belopp, 0) }; })
+                  .sort((a, b) => (a.sp ? 1 : 0) - (b.sp ? 1 : 0) || b.n - a.n);
+                return <>
+                  <h2 style={H} data-rubrik="sparr">🚫 Spärr från onlinebokning ({rows.length})</h2>
+                  <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Kunder med 3 eller fler gånger de senaste 12 månaderna (sen ankomst, uteblivet besök, sen av- eller ombokning). En spärrad kund kan inte boka frisörtider eller kurser på nätet och måste prata med dig först. Spärren gäller tills du häver den.</p>
+                  {rows.length === 0
+                    ? <div style={{ ...BOX, textAlign: 'center' }}>Ingen kund har 3 eller fler gånger.</div>
+                    : <div style={{ display: 'grid', gap: '10px' }}>{rows.map(r => (
+                        <div key={r.phone} data-sparr-rad={r.phone} style={{ ...BOX, borderColor: r.sp ? '#B3261E' : COLORS.earthBrown }}>
+                          <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{r.name}</strong> · <a href={'tel:' + r.phone} style={{ color: COLORS.rosemary }}>{r.phone}</a></div>
+                          <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }} data-ganger>{r.n} {r.n === 1 ? 'gång' : 'gånger'} de senaste 12 månaderna{r.n ? ': ' + r.list.slice().reverse().map(u => KIND_TXT[u.kind]).join(', ') : ''}</div>
+                          {r.unpaid > 0 && <div style={{ fontSize: '15px', fontWeight: 800, color: '#B3261E', marginTop: '2px' }} data-sparr-skuld>❌ Ej betalt: {formatPrice(r.unpaid)}</div>}
+                          {r.sp
+                            ? <>
+                                <div data-sparrad style={{ margin: '8px 0', padding: '10px 12px', borderRadius: '10px', background: '#FBE3DD', border: '2px solid #B3261E', color: '#7A1410', fontSize: '15px', fontWeight: 800 }}>🚫 Spärrad från onlinebokning sedan {whenFull(new Date(r.sp.sparrad_at).getTime())}</div>
+                                <button onClick={() => havSparr(r)} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-hav-sparr>Häv spärren</button>
+                              </>
+                            : <button onClick={() => sparra(r)} style={{ ...small('#B3261E'), minHeight: '44px' }} data-sparra>🚫 Spärra från onlinebokning</button>}
+                        </div>))}
+                      </div>}
+                </>;
+              })()}
 
               <h2 style={H} data-rubrik="avbokade">🗓️ Avbokade tider ({cancelled.length})</h2>
               <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Avbokningar som Lia har gjort och som kunder har gjort själva via länken i sms:et, med exakt tid. Sparas i 12 månader och raderas sedan automatiskt.</p>
@@ -3853,8 +3961,10 @@
                   <h3 className="lh-cardtitle" style={{ fontSize: '18px', margin: '4px 0 0' }}>Behöver du ändra?</h3>
                   {d.late
                     ? <KundSenVarning d={d} />
-                    : <p className="lh-done__note" data-kund-senast>Avboka eller boka om utan avgift senast <strong>{whenFull(new Date(d.deadline).getTime()).replace(/^\w/, c => c.toLowerCase())}</strong> ({d.cancel_hours} timmar före).</p>}
-                  <Button variant="secondary" block icon="calendar" data-kund-omboka disabled={sending} onClick={() => { setActErr(null); setView('omboka'); }}>Boka om – välj ny tid</Button>
+                    : <p className="lh-done__note" data-kund-senast>{d.sparrad ? 'Avboka' : 'Avboka eller boka om'} utan avgift senast <strong>{whenFull(new Date(d.deadline).getTime()).replace(/^\w/, c => c.toLowerCase())}</strong> ({d.cancel_hours} timmar före).</p>}
+                  {d.sparrad
+                    ? <p className="lh-done__note" data-kund-sparrad><strong>Du kan inte boka om på nätet just nu.</strong> Kontakta Lia på <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a> eller kom in till salongen så löser ni det tillsammans. Avboka kan du göra här.</p>
+                    : <Button variant="secondary" block icon="calendar" data-kund-omboka disabled={sending} onClick={() => { setActErr(null); setView('omboka'); }}>Boka om – välj ny tid</Button>}
                   <Button variant="secondary" block data-kund-avboka disabled={sending} onClick={avboka} style={{ color: '#8A2E12', borderColor: '#8A2E12' }}>{sending ? 'Avbokar…' : (multi ? 'Avboka tiderna' : 'Avboka tiden')}</Button>
                   {actErr && <ErrorBox text={actErr} />}
                   <KundKontakt />

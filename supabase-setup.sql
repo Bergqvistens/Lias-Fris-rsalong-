@@ -154,6 +154,21 @@ as $$
   order by b.starts_at;
 $$;
 
+-- ---------- Spärrade kunder (Lia 1 nov 2026) ----------
+-- Lia kan spärra en kund (telefonnummer) som 3 gånger eller fler de senaste 12 månaderna kommit sent, avbokat/ombokat
+-- för sent eller inte kommit. Spärrad kund kan inte boka frisörtider (och kurser när de finns i databasen) på nätet
+-- förrän Lia häver spärren. Funktionerna sparra_kund/hav_sparr finns längre ner (efter tabellen uteblivna).
+create table if not exists public.sparrade (
+  customer_phone text primary key,
+  customer_name  text not null,
+  sparrad_at     timestamptz not null default now()
+);
+alter table public.sparrade enable row level security;
+revoke all on public.sparrade from anon, authenticated;
+grant select on public.sparrade to authenticated;
+drop policy if exists "admin_laser_sparrade" on public.sparrade;
+create policy "admin_laser_sparrade" on public.sparrade for select to authenticated using (public.is_admin());
+
 -- ---------- 6. Skapa bokning (all kontroll sker här, på servern) ----------
 -- p_people: lista med 1–4 personer, t.ex.
 --   [{"category":"Klippning","service_ids":["klipp-45"],"name":"Kalle"},
@@ -214,6 +229,8 @@ begin
   if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  -- Spärrad från onlinebokning av Lia (1 nov 2026): måste prata med Lia först
+  if exists (select 1 from public.sparrade where customer_phone = p_phone) then raise exception 'SPARRAD'; end if;
   -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
   -- Gällande version: '2026-11-01-v2' (Tommys formulering, regeln först). Äldre bokningar behåller sin version.
   if p_rules is distinct from '2026-11-01-v2' then raise exception 'REGLER_EJ_GODKANDA'; end if;
@@ -382,7 +399,9 @@ end $$;
 
 -- ---------- Uteblivet besök och sen avbokning (Lia 1 nov 2026) ----------
 -- Regeln: räknas per telefonnummer de senaste 12 månaderna. 1:a gången utan kostnad, 2:a och följande = hela
--- priset för den bokade behandlingen. När en avgift är betald börjar räkningen om. "Kunden kom ändå" häver.
+-- priset för den bokade behandlingen. "Kunden kom ändå" häver (räknas inte).
+-- Ändrat 1 nov 2026 (Lia): räkningen börjar INTE om när kunden betalar. Allt de senaste 12 månaderna räknas,
+-- även efterskänkta tillfällen (status 'efterskankt': ingen avgift den gången, men nästa gång blir det debitering).
 -- En registrering gäller hela bokningen (alla personer i samma grupp).
 alter table public.bookings add column if not exists arrived_at timestamptz;   -- Lia bekräftade att kunden kom
 
@@ -399,6 +418,8 @@ create table if not exists public.uteblivna (
   status         text not null check (status in ('ingen_avgift', 'obetald', 'betald', 'havd')),
   andrad_at      timestamptz
 );
+alter table public.uteblivna drop constraint if exists uteblivna_status_check;
+alter table public.uteblivna add constraint uteblivna_status_check check (status in ('ingen_avgift', 'obetald', 'betald', 'efterskankt', 'havd'));
 create unique index if not exists uteblivna_en_per_bokning on public.uteblivna (coalesce(group_id, booking_id));
 create index if not exists uteblivna_telefon on public.uteblivna (customer_phone, created_at);
 alter table public.uteblivna enable row level security;
@@ -412,10 +433,8 @@ create or replace function public.uteblivet_nasta_nummer(p_phone text) returns i
 language sql stable security definer set search_path = public as $$
   select 1 + count(*)::integer from public.uteblivna u
    where u.customer_phone = p_phone
-     and u.status in ('ingen_avgift', 'obetald')
-     and u.created_at > now() - interval '12 months'
-     and u.created_at > coalesce((select max(b.andrad_at) from public.uteblivna b
-                                   where b.customer_phone = p_phone and b.status = 'betald'), '-infinity'::timestamptz);
+     and u.status in ('ingen_avgift', 'obetald', 'betald', 'efterskankt')   -- 'havd' = kunden kom ändå, räknas inte
+     and u.created_at > now() - interval '12 months';
 $$;
 revoke all on function public.uteblivet_nasta_nummer(text) from public, anon, authenticated;
 
@@ -496,7 +515,8 @@ language plpgsql security definer set search_path = public as $$
 declare v_row public.uteblivna%rowtype;
 begin
   if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
-  if p_status not in ('betald', 'havd') then raise exception 'OGILTIG_STATUS'; end if;
+  -- 'betald' = kunden har betalat, 'efterskankt' = Lia efterskänker (tillfället räknas ändå)
+  if p_status not in ('betald', 'efterskankt') then raise exception 'OGILTIG_STATUS'; end if;
   update public.uteblivna set status = p_status, andrad_at = now()
    where id = p_id and status = case when p_status = 'betald' then 'obetald' else status end
      and status in ('ingen_avgift', 'obetald')
@@ -695,7 +715,8 @@ begin
                                                 'price', price, 'starts_at', starts_at, 'ends_at', ends_at) order by starts_at)
                 from public.bookings where confirm_token = v_tok and status = 'bokad'),
     'price', v_sum, 'cancel_hours', v_hours, 'deadline', v_start - make_interval(hours => v_hours),
-    'late', now() >= v_start - make_interval(hours => v_hours), 'can_change', v_start > now());
+    'late', now() >= v_start - make_interval(hours => v_hours), 'can_change', v_start > now(),
+    'sparrad', public.kund_ar_sparrad(v_tok));   -- spärrad kund: kan avboka men inte boka om (1 nov 2026)
 end $$;
 
 -- Kunden avbokar själv (hela bokningen, alla personer). Går fram till att tiden börjar.
@@ -744,6 +765,7 @@ begin
   v_start := v_first.starts_at;
   if v_start <= now() then raise exception 'TIDEN_HAR_BORJAT'; end if;
   if p_starts_at is not null and p_starts_at = v_start then raise exception 'SAMMA_TID'; end if;
+  if public.kund_ar_sparrad(v_tok) then raise exception 'SPARRAD'; end if;
   v_hours := public.kund_timmar(v_tok);
   v_late := now() >= v_start - make_interval(hours => v_hours);
   select jsonb_agg(jsonb_build_object('category', (select s.category from public.services s where s.id = b.service_ids[1]),
@@ -766,3 +788,52 @@ revoke all on function public.kund_omboka(text, timestamptz, text) from public;
 grant execute on function public.confirm_booking(text) to anon, authenticated;
 grant execute on function public.kund_avboka(text) to anon, authenticated;
 grant execute on function public.kund_omboka(text, timestamptz, text) to anon, authenticated;
+
+
+-- =====================================================================
+-- Spärr från onlinebokning (Lia 1 nov 2026)
+-- =====================================================================
+-- Spärrtext till kunden (avbokade tider och vid försök att boka): Tommy godkände 1 nov 2026
+create or replace function public.sparr_text() returns text language sql immutable as $$
+  select 'Du kan inte boka tid på nätet just nu. Kontakta Lia på 073-642 30 18 eller kom in till salongen så löser ni det tillsammans.'::text;
+$$;
+
+-- Lia spärrar: kräver minst 3 registreringar (som räknas) de senaste 12 månaderna.
+-- Kundens kommande frisörtider avbokas automatiskt (av Lia, med spärrtexten som meddelande).
+create or replace function public.sparra_kund(p_phone text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_phone text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'); v_n integer; v_name text; v_avb integer;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if v_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
+  if exists (select 1 from public.sparrade where customer_phone = v_phone) then raise exception 'REDAN_SPARRAD'; end if;
+  v_n := public.uteblivet_nasta_nummer(v_phone) - 1;
+  if v_n < 3 then raise exception 'FOR_FA_GANGER'; end if;
+  select customer_name into v_name from public.uteblivna where customer_phone = v_phone order by created_at desc limit 1;
+  insert into public.sparrade (customer_phone, customer_name) values (v_phone, v_name);
+  update public.bookings set status = 'avbokad', cancelled_by = 'lia', cancel_note = public.sparr_text()
+   where customer_phone = v_phone and status = 'bokad' and starts_at > now();
+  get diagnostics v_avb = row_count;
+  return json_build_object('customer_phone', v_phone, 'customer_name', v_name, 'ganger', v_n, 'avbokade', v_avb);
+end $$;
+
+create or replace function public.hav_sparr(p_phone text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_phone text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  delete from public.sparrade where customer_phone = v_phone;
+  if not found then raise exception 'INTE_SPARRAD'; end if;
+  return json_build_object('customer_phone', v_phone);
+end $$;
+revoke all on function public.sparra_kund(text) from public, anon;
+revoke all on function public.hav_sparr(text) from public, anon;
+grant execute on function public.sparra_kund(text) to authenticated;
+grant execute on function public.hav_sparr(text) to authenticated;
+
+-- Kundens länk: spärrad kund kan avboka men inte boka om
+create or replace function public.kund_ar_sparrad(p_token uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.sparrade s join public.bookings b on b.customer_phone = s.customer_phone where b.confirm_token = p_token);
+$$;
+revoke all on function public.kund_ar_sparrad(uuid) from public, anon, authenticated;

@@ -56,7 +56,7 @@ const VARN = 'Hej Bo! På grund av din sena ankomst idag så kommer du inte beh�
   ok(!(await p.$('[data-avgift]')) && !(await p.$('[data-att-skicka]')), 'Hanterad: borta ur listan och rutan överst');
   // Cia 2:a gången – sen ankomst (kom 13 min sent), debitering utan betalningsuppgifter
   await p.click('[data-booking="cia"] [data-sen]'); await p.waitForTimeout(300); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(900);
-  ok((await p.$eval('[data-avgift] [data-belopp]', e => e.innerText.replace(/\s/g, ' '))) === '700,00 kr', '2:a gången: hela priset 700 kr');
+  ok((await p.$eval('[data-avgift] [data-belopp]', e => e.innerText.replace(/\s/g, ' '))) === '❌ Ej betald · 700,00 kr', '2:a gången: hela priset 700 kr i röd ruta "Ej betald"');
   ok((await p.$eval('[data-avgift] [data-skicka]', b => b.disabled)) && (await p.$eval('[data-saknar-betal]', e => e.innerText)) === 'Betalningsuppgifter saknas än – debiteringen kan skickas när de är inlagda.', 'Utan betalningsuppgifter: knappen avstängd med förklaring');
   // Eva 1:a gången – Skicka ingen varning
   await p.click('[data-booking="eva"] [data-sen]'); await p.waitForTimeout(300); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(900);

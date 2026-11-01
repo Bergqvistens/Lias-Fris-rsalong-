@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (till och med debitering del B).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (till och med spärr och röd/grön betalruta).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict g2uQq6PlQtEFj6CUXYrsgsLBVTUF7GmmCiFtY9Bxrh9vVo38O0Zq3cPZrFadylI
+\restrict bu8MNZvRKuSOrVhoE5ZSqJ0QNVQNM0PN3Aq8pY8Wtdvj7uMPXAv40bdDuNDIrJH
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -119,7 +119,8 @@ begin
                                                 'price', price, 'starts_at', starts_at, 'ends_at', ends_at) order by starts_at)
                 from public.bookings where confirm_token = v_tok and status = 'bokad'),
     'price', v_sum, 'cancel_hours', v_hours, 'deadline', v_start - make_interval(hours => v_hours),
-    'late', now() >= v_start - make_interval(hours => v_hours), 'can_change', v_start > now());
+    'late', now() >= v_start - make_interval(hours => v_hours), 'can_change', v_start > now(),
+    'sparrad', public.kund_ar_sparrad(v_tok));   -- spärrad kund: kan avboka men inte boka om (1 nov 2026)
 end $$;
 
 
@@ -170,6 +171,8 @@ begin
   if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  -- Spärrad från onlinebokning av Lia (1 nov 2026): måste prata med Lia först
+  if exists (select 1 from public.sparrade where customer_phone = p_phone) then raise exception 'SPARRAD'; end if;
   -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
   -- Gällande version: '2026-11-01-v2' (Tommys formulering, regeln först). Äldre bokningar behåller sin version.
   if p_rules is distinct from '2026-11-01-v2' then raise exception 'REGLER_EJ_GODKANDA'; end if;
@@ -295,6 +298,25 @@ $$;
 ALTER FUNCTION public.get_busy(p_from timestamp with time zone, p_to timestamp with time zone) OWNER TO postgres;
 
 --
+-- Name: hav_sparr(text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.hav_sparr(p_phone text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare v_phone text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  delete from public.sparrade where customer_phone = v_phone;
+  if not found then raise exception 'INTE_SPARRAD'; end if;
+  return json_build_object('customer_phone', v_phone);
+end $$;
+
+
+ALTER FUNCTION public.hav_sparr(p_phone text) OWNER TO postgres;
+
+--
 -- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -307,6 +329,20 @@ $$;
 
 
 ALTER FUNCTION public.is_admin() OWNER TO postgres;
+
+--
+-- Name: kund_ar_sparrad(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.kund_ar_sparrad(p_token uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  select exists (select 1 from public.sparrade s join public.bookings b on b.customer_phone = s.customer_phone where b.confirm_token = p_token);
+$$;
+
+
+ALTER FUNCTION public.kund_ar_sparrad(p_token uuid) OWNER TO postgres;
 
 --
 -- Name: kund_avboka(text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -385,6 +421,7 @@ begin
   v_start := v_first.starts_at;
   if v_start <= now() then raise exception 'TIDEN_HAR_BORJAT'; end if;
   if p_starts_at is not null and p_starts_at = v_start then raise exception 'SAMMA_TID'; end if;
+  if public.kund_ar_sparrad(v_tok) then raise exception 'SPARRAD'; end if;
   v_hours := public.kund_timmar(v_tok);
   v_late := now() >= v_start - make_interval(hours => v_hours);
   select jsonb_agg(jsonb_build_object('category', (select s.category from public.services s where s.id = b.service_ids[1]),
@@ -600,6 +637,45 @@ end $$;
 ALTER FUNCTION public.satt_avbokad_tid() OWNER TO postgres;
 
 --
+-- Name: sparr_text(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.sparr_text() RETURNS text
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  select 'Du kan inte boka tid på nätet just nu. Kontakta Lia på 073-642 30 18 eller kom in till salongen så löser ni det tillsammans.'::text;
+$$;
+
+
+ALTER FUNCTION public.sparr_text() OWNER TO postgres;
+
+--
+-- Name: sparra_kund(text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.sparra_kund(p_phone text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare v_phone text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'); v_n integer; v_name text; v_avb integer;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if v_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
+  if exists (select 1 from public.sparrade where customer_phone = v_phone) then raise exception 'REDAN_SPARRAD'; end if;
+  v_n := public.uteblivet_nasta_nummer(v_phone) - 1;
+  if v_n < 3 then raise exception 'FOR_FA_GANGER'; end if;
+  select customer_name into v_name from public.uteblivna where customer_phone = v_phone order by created_at desc limit 1;
+  insert into public.sparrade (customer_phone, customer_name) values (v_phone, v_name);
+  update public.bookings set status = 'avbokad', cancelled_by = 'lia', cancel_note = public.sparr_text()
+   where customer_phone = v_phone and status = 'bokad' and starts_at > now();
+  get diagnostics v_avb = row_count;
+  return json_build_object('customer_phone', v_phone, 'customer_name', v_name, 'ganger', v_n, 'avbokade', v_avb);
+end $_$;
+
+
+ALTER FUNCTION public.sparra_kund(p_phone text) OWNER TO postgres;
+
+--
 -- Name: uteblivet_andra(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -610,7 +686,8 @@ CREATE FUNCTION public.uteblivet_andra(p_id uuid, p_status text) RETURNS json
 declare v_row public.uteblivna%rowtype;
 begin
   if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
-  if p_status not in ('betald', 'havd') then raise exception 'OGILTIG_STATUS'; end if;
+  -- 'betald' = kunden har betalat, 'efterskankt' = Lia efterskänker (tillfället räknas ändå)
+  if p_status not in ('betald', 'efterskankt') then raise exception 'OGILTIG_STATUS'; end if;
   update public.uteblivna set status = p_status, andrad_at = now()
    where id = p_id and status = case when p_status = 'betald' then 'obetald' else status end
      and status in ('ingen_avgift', 'obetald')
@@ -648,10 +725,8 @@ CREATE FUNCTION public.uteblivet_nasta_nummer(p_phone text) RETURNS integer
     AS $$
   select 1 + count(*)::integer from public.uteblivna u
    where u.customer_phone = p_phone
-     and u.status in ('ingen_avgift', 'obetald')
-     and u.created_at > now() - interval '12 months'
-     and u.created_at > coalesce((select max(b.andrad_at) from public.uteblivna b
-                                   where b.customer_phone = p_phone and b.status = 'betald'), '-infinity'::timestamptz);
+     and u.status in ('ingen_avgift', 'obetald', 'betald', 'efterskankt')   -- 'havd' = kunden kom ändå, räknas inte
+     and u.created_at > now() - interval '12 months';
 $$;
 
 
@@ -765,6 +840,19 @@ CREATE TABLE public.services (
 ALTER TABLE public.services OWNER TO postgres;
 
 --
+-- Name: sparrade; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.sparrade (
+    customer_phone text NOT NULL,
+    customer_name text NOT NULL,
+    sparrad_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.sparrade OWNER TO postgres;
+
+--
 -- Name: uteblivna; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -786,7 +874,7 @@ CREATE TABLE public.uteblivna (
     CONSTRAINT uteblivna_belopp_check CHECK ((belopp >= 0)),
     CONSTRAINT uteblivna_kind_check CHECK ((kind = ANY (ARRAY['uteblev'::text, 'sen_avbokning'::text, 'sen_ombokning'::text, 'sen_ankomst'::text]))),
     CONSTRAINT uteblivna_nummer_check CHECK ((nummer >= 1)),
-    CONSTRAINT uteblivna_status_check CHECK ((status = ANY (ARRAY['ingen_avgift'::text, 'obetald'::text, 'betald'::text, 'havd'::text])))
+    CONSTRAINT uteblivna_status_check CHECK ((status = ANY (ARRAY['ingen_avgift'::text, 'obetald'::text, 'betald'::text, 'efterskankt'::text, 'havd'::text])))
 );
 
 
@@ -797,8 +885,7 @@ ALTER TABLE public.uteblivna OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-26601db5-1fa9-4710-a669-57c468add325	lia@test.se
-fdc12f7b-656c-4eb9-8137-a99b03136e81	annan@test.se
+a67974e2-11e5-4ea5-a18c-884dd3a07962	lia@test.se
 \.
 
 
@@ -807,7 +894,7 @@ fdc12f7b-656c-4eb9-8137-a99b03136e81	annan@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-26601db5-1fa9-4710-a669-57c468add325
+a67974e2-11e5-4ea5-a18c-884dd3a07962
 \.
 
 
@@ -816,11 +903,6 @@ COPY public.admins (user_id) FROM stdin;
 --
 
 COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at, rules_version, arrived_at, confirm_token, confirmed_at, cancelled_by, ombokad_till) FROM stdin;
-7a3618d4-0f1f-4933-8342-82002a358064	2026-11-01 13:26:40.390728+01	{harbotten}	Hårbottenmassage	750	2026-11-05 10:00:00+01	2026-11-05 10:45:00+01	Ulf U	0705555555	ulf@test.se	bokad	\N	eda93695-3134-434b-bc03-a0b4f861f77e	\N	\N	2026-11-01-v2	\N	716af777-a9a9-4253-96ad-8a4b021ea774	\N	\N	\N
-0bba9425-8065-44f3-956c-b4de4cff7e5b	2026-11-01 13:26:38.881059+01	{klipp-30}	Klippning/Herrklippning 30 min	500	2026-11-06 16:30:00+01	2026-11-06 17:00:00+01	Cia C	0702222222	cia@test.se	bokad	\N	f153d53f-a057-4ead-94b8-cdc571ec5866	\N	\N	2026-11-01-v2	\N	b0ba6664-8db8-4d1e-be54-a029cce7f1b0	\N	\N	\N
-987d8148-6db2-4c7c-8437-c7ec41d90b56	2026-11-01 13:26:40.106609+01	{klipp-30}	Klippning/Herrklippning 30 min	500	2026-11-04 12:00:00+01	2026-11-04 12:30:00+01	Eva Ek	0704444444	eva@test.se	bokad	Kalle	092ea60c-7d06-4b6f-849b-39de91d582fc	\N	\N	2026-11-01-v2	\N	476d2625-5ec1-4b7b-a2c5-aa40ffb79bcb	\N	\N	\N
-3656bfab-f817-4380-b3d0-d16bd1539165	2026-11-01 13:26:40.106609+01	{bryn}	Färg och form av bryn.	200	2026-11-04 12:30:00+01	2026-11-04 13:00:00+01	Eva Ek	0704444444	eva@test.se	bokad	Anna	092ea60c-7d06-4b6f-849b-39de91d582fc	\N	\N	2026-11-01-v2	\N	476d2625-5ec1-4b7b-a2c5-aa40ffb79bcb	\N	\N	\N
-c04e4afa-0c96-4de9-8c8f-4ef76306f1db	2026-11-01 13:26:40.106609+01	{tvatt-fon}	Tvätt & fön	400	2026-11-04 13:00:00+01	2026-11-04 13:30:00+01	Eva Ek	0704444444	eva@test.se	bokad	Lisa	092ea60c-7d06-4b6f-849b-39de91d582fc	\N	\N	2026-11-01-v2	\N	476d2625-5ec1-4b7b-a2c5-aa40ffb79bcb	\N	\N	\N
 \.
 
 
@@ -846,6 +928,14 @@ tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	kli
 harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
 bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
 frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
+\.
+
+
+--
+-- Data for Name: sparrade; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.sparrade (customer_phone, customer_name, sparrad_at) FROM stdin;
 \.
 
 
@@ -895,6 +985,14 @@ ALTER TABLE ONLY public.bookings
 
 ALTER TABLE ONLY public.services
     ADD CONSTRAINT services_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sparrade sparrade_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sparrade
+    ADD CONSTRAINT sparrade_pkey PRIMARY KEY (customer_phone);
 
 
 --
@@ -956,6 +1054,13 @@ CREATE POLICY admin_laser_bokningar ON public.bookings FOR SELECT TO authenticat
 
 
 --
+-- Name: sparrade admin_laser_sparrade; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY admin_laser_sparrade ON public.sparrade FOR SELECT TO authenticated USING (public.is_admin());
+
+
+--
 -- Name: uteblivna admin_laser_uteblivna; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -986,6 +1091,12 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: sparrade; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.sparrade ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: uteblivna; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -1076,11 +1187,26 @@ GRANT ALL ON FUNCTION public.get_busy(p_from timestamp with time zone, p_to time
 
 
 --
+-- Name: FUNCTION hav_sparr(p_phone text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.hav_sparr(p_phone text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.hav_sparr(p_phone text) TO authenticated;
+
+
+--
 -- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: postgres
 --
 
 REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
 GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
+
+
+--
+-- Name: FUNCTION kund_ar_sparrad(p_token uuid); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.kund_ar_sparrad(p_token uuid) FROM PUBLIC;
 
 
 --
@@ -1161,6 +1287,14 @@ REVOKE ALL ON FUNCTION public.rensa_gamla_avbokningar_kor() FROM PUBLIC;
 
 
 --
+-- Name: FUNCTION sparra_kund(p_phone text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.sparra_kund(p_phone text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.sparra_kund(p_phone text) TO authenticated;
+
+
+--
 -- Name: FUNCTION uteblivet_andra(p_id uuid, p_status text); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -1221,6 +1355,13 @@ GRANT SELECT ON TABLE public.services TO authenticated;
 
 
 --
+-- Name: TABLE sparrade; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.sparrade TO authenticated;
+
+
+--
 -- Name: TABLE uteblivna; Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -1231,5 +1372,5 @@ GRANT SELECT ON TABLE public.uteblivna TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict g2uQq6PlQtEFj6CUXYrsgsLBVTUF7GmmCiFtY9Bxrh9vVo38O0Zq3cPZrFadylI
+\unrestrict bu8MNZvRKuSOrVhoE5ZSqJ0QNVQNM0PN3Aq8pY8Wtdvj7uMPXAv40bdDuNDIrJH
 

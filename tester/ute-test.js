@@ -73,7 +73,7 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   s = await db();
   ok(s.uteblivna.find(u => u.booking_id === 'anna').status === 'havd' && (await narv('anna')).k === 'kom' && (await debts()).length === 0, 'Kom ändå: avgiften hävd, borta ur obetalda, kortet visar "Kunden kom"');
   ok(s.sms[0].kind === 'kom-anda' && s.sms[0].text === 'Hej Anna! Ursäkta, vi har nu registrerat att du kom. Ingen avgift. Välkommen åter!', 'Sms till kunden: ursäkta, ingen avgift');
-  // 5. Erik: 2:a gången → betald → nästa blir 1:a igen
+  // 5. Erik: 2:a gången → betald → nästa blir 3:e (Lia 1 nov: betalning nollställer inte)
   await card('erik').locator('[data-uteblev]').click(); await p.waitForTimeout(400); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   dl = await debts();
   ok(dl.length === 1 && dl[0].includes('Erik Ek') && /500,00\s?kr/.test(dl[0].replace(/ /g, ' ')), 'Erik: 2:a gången, 500 kr i obetalda');
@@ -86,14 +86,14 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   await p.clock.runFor(60000);
   await card('erik2').locator('[data-uteblev]').click(); await p.waitForTimeout(400);
   d = await dlg();
-  ok(d && d.note.startsWith('Det här blir 1:a gången') && d.note.includes('ingen avgift'), 'Efter betald skuld börjar räkningen om: nästa blir 1:a gången, ingen avgift', d && d.note.slice(0, 40));
+  ok(d && d.note.startsWith('Det här blir 3:e gången') && !d.note.includes('ingen avgift'), 'Betald skuld nollställer inte räkningen (Lia 1 nov): nästa blir 3:e gången', d && d.note.slice(0, 80));
   await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
-  ok((await db()).sms[0].kind === 'saknad' && (await db()).sms[0].text.startsWith('Hej Erik! Vi saknade dig på din tid tis 3 nov kl 08:00 hos Lias Hantverkeri.'), '1:a gången: sms utan avgift, med varning');
+  ok((await db()).sms[0].kind === 'saknad' && (await db()).sms[0].text.startsWith('Hej Erik! Vi saknade dig på din tid tis 3 nov kl 08:00 hos Lias Hantverkeri.'), 'Sms vid registrering: bara "vi saknade dig" (avgiften skickar Lia själv)');
   // 6. Gustav: efterskänk
   await card('gus').locator('[data-uteblev]').click(); await p.waitForTimeout(400); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   await p.locator('[data-avgift]', { hasText: 'Gustav Gran' }).locator('[data-efterskank]').click(); await p.waitForTimeout(300);
   ok((await dlg()).title === 'Efterskänka avgiften?', 'Efterskänk: kontrollfråga'); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
-  ok(!(await debts()).some(t => t.includes('Gustav Gran')) && (await db()).uteblivna.find(u => u.booking_id === 'gus').status === 'havd', 'Efterskänkt: borta ur listan, räknas inte');
+  ok(!(await debts()).some(t => t.includes('Gustav Gran')) && (await db()).uteblivna.find(u => u.booking_id === 'gus').status === 'efterskankt', 'Efterskänkt: borta ur listan, status efterskänkt (räknas ändå)');
   // 7. Sen avbokning: Cia (imorgon 09:00, mindre än 24 h)
   await card('cia').locator('button:has-text("Avboka")').click(); await p.waitForTimeout(300);
   d = await dlg();

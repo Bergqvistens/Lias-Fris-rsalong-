@@ -165,7 +165,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   await yes(lia);
   await lia.waitForTimeout(900);
   D = await db(lia);
-  ok(D.uteblivna.find(x => x.nummer === 2).status === 'havd', 'Lia häver (efterskänker) avgiften i adminläget', D.uteblivna.find(x => x.nummer === 2).status);
+  ok(D.uteblivna.find(x => x.nummer === 2).status === 'efterskankt', 'Lia häver (efterskänker) avgiften i adminläget', D.uteblivna.find(x => x.nummer === 2).status);
 
   // ===== 9. Två personer bokar om: samma personer, tjänster och ordning =====
   const k9 = await newPage('https://lias.test/', T0 + 60 * 60000);
