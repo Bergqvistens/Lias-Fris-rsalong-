@@ -157,7 +157,7 @@ create or replace function public.create_booking(
   p_name      text,
   p_phone     text,
   p_email     text,
-  p_rules     text default null   -- version av avbokningsreglerna som kunden godkände ('2026-11-01')
+  p_rules     text default null   -- version av avbokningsreglerna som kunden godkände ('2026-11-01-v2')
 )
 returns json
 language plpgsql security definer
@@ -200,7 +200,8 @@ begin
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
   -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
-  if p_rules is distinct from '2026-11-01' then raise exception 'REGLER_EJ_GODKANDA'; end if;
+  -- Gällande version: '2026-11-01-v2' (Tommys formulering, regeln först). Äldre bokningar behåller sin version.
+  if p_rules is distinct from '2026-11-01-v2' then raise exception 'REGLER_EJ_GODKANDA'; end if;
 
   -- Personer
   if p_people is null or jsonb_typeof(p_people) <> 'array' then raise exception 'OGILTIGA_TJANSTER'; end if;

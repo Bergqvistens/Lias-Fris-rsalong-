@@ -35,7 +35,7 @@ const page = fs.readFileSync('/tmp/t/run.html', 'utf8'), shim = fs.readFileSync(
   ok(k && k.rows[0] === 'Senast 24 timmar före Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage' && k.rows[1] === 'Senast 48 timmar före Färgbehandling och permanent', 'Tidsgränser: 24 h och 48 h', k && k.rows.join(' / '));
   ok(k && k.tel === 'tel:+46736423018' && k.mail === 'mailto:lias.hantverkeri@gmail.com', 'Telefon och e-post går att trycka på');
   // 1 nov: Lia inför avgift vid uteblivet besök (andra gången) – regeln står nu som tredje punkt
-  ok(k && k.rows.length === 3 && k.rows[2].startsWith('Uteblivet besök eller sen avbokning Uteblir du'), 'Tredje regeln: uteblivet besök (avgift från andra gången)', k && k.rows[2] && k.rows[2].slice(0, 60));
+  ok(k && k.rows.length === 3 && k.rows[2].startsWith('Sen avbokning eller uteblivet besök Avbokar du senare än 24 timmar'), 'Tredje regeln: uteblivet besök (avgift från andra gången)', k && k.rows[2] && k.rows[2].slice(0, 60));
   ok(k && k.border === '1px rgb(145, 116, 74)', 'Brun ram som övriga kort', k && k.border);
   const ordning = await p.evaluate(() => [...document.querySelectorAll('.lh-page h2')].map(h => h.innerText));
   ok(ordning.indexOf('Avbokningsregler') === ordning.indexOf('Öppettider') + 1, 'Ligger direkt under Öppettider', ordning.join(' > '));

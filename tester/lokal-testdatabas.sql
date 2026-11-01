@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med uteblivna besök del 3, automatiken).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (regelversion 2026-11-01-v2).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict iUc7aBO7dvng23NOlabyTqSTqUeYd66WphNJXGXJJLnr3luaWvC6W6jAowaQs2g
+\restrict xsn3N8y6t8gwbS9hZyS1wBuGmN8uR5HOVi6nyZFPJ24cLcnf0rQq8O6oD2hBuZT
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -130,7 +130,8 @@ begin
   if p_phone !~ '^0[0-9]{9}$' then raise exception 'OGILTIGT_TELEFON'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
   -- Kunden måste ha godkänt gällande avbokningsregler (uteblivet besök kan debiteras), 1 nov 2026
-  if p_rules is distinct from '2026-11-01' then raise exception 'REGLER_EJ_GODKANDA'; end if;
+  -- Gällande version: '2026-11-01-v2' (Tommys formulering, regeln först). Äldre bokningar behåller sin version.
+  if p_rules is distinct from '2026-11-01-v2' then raise exception 'REGLER_EJ_GODKANDA'; end if;
 
   -- Personer
   if p_people is null or jsonb_typeof(p_people) <> 'array' then raise exception 'OGILTIGA_TJANSTER'; end if;
@@ -575,7 +576,7 @@ ALTER TABLE public.uteblivna OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-b10ee68c-976a-49ee-b8fe-eaadf122c208	lia@test.se
+f4dcdd1f-f213-4092-92e8-661b72528365	lia@test.se
 \.
 
 
@@ -584,7 +585,7 @@ b10ee68c-976a-49ee-b8fe-eaadf122c208	lia@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-b10ee68c-976a-49ee-b8fe-eaadf122c208
+f4dcdd1f-f213-4092-92e8-661b72528365
 \.
 
 
@@ -940,5 +941,5 @@ GRANT SELECT ON TABLE public.uteblivna TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict iUc7aBO7dvng23NOlabyTqSTqUeYd66WphNJXGXJJLnr3luaWvC6W6jAowaQs2g
+\unrestrict xsn3N8y6t8gwbS9hZyS1wBuGmN8uR5HOVi6nyZFPJ24cLcnf0rQq8O6oD2hBuZT
 

@@ -263,3 +263,9 @@
 - RIKTIGA läget: sms kräver sms-tjänsten; utan pg_cron sker registreringen först när Lia har admin öppen (inom ett dygn).
 - Test: auto-test.js (18). ute-test.js använder bokningar utan rules_version (manuell väg).
 - Hela sviten efter del 3: 42 sviter, 1214 kontroller, alla gröna. s5check: storleksgränsen 250 000 byte okomprimerat passerades (252 365 byte); kontrollen mäter nu det som laddas ner (gzip 84 kB, gräns 120 kB) och okomprimerat < 350 kB.
+
+## 1 nov: ny text för sen avbokning/uteblivet besök (Tommys formulering)
+- Text (NOSHOW_TEXT): "Sen avbokning eller uteblivet besök: Avbokar du senare än 24 timmar före din tid (48 timmar för färgbehandling och permanent), eller kommer du inte, betalar du hela priset för den bokade behandlingen." Mer info: "Sen avbokning eller uteblivet besök: Då blir du debiterad för hela kostnaden för din bokning". Kontakt-rubrik "Sen avbokning eller uteblivet besök".
+- Systemet följer fortfarande Lias regel (1:a gången utan kostnad, 12 mån, betald nollställer) – kunden kan få mindre att betala än texten säger, aldrig mer.
+- RULES_VERSION = '2026-11-01-v2' (app + create_booking). Bokningar med v1 behåller sin version; automatiken gäller alla med rules_version.
+- Hela sviten: 42 sviter, 1214 kontroller, alla gröna. Ny dump.

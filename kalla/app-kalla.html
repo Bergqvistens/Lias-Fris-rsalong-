@@ -1254,8 +1254,8 @@
     const CANCEL_SHORT_TEXT = 'Klippning, bryn och fransar, tvätt & fön samt hårbottenmassage';
     const CANCEL_LONG_TEXT = 'Färgbehandling och permanent';
     // Uteblivet besök / sen avbokning (Lia 1 nov 2026). RULES_VERSION sparas på bokningen som bevis på vad kunden godkände.
-    const RULES_VERSION = '2026-11-01';
-    const NOSHOW_TEXT = 'Uteblir du, eller avbokar senare än så, är första gången utan kostnad. Från andra gången debiteras hela priset för den bokade behandlingen. Bara de senaste 12 månaderna räknas, och när en avgift är betald börjar räkningen om.';
+    const RULES_VERSION = '2026-11-01-v2';   // v2: Tommys formulering 1 nov (regeln först). v1 = '2026-11-01'.
+    const NOSHOW_TEXT = 'Avbokar du senare än 24 timmar före din tid (48 timmar för färgbehandling och permanent), eller kommer du inte, betalar du hela priset för den bokade behandlingen.';
     const cancelHoursFor = ids => ids.some(id => { const x = SERVICES.find(v => v.id === id); return x && CANCEL_LONG_CATS.includes(x.cat); }) ? 48 : 24;
     const SERVICES = [
       { id: 'klipp-45', cat: 'Klippning', name: 'Klippning 45 min.', dur: 45, price: 600, cut: true,
@@ -1868,7 +1868,7 @@
                       <p className="lh-svcinfo__desc">{svc.desc}</p>
                       <p className="lh-svcinfo__who"><Icon name="user" size={18} />Utförs av Lia</p>
                       <p className="lh-svcinfo__who" data-cancel-info={cancelHoursFor([svc.id])}><Icon name="calendar" size={18} />Avbokning senast {cancelHoursFor([svc.id])} timmar före</p>
-                      <p className="lh-svcinfo__who" data-noshow-info><Icon name="alert" size={18} />Uteblivet besök: första gången utan kostnad, därefter hela priset</p>
+                      <p className="lh-svcinfo__who" data-noshow-info><Icon name="alert" size={18} />Sen avbokning eller uteblivet besök: Då blir du debiterad för hela kostnaden för din bokning</p>
                       {chosen
                         ? <p className="lh-svcinfo__chosen" data-chosen="true"><Icon name="check" size={18} strokeWidth={3} />Vald{multi ? ' för ' + label(people[info.i], info.i) : ''}</p>
                         : <Button block data-valj={svc.id} onClick={() => { update(info.i, { cat: svc.cat, cut: svc.id }); closeInfo(); }}>Välj den här tjänsten</Button>}
@@ -2021,7 +2021,7 @@
             : <p data-cancel-deadline={new Date(dl).toISOString()}>Avboka eller ändra senast <strong>{fmtDayLong(dl).toLowerCase()} kl {fmtTime(dl)}</strong>.</p>}
           <p>Ring eller sms:a <a href={'tel:' + CONTACT.tel}>{CONTACT.phone}</a>, eller mejla <a href={'mailto:' + CONTACT.email}>{CONTACT.email}</a>.</p>
           <p className="lh-cancel__rule">{CANCEL_SHORT_TEXT}: senast 24 timmar före. {CANCEL_LONG_TEXT}: senast 48 timmar före.</p>
-          <p className="lh-cancel__noshow" data-noshow><strong>Uteblivet besök:</strong> {NOSHOW_TEXT}</p>
+          <p className="lh-cancel__noshow" data-noshow><strong>Sen avbokning eller uteblivet besök:</strong> {NOSHOW_TEXT}</p>
         </section>
       );
     }
@@ -2494,7 +2494,7 @@
             <dl className="lh-cancelrules">
               <div data-rule="24"><dt>Senast 24 timmar före</dt><dd>{CANCEL_SHORT_TEXT}</dd></div>
               <div data-rule="48"><dt>Senast 48 timmar före</dt><dd>{CANCEL_LONG_TEXT}</dd></div>
-              <div data-rule="uteblivet"><dt>Uteblivet besök eller sen avbokning</dt><dd>{NOSHOW_TEXT}</dd></div>
+              <div data-rule="uteblivet"><dt>Sen avbokning eller uteblivet besök</dt><dd>{NOSHOW_TEXT}</dd></div>
             </dl>
             <p style={{ margin: '10px 0 0', fontSize: '16px', lineHeight: 1.5 }}>Avboka eller ändra genom att ringa eller sms:a <a href={'tel:' + CONTACT.tel}>{CONTACT.phone}</a>, eller mejla <a href={'mailto:' + CONTACT.email}>{CONTACT.email}</a>.</p>
           </section>
