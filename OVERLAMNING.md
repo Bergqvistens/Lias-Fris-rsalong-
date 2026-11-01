@@ -256,3 +256,10 @@
 - Sms (demo): uteblev-varning/uteblev-avgift, sen-varning/sen-avgift, kom-anda. I del 2 skickas uteblev-sms när Lia trycker; del 3 gör tiden automatisk (+15 min).
 - Test: ute-test.js (27).
 - Hela sviten efter del 2: 41 sviter, 1190 kontroller, alla gröna (schema-test letar nu efter just Avboka-knappen). lokal-testdatabas.sql ny dump (återställning provad).
+
+## 1 nov: uteblivet besök, del 3 – automatiken
+- Databas: registrera_uteblivet_kor (intern) + registrera_uteblivet (admin-skal). auto_uteblivna_kor(): registrerar bokningar (en per grupp) som började för 15 min–24 h sedan, inte kommit, inte registrerade, och där kunden godkänt reglerna (rules_version). auto_uteblivna() = admin-skal. pg_cron var 5:e minut OM tillägget finns (inte provat här). sqltest 94–99.
+- Admin (när den är öppen): 10 min efter start en röd ruta överst "⏰ Har X kommit? … registreras … kl HH:MM" med "Ja, kunden är här" / "Nej, uteblev" + notis och ljud (om larmet är på). Nej/"Kunden uteblev" före 15 min → kortet "Markerad som utebliven – registreras och sms skickas kl HH:MM" (kan ångras med "Kunden har kommit"). 15 min efter start anropas auto_uteblivna → registrering + sms. Bokningar utan rules_version (före 1 nov) registreras aldrig automatiskt; Lia kan göra det manuellt (direkt).
+- RIKTIGA läget: sms kräver sms-tjänsten; utan pg_cron sker registreringen först när Lia har admin öppen (inom ett dygn).
+- Test: auto-test.js (18). ute-test.js använder bokningar utan rules_version (manuell väg).
+- Hela sviten efter del 3: 42 sviter, 1214 kontroller, alla gröna. s5check: storleksgränsen 250 000 byte okomprimerat passerades (252 365 byte); kontrollen mäter nu det som laddas ner (gzip 84 kB, gräns 120 kB) och okomprimerat < 350 kB.

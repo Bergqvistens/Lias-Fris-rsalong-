@@ -25,7 +25,7 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(x => getComputedStyle(x).overflowY === 'auto'); d.scrollTop = 99999; d.dispatchEvent(new Event('scroll')); });
   await p.waitForTimeout(150); await p.click('text=Jag förstår och accepterar');
   await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 10000 }).catch(() => {});
-  const bk = (id, name, phone, svc, price, startIso, min) => ({ id, created_at: '2026-10-20T10:00:00Z', service_ids: [svc], service_names: svc, price, starts_at: startIso, ends_at: new Date(new Date(startIso).getTime() + min * 60000).toISOString(), customer_name: name, customer_phone: phone, customer_email: 'k@t.se', status: 'bokad', person_name: null, group_id: id, confirm_token: 't' + id, confirmed_at: null, rules_version: '2026-11-01' });
+  const bk = (id, name, phone, svc, price, startIso, min) => ({ id, created_at: '2026-10-20T10:00:00Z', service_ids: [svc], service_names: svc, price, starts_at: startIso, ends_at: new Date(new Date(startIso).getTime() + min * 60000).toISOString(), customer_name: name, customer_phone: phone, customer_email: 'k@t.se', status: 'bokad', person_name: null, group_id: id, confirm_token: 't' + id, confirmed_at: null });   // utan rules_version: automatiken (del 3) rör dem inte, Lia registrerar själv
   const prior = (id, name, phone, status, daysAgo, extra = {}) => ({ id, created_at: new Date(NOW - daysAgo * 86400000).toISOString(), booking_id: 'gammal-' + id, group_id: null, customer_name: name, customer_phone: phone, kind: 'uteblev', nummer: 1, belopp: 0, status, andrad_at: null, ...extra });
   await p.evaluate(d => localStorage.setItem('lias_demo_db', JSON.stringify(d)), {
     bookings: [

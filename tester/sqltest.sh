@@ -152,3 +152,21 @@ T "92. Gruppens andra person kan inte registreras igen" authenticated "$LIA" "se
 T "93. Förhandsbesked för Lia: nästa gång för 0709990001 blir 3:e" authenticated "$LIA" "select uteblivet_forhand('070-999 00 01')" "^3$"
 $P -c "delete from uteblivna where customer_phone in ('0709990000','0709990001')" >/dev/null
 $P -c "delete from bookings where customer_phone in ('0709990000','0709990001')" >/dev/null
+
+echo "--- Automatik: uteblivet efter 15 minuter (ny 1 nov) ---"
+$P -c "delete from uteblivna where customer_phone like '070888%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070888%'" >/dev/null
+INA() { $P -c "insert into bookings (id, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, group_id, rules_version, arrived_at) values ('$1', '{klipp-30}', 'X', 500, $2, $2 + interval '30 minutes', 'Auto Test', '$3', 'a@t.se', 'bokad', null, $4, $5)" >/dev/null; }
+INA 00000000-0000-4000-8000-0000000000b1 "now() - interval '20 minutes'" 0708880001 "'2026-11-01'" null
+INA 00000000-0000-4000-8000-0000000000b2 "now() - interval '10 minutes'" 0708880002 "'2026-11-01'" null
+INA 00000000-0000-4000-8000-0000000000b3 "now() - interval '40 minutes'" 0708880003 "'2026-11-01'" "now() - interval '35 minutes'"
+INA 00000000-0000-4000-8000-0000000000b4 "now() - interval '50 minutes'" 0708880004 null null
+INA 00000000-0000-4000-8000-0000000000b5 "now() - interval '3 days'" 0708880005 "'2026-11-01'" null
+T "94. Kund kan inte köra automatiken" anon "" "select auto_uteblivna()" "permission denied"
+T "95. Ingen utom databasen kan köra den interna automatiken" authenticated "$LIA" "select auto_uteblivna_kor()" "permission denied"
+T "96. Interna registreringen kan inte anropas direkt" authenticated "$LIA" "select registrera_uteblivet_kor('00000000-0000-4000-8000-0000000000b1', 'uteblev')" "permission denied"
+T "97. Automatiken registrerar exakt 1 (20 min sedan, inte kommit, regler godkända)" authenticated "$LIA" "select auto_uteblivna()" "^1$"
+T "98. Rätt bokning: den som började för 20 min sedan" authenticated "$LIA" "select string_agg(customer_phone, ',') from uteblivna where customer_phone like '070888%'" "^0708880001$"
+T "99. Inte: 10 min sedan (före 15), kunden kom, regler ej godkända, äldre än ett dygn – körs igen: 0 nya" authenticated "$LIA" "select auto_uteblivna()" "^0$"
+$P -c "delete from uteblivna where customer_phone like '070888%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070888%'" >/dev/null

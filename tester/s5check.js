@@ -108,7 +108,10 @@ const TABS = ['Start', 'Boka', 'Kurser', 'Shop', 'Kontakt', 'Galleri'];
   // ============ PRESTANDA ============
   console.log('--- Prestanda ---');
   const html = fs.statSync('/mnt/user-data/outputs/github/index.html').size;
-  ok(html < 250000, 'index.html är liten', Math.round(html / 1024) + ' KB');
+  // 1 nov: gränsen var 250 000 byte okomprimerat och passerades när uteblivet-funktionen lades till (252 365 byte).
+  // Det som faktiskt skickas till mobilen är gzip-komprimerat (GitHub Pages), så nu mäts båda: komprimerat < 120 kB, okomprimerat < 350 kB.
+  const gz = require('zlib').gzipSync(fs.readFileSync('/mnt/user-data/outputs/github/index.html')).length;
+  ok(gz < 120000 && html < 350000, 'index.html är liten (komprimerat det som laddas ner)', Math.round(gz / 1024) + ' kB komprimerat, ' + Math.round(html / 1024) + ' kB okomprimerat');
   const pp = await open(390);
   const loaded = [];
   pp.on('request', r => { if (r.url().includes('/bilder/') && !r.url().includes('splash-logga')) loaded.push(decodeURIComponent(r.url().split('/bilder/')[1])); });

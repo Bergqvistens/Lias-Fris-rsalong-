@@ -403,7 +403,8 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.uteblivet_nasta_nummer(text) from public, anon, authenticated;
 
-create or replace function public.registrera_uteblivet(p_booking uuid, p_kind text) returns json
+-- Själva registreringen (utan behörighetskontroll; bara databasen själv och funktionerna nedan får köra den)
+create or replace function public.registrera_uteblivet_kor(p_booking uuid, p_kind text) returns json
 language plpgsql security definer set search_path = public as $$
 declare
   b       public.bookings%rowtype;
@@ -413,7 +414,6 @@ declare
   v_start timestamptz;
   v_row   public.uteblivna%rowtype;
 begin
-  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
   if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
   select * into b from public.bookings where id = p_booking;
   if not found then raise exception 'OGILTIG_BOKNING'; end if;
@@ -441,6 +441,14 @@ begin
   returning * into v_row;
   return row_to_json(v_row);
 end $$;
+
+create or replace function public.registrera_uteblivet(p_booking uuid, p_kind text) returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.registrera_uteblivet_kor(p_booking, p_kind);
+end $$;
+revoke all on function public.registrera_uteblivet_kor(uuid, text) from public, anon, authenticated;
 
 -- Kunden kom (även för sent): bokningen markeras, och en registrering för den häves
 create or replace function public.markera_kommit(p_booking uuid) returns json
@@ -501,3 +509,47 @@ begin
   return n;
 end $$;
 revoke all on function public.rensa_gamla_avbokningar_kor() from public, anon, authenticated;
+
+
+-- Automatik (Lia 1 nov 2026): 15 minuter efter starttid registreras bokningar där Lia inte bekräftat att kunden kom
+-- som uteblivna (och kunden får sms när sms-tjänsten är kopplad). Bara bokningar där kunden godkänt reglerna
+-- (rules_version) och som började det senaste dygnet. En grupp räknas en gång.
+create or replace function public.auto_uteblivna_kor() returns integer
+language plpgsql security definer set search_path = public as $$
+declare r record; n integer := 0;
+begin
+  for r in
+    select distinct on (coalesce(group_id, id)) id, coalesce(group_id, id) as k
+      from public.bookings b
+     where status = 'bokad' and arrived_at is null and rules_version is not null
+     order by coalesce(group_id, id), starts_at
+  loop
+    if (select min(starts_at) from public.bookings where coalesce(group_id, id) = r.k) between now() - interval '24 hours' and now() - interval '15 minutes'
+       and not exists (select 1 from public.uteblivna u where coalesce(u.group_id, u.booking_id) = r.k)
+       and not exists (select 1 from public.bookings where coalesce(group_id, id) = r.k and arrived_at is not null) then
+      perform public.registrera_uteblivet_kor(r.id, 'uteblev');
+      n := n + 1;
+    end if;
+  end loop;
+  return n;
+end $$;
+revoke all on function public.auto_uteblivna_kor() from public, anon, authenticated;
+create or replace function public.auto_uteblivna() returns integer
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.auto_uteblivna_kor();
+end $$;
+revoke all on function public.auto_uteblivna() from public, anon;
+grant execute on function public.auto_uteblivna() to authenticated;
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('auto-uteblivna', '*/5 * * * *', 'select public.auto_uteblivna_kor()');
+  else
+    raise notice 'pg_cron finns inte: uteblivna besök registreras när Lia har admin öppen';
+  end if;
+exception when others then
+  raise notice 'Kunde inte schemalägga (%). Uteblivna besök registreras ändå när Lia har admin öppen.', sqlerrm;
+end $$;

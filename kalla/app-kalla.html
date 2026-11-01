@@ -1015,6 +1015,17 @@
           if (fn === 'confirm_booking') return wait(demoConfirmBooking(p));
           if (fn === 'registrera_uteblivet') return wait(demoRegistreraUteblivet(p));
           if (fn === 'markera_kommit') return wait(demoMarkeraKommit(p));
+          if (fn === 'auto_uteblivna') {   // samma regler som databasens auto_uteblivna_kor
+            if (!demoSession()) return wait(fail('EJ_ADMIN'));
+            const db = demoLoad(), now = Date.now(), seen = new Set(); let n = 0;
+            db.bookings.filter(b => b.status === 'bokad' && !b.arrived_at && b.rules_version).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).forEach(b => {
+              const k = b.group_id || b.id; if (seen.has(k)) return; seen.add(k);
+              const rows = groupRows(db, b), st = Math.min(...rows.map(x => new Date(x.starts_at).getTime()));
+              if (st > now - 15 * 60000 || st < now - 86400000 || rows.some(x => x.arrived_at) || db.uteblivna.some(u => (u.group_id || u.booking_id) === k)) return;
+              if (!demoRegistreraUteblivet({ p_booking: b.id, p_kind: 'uteblev' }).error) n++;
+            });
+            return wait({ data: n, error: null });
+          }
           if (fn === 'uteblivet_andra') return wait(demoUteblivetAndra(p));
           if (fn === 'uteblivet_forhand') { if (!demoSession()) return wait(fail('EJ_ADMIN')); return wait({ data: demoNextNumber(demoLoad(), String(p.p_phone || '').replace(/\D/g, '')), error: null }); }
           if (fn === 'rensa_gamla_avbokningar') {
@@ -3111,11 +3122,31 @@
         const n = await rpcDo('uteblivet_forhand', { p_phone: b.customer_phone }); if (n === null) return;
         const rows = lists.bookings.filter(x => (b.group_id && x.group_id === b.group_id) || x.id === b.id), sum = rows.reduce((a, x) => a + x.price, 0);
         const a = await ask({ title: 'Kunden uteblev?', lines: [b.customer_name + ' · ' + b.customer_phone, `${fmtDayLong(st)} kl ${fmtTime(st)}`, rows.map(x => x.service_names).join(', ')],
-          note: `Det här blir ${ordning(n)} gången för det här telefonnumret de senaste 12 månaderna. Enligt reglerna: ${n === 1 ? 'ingen avgift' : 'hela priset, ' + formatPrice(sum)}. Kunden får ett sms.`,
+          note: `Det här blir ${ordning(n)} gången för det här telefonnumret de senaste 12 månaderna. Enligt reglerna: ${n === 1 ? 'ingen avgift' : 'hela priset, ' + formatPrice(sum)}. Kunden får ett sms${b.rules_version && Date.now() < groupStart(b) + 15 * 60000 ? ' kl ' + fmtTime(groupStart(b) + 15 * 60000) + ' (15 minuter efter starttid), om du inte trycker "Kunden har kommit" innan dess' : ''}.`,
           yes: 'Ja, kunden uteblev', no: 'Avbryt', danger: n > 1 });
         if (!a) return;
+        if (b.rules_version && Date.now() < groupStart(b) + 15 * 60000) { answerNo(b); return; }   // sms:et går 15 min efter start (Lias regel)
         if (await rpcDo('registrera_uteblivet', { p_booking: b.id, p_kind: 'uteblev' })) loadStrikes();
       };
+      // Automatik (1 nov): 10 min efter start frågar appen Lia, 15 min efter start registreras uteblivet besök (sms till kunden)
+      const asked = useRef(new Set());
+      const [nejSet, setNejSet] = useState([]);
+      const groupStart = b => Math.min(...lists.bookings.filter(x => (b.group_id && x.group_id === b.group_id) || x.id === b.id).map(x => new Date(x.starts_at).getTime()));
+      const waiting = lists.bookings.filter((b, i, arr) => b.rules_version && !b.arrived_at && !strikeFor(b) && arr.findIndex(x => (x.group_id || x.id) === (b.group_id || b.id)) === i);
+      const nowMs = Date.now();
+      const prompts = waiting.filter(b => { const st = groupStart(b); return nowMs >= st + 10 * 60000 && nowMs < st + 15 * 60000 && !nejSet.includes(b.group_id || b.id); });
+      useEffect(() => {
+        prompts.forEach(b => {
+          const k = b.group_id || b.id; if (asked.current.has(k)) return; asked.current.add(k);
+          if (!alarmRef.current) return;
+          playChime();
+          try { if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('Har ' + b.customer_name + ' kommit?', { body: 'Tiden började kl ' + fmtTime(groupStart(b)) + '. Svara i appen.', tag: 'kom-' + k }); } catch (e) { console.error(e); }
+        });
+        if (waiting.some(b => nowMs >= groupStart(b) + 15 * 60000)) {
+          sb.rpc('auto_uteblivna').then(({ data, error }) => { if (!error && data > 0) { loadStrikes(); load(); } });
+        }
+      });
+      const answerNo = b => { setNejSet(v => [...v, b.group_id || b.id]); };
       const strikeChange = async (u, status) => {
         const a = await ask(status === 'betald'
           ? { title: 'Markera som betald?', lines: [u.customer_name + ' · ' + u.customer_phone, formatPrice(u.belopp)], note: 'Avgiften markeras som betald och räkningen för kunden börjar om.', yes: 'Ja, den är betald', no: 'Avbryt' }
@@ -3327,6 +3358,16 @@
               : <div><button onClick={activateAlarm} data-larm-pa style={{ ...btn(COLORS.sandBrown), width: '100%', padding: '14px' }}>🔔 Slå på larm (ljud + notis)</button><div style={{ fontSize: '12px', color: COLORS.dark, marginTop: '6px' }}>Valet sparas i den här telefonen, så du behöver bara göra det en gång.</div></div>}
           </div>
 
+          {prompts.map(b => (
+            <div key={'fraga-' + b.id} data-har-kommit={b.id} role="alert" style={{ ...BOX, marginTop: '14px', borderColor: '#A33A1C', boxShadow: '0 0 0 3px #E8B863' }}>
+              <div style={{ fontSize: '17px', fontWeight: 800, color: COLORS.dark }}>⏰ Har {b.customer_name} kommit?</div>
+              <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5, margin: '4px 0 10px' }}>Tiden började kl {fmtTime(groupStart(b))}. Svarar du inte registreras ett uteblivet besök kl {fmtTime(groupStart(b) + 15 * 60000)} och kunden får ett sms.</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <button onClick={() => markArrived(b)} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-svar-kom="ja">Ja, kunden är här</button>
+                <button onClick={() => answerNo(b)} style={{ ...small(COLORS.earthBrown), marginTop: 0, minHeight: '44px' }} data-svar-kom="nej">Nej, uteblev</button>
+              </div>
+            </div>
+          ))}
           {listState === 'loading' && <div style={{ ...BOX, marginTop: '18px' }}>Hämtar bokningar…</div>}
           {listState === 'error' && <div style={{ ...BOX, marginTop: '18px' }}>Bokningarna kunde inte hämtas. <button onClick={load} style={btn(COLORS.sandBrown)}>Försök igen</button></div>}
 
@@ -3354,6 +3395,10 @@
                           if (u) return <div data-narvaro="uteblev" style={{ margin: '0 0 8px' }}>
                             <div className="lh-cut__conf" style={{ color: '#7A2A10' }}><Icon name="x" size={16} strokeWidth={3} />Uteblev – {ordning(u.nummer)} gången, {u.belopp ? formatPrice(u.belopp) + ' att betala' : 'ingen avgift'}</div>
                             <button onClick={async () => { if (await ask({ title: 'Kunden kom ändå?', lines: [b.customer_name], note: 'Registreringen hävs och kunden får ett sms om att ingen avgift tas ut.', yes: 'Ja, kunden kom', no: 'Avbryt' })) markArrived(b); }} style={{ ...small(COLORS.rosemary), marginTop: '4px', minHeight: '44px' }} data-kom-anda>Kunden kom ändå</button>
+                          </div>;
+                          if (nejSet.includes(b.group_id || b.id)) return <div data-narvaro="vantar" style={{ margin: '0 0 8px' }}>
+                            <div className="lh-cut__conf" style={{ color: '#7A2A10' }}><Icon name="clock" size={16} />Markerad som utebliven – registreras och sms skickas kl {fmtTime(groupStart(b) + 15 * 60000)}</div>
+                            <button onClick={() => { setNejSet(v => v.filter(x => x !== (b.group_id || b.id))); markArrived(b); }} style={{ ...small(COLORS.rosemary), marginTop: '4px', minHeight: '44px' }} data-kom>✓ Kunden har kommit</button>
                           </div>;
                           return <div data-narvaro="okand" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '0 0 8px' }}>
                             <button onClick={() => markArrived(b)} style={{ ...small(COLORS.rosemary), marginTop: 0, minHeight: '44px' }} data-kom>✓ Kunden har kommit</button>

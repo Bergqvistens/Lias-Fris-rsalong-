@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med uteblivna besök del 2).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (allt i supabase-setup.sql till och med uteblivna besök del 3, automatiken).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict BRgjPmhjysS8i4Um8SvP7rEPIAPgxQgKhy6KhPqcfCBPLhkZ1dwAGOpV1QlrzL4
+\restrict iUc7aBO7dvng23NOlabyTqSTqUeYd66WphNJXGXJJLnr3luaWvC6W6jAowaQs2g
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -39,6 +39,51 @@ CREATE FUNCTION auth.uid() RETURNS uuid
 
 
 ALTER FUNCTION auth.uid() OWNER TO postgres;
+
+--
+-- Name: auto_uteblivna(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.auto_uteblivna() RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.auto_uteblivna_kor();
+end $$;
+
+
+ALTER FUNCTION public.auto_uteblivna() OWNER TO postgres;
+
+--
+-- Name: auto_uteblivna_kor(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.auto_uteblivna_kor() RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare r record; n integer := 0;
+begin
+  for r in
+    select distinct on (coalesce(group_id, id)) id, coalesce(group_id, id) as k
+      from public.bookings b
+     where status = 'bokad' and arrived_at is null and rules_version is not null
+     order by coalesce(group_id, id), starts_at
+  loop
+    if (select min(starts_at) from public.bookings where coalesce(group_id, id) = r.k) between now() - interval '24 hours' and now() - interval '15 minutes'
+       and not exists (select 1 from public.uteblivna u where coalesce(u.group_id, u.booking_id) = r.k)
+       and not exists (select 1 from public.bookings where coalesce(group_id, id) = r.k and arrived_at is not null) then
+      perform public.registrera_uteblivet_kor(r.id, 'uteblev');
+      n := n + 1;
+    end if;
+  end loop;
+  return n;
+end $$;
+
+
+ALTER FUNCTION public.auto_uteblivna_kor() OWNER TO postgres;
 
 --
 -- Name: create_booking(jsonb, timestamp with time zone, text, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -252,6 +297,22 @@ CREATE FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) RETURNS
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  return public.registrera_uteblivet_kor(p_booking, p_kind);
+end $$;
+
+
+ALTER FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) OWNER TO postgres;
+
+--
+-- Name: registrera_uteblivet_kor(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.registrera_uteblivet_kor(p_booking uuid, p_kind text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
 declare
   b       public.bookings%rowtype;
   v_hours integer;
@@ -260,7 +321,6 @@ declare
   v_start timestamptz;
   v_row   public.uteblivna%rowtype;
 begin
-  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
   if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
   select * into b from public.bookings where id = p_booking;
   if not found then raise exception 'OGILTIG_BOKNING'; end if;
@@ -290,7 +350,7 @@ begin
 end $$;
 
 
-ALTER FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) OWNER TO postgres;
+ALTER FUNCTION public.registrera_uteblivet_kor(p_booking uuid, p_kind text) OWNER TO postgres;
 
 --
 -- Name: rensa_gamla_avbokningar(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -515,7 +575,7 @@ ALTER TABLE public.uteblivna OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-40bc0b32-226c-41c5-9aec-89376b79d769	lia@test.se
+b10ee68c-976a-49ee-b8fe-eaadf122c208	lia@test.se
 \.
 
 
@@ -524,7 +584,7 @@ COPY auth.users (id, email) FROM stdin;
 --
 
 COPY public.admins (user_id) FROM stdin;
-40bc0b32-226c-41c5-9aec-89376b79d769
+b10ee68c-976a-49ee-b8fe-eaadf122c208
 \.
 
 
@@ -541,6 +601,10 @@ COPY public.bookings (id, created_at, service_ids, service_names, price, starts_
 --
 
 COPY public.services (id, name, duration, price, category, kind) FROM stdin;
+klipp-45	Klippning 45 min.	45	600	Klippning	klipp
+klipp-lyx	Klippning lyx	60	850	Klippning	klipp
+klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
+putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 farg-botten	Bottenfärg/utväxt	90	1000	Färgbehandling	klipp
 farg-150	Färgbehandling 2.5 timmar Klippning ingår.	150	2000	Färgbehandling	klipp
 farg-180	Färgbehandling 3 timmar, klippning ingår.	180	2500	Färgbehandling	klipp
@@ -554,10 +618,6 @@ tvatt-fon-60	Tvätt & fön/ styling 1 timma	60	800	Styling, tvätt & föning	kli
 harbotten	Hårbottenmassage	45	750	Hårbottenmassage	klipp
 bryn	Färg och form av bryn.	30	200	Frans och/eller brynfärg	klipp
 frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller brynfärg	klipp
-klipp-45	Klippning 45 min.	45	600	Klippning	klipp
-klipp-lyx	Klippning lyx	60	850	Klippning	klipp
-klipp-30	Klippning/Herrklippning 30 min	30	500	Klippning	klipp
-putsning	Putsning, kort hår med maskinklippn. sidor & nacke.	15	250	Klippning	klipp
 \.
 
 
@@ -739,6 +799,21 @@ GRANT ALL ON FUNCTION auth.uid() TO authenticated;
 
 
 --
+-- Name: FUNCTION auto_uteblivna(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.auto_uteblivna() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.auto_uteblivna() TO authenticated;
+
+
+--
+-- Name: FUNCTION auto_uteblivna_kor(); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.auto_uteblivna_kor() FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION create_booking(p_people jsonb, p_starts_at timestamp with time zone, p_name text, p_phone text, p_email text, p_rules text); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -778,6 +853,13 @@ GRANT ALL ON FUNCTION public.markera_kommit(p_booking uuid) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.registrera_uteblivet(p_booking uuid, p_kind text) TO authenticated;
+
+
+--
+-- Name: FUNCTION registrera_uteblivet_kor(p_booking uuid, p_kind text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.registrera_uteblivet_kor(p_booking uuid, p_kind text) FROM PUBLIC;
 
 
 --
@@ -858,5 +940,5 @@ GRANT SELECT ON TABLE public.uteblivna TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BRgjPmhjysS8i4Um8SvP7rEPIAPgxQgKhy6KhPqcfCBPLhkZ1dwAGOpV1QlrzL4
+\unrestrict iUc7aBO7dvng23NOlabyTqSTqUeYd66WphNJXGXJJLnr3luaWvC6W6jAowaQs2g
 
