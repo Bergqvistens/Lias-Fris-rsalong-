@@ -694,7 +694,8 @@
 
     // --- Frisörbokning: samma kontroller som create_booking i supabase-setup.sql ---
     // p_people: 1–4 personer, var och en exakt en klippning + tillägg i samma kategori; efter varandra (en frisör).
-    function demoCreateBooking(p) {
+    // opt (bara internt, från demoKundOmboka): { rebookFrom: gamla starttiden, late } – annan sms-text och bekräftad direkt
+    function demoCreateBooking(p, opt) {
       const c = demoCheckContact(p); if (c.err) return fail(c.err);
       if (p.p_rules !== RULES_VERSION) return fail('REGLER_EJ_GODKANDA');
       const people = p.p_people;
@@ -733,13 +734,19 @@
       const group = demoId(), created = new Date().toISOString(), token = demoId();   // token: kundens bekräftelselänk i sms:et (30 okt)
       const rows = plan.map(x => ({ id: demoId(), created_at: created, service_ids: x.ids, service_names: x.names, price: x.price,
         starts_at: new Date(x.s).toISOString(), ends_at: new Date(x.e).toISOString(),
-        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad', person_name: x.pname, group_id: group, confirm_token: token, confirmed_at: null, rules_version: p.p_rules }));
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email, status: 'bokad', person_name: x.pname, group_id: group, confirm_token: token, confirmed_at: opt ? created : null, rules_version: p.p_rules }));
       rows.forEach(r => db.bookings.push(r));
       const total = plan.reduce((a2, x) => a2 + x.price, 0);
       const first = c.name.split(' ')[0];
       const cDl = start - cancelHoursFor(plan.flatMap(x => x.ids)) * 3600000;
       const cTxt = cDl > Date.now() ? `Avboka/ändra senast ${demoWhen(cDl)} på ${CONTACT.phone}.` : `Avboka/ändra: ring ${CONTACT.phone}.`;
-      if (!multi) {
+      if (opt) {
+        // Kunden bokade om själv via länken (1 nov 2026, del B)
+        const list = multi ? plan.map(x => `kl ${fmtTime(x.s)} ${x.pname} (${x.names})`).join(', ') : plan[0].names;
+        const nyTid = multi ? demoWhen(start).replace(/ kl .*/, '') : demoWhen(start);
+        demoAddSms(db, c.phone, 'ombokning', rows[0].id, `Hej ${first}! ${multi ? 'Era tider' : 'Din tid'} hos Lias Hantverkeri är ombokad till ${nyTid}: ${list}. Den gamla tiden ${demoWhen(opt.rebookFrom)} är avbokad. Se eller ändra bokningen: ${confirmUrl(token)} ${cTxt}`);
+        demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ombokning via länken: ${c.name} flyttade ${demoWhen(opt.rebookFrom)} till ${nyTid}: ${list}. Tel ${c.phone}${opt.late ? '. Sen ombokning, finns under Avgifter och varningar.' : ''}`);
+      } else if (!multi) {
         demoAddSms(db, c.phone, 'bekraftelse', rows[0].id, `Hej ${first}! Din tid hos Lias Hantverkeri är bokad ${demoWhen(start)} (${plan[0].names}). Bekräfta din tid genom att trycka på länken: ${confirmUrl(token)} ${cTxt} Välkommen!`);
         demoAddSms(db, 'Lias mobil', 'till-lia', rows[0].id, `Ny bokning: ${c.name}, ${demoWhen(start)}, ${plan[0].names}, från ${total} kr. Tel ${c.phone}`);
       } else {
@@ -751,7 +758,8 @@
       rows.forEach(r => demoEmit('bookings', r));
       return { data: { id: rows[0].id, group_id: group, starts_at: rows[0].starts_at, ends_at: new Date(end).toISOString(),
         service_names: plan.map(x => (x.pname ? x.pname + ': ' : '') + x.names).join('; '), price: total, duration: (end - start) / 60000,
-        items: rows.map(r => ({ id: r.id, person_name: r.person_name, service_names: r.service_names, price: r.price, starts_at: r.starts_at, ends_at: r.ends_at })) }, error: null };
+        items: rows.map(r => ({ id: r.id, person_name: r.person_name, service_names: r.service_names, price: r.price, starts_at: r.starts_at, ends_at: r.ends_at })),
+        ...(opt ? { confirm_token: token } : {}) }, error: null };
     }
 
     // --- Kurser ---
@@ -853,14 +861,15 @@
     const confirmUrl = token => location.origin + location.pathname + '#bekrafta=' + token;
     function demoConfirmBooking(p) {
       const token = String(p.p_token || '');
-      const db = demoLoad(), rows = db.bookings.filter(b => token && b.confirm_token === token);
-      if (!rows.length) return fail('OGILTIG_LANK');
-      const live = rows.filter(b => b.status === 'bokad');
-      if (!live.length) return fail('BOKNING_AVBOKAD');
+      const db = demoLoad(), k = demoKundRows(db, token);
+      if (k.err) return fail(k.err);
+      const live = k.live;
       const start = Math.min(...live.map(b => new Date(b.starts_at).getTime())), end = Math.max(...live.map(b => new Date(b.ends_at).getTime()));
       if (end <= Date.now()) return fail('BOKNING_PASSERAD');
+      const h = demoKundHours(live), dl = start - h * 3600000;
       const info = { starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(), customer_name: live[0].customer_name,
-        items: live.slice().sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).map(b => ({ person_name: b.person_name, service_names: b.service_names, starts_at: b.starts_at, ends_at: b.ends_at })) };
+        items: live.map(b => ({ person_name: b.person_name, service_ids: b.service_ids, service_names: b.service_names, price: b.price, starts_at: b.starts_at, ends_at: b.ends_at })),
+        price: live.reduce((a, b) => a + b.price, 0), cancel_hours: h, deadline: new Date(dl).toISOString(), late: Date.now() >= dl, can_change: start > Date.now() };
       if (live[0].confirmed_at) return { data: { ...info, already: true, confirmed_at: live[0].confirmed_at }, error: null };
       const now = new Date().toISOString();
       live.forEach(b => { b.confirmed_at = now; });
@@ -870,6 +879,53 @@
       demoSave(db);
       live.forEach(b => demoEmit('bookings', b, 'UPDATE'));
       return { data: { ...info, already: false, confirmed_at: now }, error: null };
+    }
+    // ---- Kundens länk: avboka eller boka om själv (1 nov 2026, del B). Samma regler som i databasen. ----
+    function demoKundRows(db, token) {
+      const rows = db.bookings.filter(b => token && b.confirm_token === token);
+      if (!rows.length) return { err: 'OGILTIG_LANK' };
+      const live = rows.filter(b => b.status === 'bokad').sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+      if (!live.length) return { err: rows.some(b => b.ombokad_till) ? 'BOKNING_OMBOKAD' : 'BOKNING_AVBOKAD' };
+      return { live };
+    }
+    const demoKundHours = live => cancelHoursFor(live.flatMap(b => b.service_ids || []));
+    function demoKundAvboka(p) {
+      const db = demoLoad(), k = demoKundRows(db, String(p.p_token || ''));
+      if (k.err) return fail(k.err);
+      const live = k.live, start = new Date(live[0].starts_at).getTime();
+      if (start <= Date.now()) return fail('TIDEN_HAR_BORJAT');
+      const h = demoKundHours(live), late = Date.now() >= start - h * 3600000, now = new Date().toISOString();
+      live.forEach(b => { b.status = 'avbokad'; b.cancelled_at = now; b.cancelled_by = 'kund'; });
+      if (late) demoRegKor(db, live[0], 'sen_avbokning');
+      const names = live.map(b => (b.person_name ? b.person_name + ': ' : '') + b.service_names).join('; ');
+      demoAddSms(db, 'Lias mobil', 'till-lia', live[0].id, `Avbokning via länken: ${live[0].customer_name} avbokade ${demoWhen(start)} (${names}). Tel ${live[0].customer_phone}${late ? '. Sen avbokning, finns under Avgifter och varningar.' : ''}`);
+      demoSave(db);
+      live.forEach(b => demoEmit('bookings', b, 'UPDATE'));
+      return { data: { starts_at: new Date(start).toISOString(), late, cancel_hours: h }, error: null };
+    }
+    function demoKundOmboka(p) {
+      let db = demoLoad();
+      const k = demoKundRows(db, String(p.p_token || ''));
+      if (k.err) return fail(k.err);
+      const live = k.live, start = new Date(live[0].starts_at).getTime(), ny = new Date(p.p_starts_at).getTime();
+      if (start <= Date.now()) return fail('TIDEN_HAR_BORJAT');
+      if (ny === start) return fail('SAMMA_TID');
+      const h = demoKundHours(live), late = Date.now() >= start - h * 3600000, now = new Date().toISOString(), ids = live.map(b => b.id);
+      const people = live.map(b => ({ category: (SERVICES.find(s => s.id === (b.service_ids || [])[0]) || {}).cat, service_ids: b.service_ids, name: b.person_name || '' }));
+      live.forEach(b => { b.status = 'avbokad'; b.cancelled_at = now; b.cancelled_by = 'kund'; b.ombokad_till = isFinite(ny) ? new Date(ny).toISOString() : null; });
+      demoSave(db);
+      const res = demoCreateBooking({ p_people: people, p_starts_at: p.p_starts_at, p_name: live[0].customer_name, p_phone: live[0].customer_phone, p_email: live[0].customer_email, p_rules: p.p_rules }, { rebookFrom: start, late });
+      db = demoLoad();
+      const old = db.bookings.filter(b => ids.includes(b.id));
+      if (res.error) {   // allt eller inget: den gamla tiden ligger kvar
+        old.forEach(b => { b.status = 'bokad'; b.cancelled_at = null; b.cancelled_by = null; b.ombokad_till = null; });
+        demoSave(db);
+        return res;
+      }
+      if (late) demoRegKor(db, old[0], 'sen_ombokning');
+      demoSave(db);
+      old.forEach(b => demoEmit('bookings', b, 'UPDATE'));
+      return { data: { ...res.data, late, old_starts_at: new Date(start).toISOString(), cancel_hours: h }, error: null };
     }
     // ---- Uteblivet besök / sen avbokning (1 nov 2026). Samma regler som i databasen. ----
     function demoNextNumber(db, phone) {
@@ -899,7 +955,18 @@
       if (!['uteblev', 'sen_avbokning', 'sen_ombokning', 'sen_ankomst'].includes(p.p_kind)) return fail('OGILTIG_TYP');
       const db = demoLoad(), b = db.bookings.find(x => x.id === p.p_booking);
       if (!b) return fail('OGILTIG_BOKNING');
-      const rows = groupRows(db, b), start = Math.min(...rows.map(x => new Date(x.starts_at).getTime())), sum = rows.reduce((a, x) => a + x.price, 0);
+      const u = demoRegKor(db, b, p.p_kind);
+      if (u.err) return fail(u.err);
+      demoSave(db);
+      return { data: u, error: null };
+    }
+    // Själva registreringen (som registrera_uteblivet_kor i databasen). Sparar inte; den som anropar sparar.
+    // Belopp/starttid: aktiva rader (uteblev/sen ankomst) eller raderna som avbokades i samma ögonblick (rättat 1 nov 2026).
+    function demoRegKor(db, b, kind) {
+      const p = { p_kind: kind };
+      const rows = groupRows(db, b).filter(x => ['uteblev', 'sen_ankomst'].includes(kind) ? x.status === 'bokad' : x.status === 'avbokad' && x.cancelled_at === b.cancelled_at);
+      const start = Math.min(...rows.map(x => new Date(x.starts_at).getTime())), sum = rows.reduce((a, x) => a + x.price, 0);
+      const fail = code => ({ err: code });
       if (p.p_kind === 'uteblev') {
         if (b.status !== 'bokad') return fail('OGILTIG_BOKNING');
         if (start > Date.now()) return fail('TIDEN_HAR_INTE_BORJAT');
@@ -909,7 +976,7 @@
         if (start > Date.now() - 5 * 60000) return fail('INTE_SEN_ANKOMST');
       } else {
         if (b.status !== 'avbokad' || !b.cancelled_at) return fail('OGILTIG_BOKNING');
-        if (new Date(b.cancelled_at).getTime() < start - cancelHoursFor(b.service_ids || []) * 3600000) return fail('INTE_SEN_AVBOKNING');
+        if (new Date(b.cancelled_at).getTime() < start - cancelHoursFor(rows.flatMap(x => x.service_ids || [])) * 3600000) return fail('INTE_SEN_AVBOKNING');
       }
       const key = b.group_id || b.id;
       if (db.uteblivna.some(u => (u.group_id || u.booking_id) === key)) return fail('REDAN_REGISTRERAD');
@@ -918,8 +985,7 @@
         kind: p.p_kind, nummer: n, belopp: n === 1 ? 0 : sum, status: n === 1 ? 'ingen_avgift' : 'obetald', andrad_at: null, booking_start: new Date(start).toISOString() };
       db.uteblivna.push(u);
       if (p.p_kind === 'uteblev') demoAddSms(db, b.customer_phone, 'saknad', b.id, noshowSms('saknad', u, start));   // avgift/varning skickar Lia själv med knappen
-      demoSave(db);
-      return { data: u, error: null };
+      return u;
     }
     function demoMarkeraKommit(p) {
       if (!demoSession()) return fail('EJ_ADMIN');
@@ -984,7 +1050,7 @@
               if (before === 'avbokad') return;   // som databasens regel: avbokad tid och meddelande går inte att ändra i efterhand
               r.status = q.update.status;
               if ('cancel_note' in q.update) r.cancel_note = cleanNote(q.update.cancel_note) || null;
-              if ((table === 'bookings' || table === 'course_bookings') && r.status === 'avbokad') r.cancelled_at = new Date().toISOString();   // demo: telefonens klocka (riktiga läget: databasens)
+              if ((table === 'bookings' || table === 'course_bookings') && r.status === 'avbokad') { r.cancelled_at = new Date().toISOString(); r.cancelled_by = 'lia'; }   // demo: telefonens klocka (riktiga läget: databasens)
               if (table === 'bookings' && before === 'bokad' && r.status === 'avbokad')
                 demoAddSms(db, r.customer_phone, 'avbokning', r.id, cancelSmsText('bookings', r, r.cancel_note));
               if (table === 'course_bookings' && before === 'bokad' && r.status === 'avbokad')
@@ -1038,6 +1104,8 @@
           if (fn === 'add_photo') return wait(demoAddPhoto(p));
           if (fn === 'delete_photo') return wait(demoDeletePhoto(p));
           if (fn === 'confirm_booking') return wait(demoConfirmBooking(p));
+          if (fn === 'kund_avboka') return wait(demoKundAvboka(p));
+          if (fn === 'kund_omboka') return wait(demoKundOmboka(p));
           if (fn === 'registrera_uteblivet') return wait(demoRegistreraUteblivet(p));
           if (fn === 'markera_kommit') return wait(demoMarkeraKommit(p));
           if (fn === 'auto_uteblivna') {   // samma regler som databasens auto_uteblivna_kor
@@ -1187,7 +1255,7 @@
       );
     }
 
-    const SMS_LABELS = { 'saknad': 'Vi saknade dig', 'varning': 'Varning (ingen avgift)', 'debitering': 'Debitering', 'kom-anda': 'Kunden kom ändå', 'bekraftelse': 'Bekräftelse', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
+    const SMS_LABELS = { 'saknad': 'Vi saknade dig', 'varning': 'Varning (ingen avgift)', 'debitering': 'Debitering', 'kom-anda': 'Kunden kom ändå', 'bekraftelse': 'Bekräftelse', 'ombokning': 'Ombokning', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
     // linkable=false i Lias sms-logg: länken visas som text men går inte att trycka på (Lia ska inte kunna bekräfta åt kunden, 30 okt)
     function DemoSmsBubble({ sms, linkable = true }) {
       const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
@@ -3281,8 +3349,13 @@
             alarm(t, r);
           });
         });
-        ch = ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookings' }, payload => {   // t.ex. kunden bekräftade sin tid
+        ch = ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookings' }, payload => {   // t.ex. kunden bekräftade, avbokade eller bokade om sin tid
           const r = payload.new; if (!r) return;
+          if (r.status === 'avbokad') {   // kunden avbokade/bokade om via länken: tiden försvinner ur listan och syns under Avbokade tider
+            setLists(prev => ({ ...prev, bookings: prev.bookings.filter(x => x.id !== r.id) }));
+            loadCancelled(); loadStrikes();
+            return;
+          }
           setLists(prev => ({ ...prev, bookings: prev.bookings.map(x => x.id === r.id ? { ...x, ...r } : x) }));
         });
         ch.subscribe(status => setLive(status === 'SUBSCRIBED'));
@@ -3517,7 +3590,7 @@
               </>; })()}
 
               <h2 style={H} data-rubrik="avbokade">🗓️ Avbokade tider ({cancelled.length})</h2>
-              <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Avbokningar som Lia har gjort, med exakt tid. Sparas i 12 månader och raderas sedan automatiskt.</p>
+              <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '-4px 0 10px 0' }}>Avbokningar som Lia har gjort och som kunder har gjort själva via länken i sms:et, med exakt tid. Sparas i 12 månader och raderas sedan automatiskt.</p>
               {cancelled.length === 0
                 ? <div style={{ ...BOX, textAlign: 'center' }}>Inga avbokningar de senaste 12 månaderna.</div>
                 : <div style={{ display: 'grid', gap: '10px' }}>
@@ -3527,8 +3600,15 @@
                         <div key={c._t + c.id} data-avbokad={c.id} style={{ ...BOX, borderColor: COLORS.earthBrown }}>
                           <div style={{ fontSize: '16px', color: COLORS.dark, lineHeight: 1.5 }}><strong>{c.person_name ? `${c.person_name} (${c.customer_name})` : c.customer_name}</strong> · <a href={'tel:' + c.customer_phone} style={{ color: COLORS.rosemary }}>{c.customer_phone}</a></div>
                           <div style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5 }}>{c._t === 'course_bookings' ? 'Kursplats' : 'Bokad tid'}: {whenFull(st)} · {c._t === 'course_bookings' ? c.course_name : c.service_names}</div>
-                          <div data-avbokad-tid style={{ margin: '6px 0 0', fontSize: '15px', fontWeight: 800, color: '#7A2A10' }}>Avbokad av Lia: {whenFull(new Date(c.cancelled_at).getTime())}</div>
-                          <div data-avbokad-medd style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5, marginTop: '2px' }}>{c.cancel_note ? <>Meddelande: ”{c.cancel_note}”</> : 'Inget eget meddelande (bara avbokningssms).'}</div>
+                          {c.cancelled_by === 'kund'
+                            ? <>
+                                <div data-avbokad-tid data-avbokad-av="kund" style={{ margin: '6px 0 0', fontSize: '15px', fontWeight: 800, color: '#7A2A10' }}>{c.ombokad_till ? 'Ombokad' : 'Avbokad'} av kunden via länken: {whenFull(new Date(c.cancelled_at).getTime())}</div>
+                                {c.ombokad_till && <div data-ombokad-till style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5, marginTop: '2px' }}>Ny tid: {whenFull(new Date(c.ombokad_till).getTime())}</div>}
+                              </>
+                            : <>
+                                <div data-avbokad-tid data-avbokad-av="lia" style={{ margin: '6px 0 0', fontSize: '15px', fontWeight: 800, color: '#7A2A10' }}>Avbokad av Lia: {whenFull(new Date(c.cancelled_at).getTime())}</div>
+                                <div data-avbokad-medd style={{ fontSize: '15px', color: COLORS.dark, lineHeight: 1.5, marginTop: '2px' }}>{c.cancel_note ? <>Meddelande: ”{c.cancel_note}”</> : 'Inget eget meddelande (bara avbokningssms).'}</div>
+                              </>}
                         </div>
                       );
                     })}
@@ -3564,22 +3644,59 @@
     }
 
     const confirmTokenFromUrl = () => { const m = /[#&]bekrafta=([A-Za-z0-9-]{8,80})/.exec(location.hash || ''); return m ? m[1] : null; };
+    // Kundens länk i sms:et (#bekrafta=…): tiden bekräftas när länken öppnas, och kunden kan själv
+    // boka om (bara byta tid) eller avboka (Tommy 1 nov 2026, del B). Allt annat tar kunden med Lia.
+    const KUND_ERRORS = {
+      OGILTIG_LANK: 'Länken fungerar inte. Kontrollera att hela länken från sms:et kom med.',
+      BOKNING_AVBOKAD: 'Den här tiden är avbokad.',
+      BOKNING_OMBOKAD: 'Den här tiden är ombokad. Använd länken i det senaste sms:et för att se din nya tid.',
+      BOKNING_PASSERAD: 'Den här tiden har redan varit.',
+      TIDEN_HAR_BORJAT: 'Din tid har redan börjat, så den kan inte ändras här. Ring eller sms:a Lia.',
+      SAMMA_TID: 'Det är samma tid som du redan har. Välj en annan tid.',
+    };
+    const kundErrCode = error => { const m = ((error && error.message) || '').match(/[A-Z][A-Z_]{3,}/); return m ? m[0] : 'NATVERK'; };
+    const kundErrText = code => KUND_ERRORS[code] || BOOKING_ERRORS[code] || 'Det gick inte att nå Lias bokning. Kontrollera din internetanslutning och försök igen.';
+    function KundKontakt() {
+      return <p className="lh-done__note" data-kund-kontakt>Hellre prata med Lia? Ring eller sms:a <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>, eller mejla <a href={'mailto:' + CONTACT.email}>{CONTACT.email}</a>.</p>;
+    }
+    function KundSenVarning({ d, what }) {
+      return (
+        <div role="note" data-sen-varning style={{ margin: '0', padding: '12px 14px', background: '#F6E3DC', border: '2px solid #8A2E12', borderRadius: '12px', color: '#5C1E0B', font: '15px/1.5 var(--font-body)', textAlign: 'left' }}>
+          <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '16px', marginBottom: '4px' }}><Icon name="alert" size={18} />Sista avbokningstiden har passerat</strong>
+          Den var {whenFull(new Date(d.deadline).getTime()).replace(/^\w/, c => c.toLowerCase())} ({d.cancel_hours} timmar före). {what === 'omboka' ? 'Bokar du om nu räknas det som en sen ombokning' : what === 'avboka' ? 'Avbokar du nu räknas det som en sen avbokning' : 'Avbokar eller bokar du om nu räknas det som sen avbokning eller ombokning'}, och enligt avbokningsreglerna kan du då få betala hela priset för bokningen, {d.price} kr.
+        </div>
+      );
+    }
     function ConfirmBooking({ token, onDone }) {
       const [res, setRes] = useState(null);   // null = laddar
+      const [view, setView] = useState('info');   // info | omboka | avbokad | ombokad
+      const [result, setResult] = useState(null);
+      const [sending, setSending] = useState(false);
+      const [actErr, setActErr] = useState(null);
+      const [askEl, ask] = useAppConfirm();
+      // Ombokning: dag, tid och regler
+      const days = React.useMemo(() => upcomingDays(14), []);
+      const [day, setDay] = useState(null);
+      const [busy, setBusy] = useState([]);
+      const [busyState, setBusyState] = useState('idle');
+      const [slot, setSlot] = useState(null);
+      const [rulesOk, setRulesOk] = useState(false);
+      const [tried, setTried] = useState(false);
       useEffect(() => {
         let live = true;
-        sb.rpc('confirm_booking', { p_token: token }).then(({ data, error }) => { if (live) setRes(error ? { error: (error.message || '').match(/[A-Z_]{4,}/) ? error.message.match(/[A-Z_]{4,}/)[0] : 'NATVERK' } : { data }); });
+        Promise.resolve(sb.rpc('confirm_booking', { p_token: token })).then(({ data, error }) => { if (live) setRes(error ? { error: kundErrCode(error) } : { data }); })
+          .catch(() => { if (live) setRes({ error: 'NATVERK' }); });
         return () => { live = false; };
       }, [token]);
-      if (!res) return <div className="lh-flow"><LoadingState text="Bekräftar din tid…" /></div>;
+      useEffect(() => { window.scrollTo(0, 0); }, [view]);
+      if (!res) return <div className="lh-flow"><LoadingState text="Hämtar din bokning…" /></div>;
       if (res.error) {
-        const t = { OGILTIG_LANK: 'Länken fungerar inte. Kontrollera att hela länken från sms:et kom med.', BOKNING_AVBOKAD: 'Den här tiden är avbokad.', BOKNING_PASSERAD: 'Den här tiden har redan varit.' }[res.error] || 'Bekräftelsen kunde inte göras just nu.';
         return (
           <div className="lh-flow">
-            <div className="lh-card lh-done" role="alert" data-bekraftelse="fel">
+            <div className="lh-card lh-done" role="alert" data-bekraftelse="fel" data-fel={res.error}>
               <div className="lh-done__icon" style={{ background: '#F6E3DC', color: '#8A2E12' }}><Icon name="alert" size={34} /></div>
-              <h2>Tiden kunde inte bekräftas</h2>
-              <p className="lh-done__sub">{t}</p>
+              <h2>{res.error === 'BOKNING_AVBOKAD' || res.error === 'BOKNING_OMBOKAD' ? 'Tiden finns inte längre' : 'Tiden kunde inte bekräftas'}</h2>
+              <p className="lh-done__sub">{kundErrText(res.error)}</p>
               <p className="lh-done__note">Frågor? Ring eller sms:a Lia på <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>
               <Button variant="primary" block onClick={onDone}>Till startsidan</Button>
             </div>
@@ -3587,17 +3704,162 @@
         );
       }
       const d = res.data, st = new Date(d.starts_at).getTime(), multi = d.items.length > 1;
+      const first = String(d.customer_name || '').trim().split(' ')[0];
+      const svcList = d.items.flatMap(it => String(it.service_names).split(', ').map(svcByName));
+      const totalDur = d.items.reduce((a, it) => a + (new Date(it.ends_at) - new Date(it.starts_at)) / 60000, 0);
+      const own = d.items.map(it => ({ s: new Date(it.starts_at).getTime(), e: new Date(it.ends_at).getTime() }));
+      const itemRows = (startMs) => { let t = startMs; return d.items.map((it, i) => { const dur = (new Date(it.ends_at) - new Date(it.starts_at)); const s = t; t += dur; return { it, i, s, e: t }; }); };
+      const lines = ms => [
+        <InfoRow icon="calendar"><strong>{fmtDayLong(ms)}</strong></InfoRow>,
+        ...itemRows(ms).map(c => <InfoRow icon="scissors"><strong>{fmtTime(c.s)}–{fmtTime(c.e)}</strong> {c.it.person_name ? c.it.person_name + ': ' : ''}{c.it.service_names}</InfoRow>),
+      ];
+      const plainLines = ms => [fmtDayLong(ms), ...itemRows(ms).map(c => `${fmtTime(c.s)}–${fmtTime(c.e)} ${c.it.person_name ? c.it.person_name + ': ' : ''}${c.it.service_names}`)];
+
+      // ---------- Resultat ----------
+      if (view === 'avbokad') return (
+        <div className="lh-flow" data-kund-resultat="avbokad">
+          <DoneCard title={multi ? 'Era tider är avbokade' : 'Din tid är avbokad'} sub={'Lia har fått besked. Välkommen att boka en ny tid när det passar.'} onDone={onDone} lines={lines(st)}>
+            {result.late && <p className="lh-done__note" data-sen-registrerad style={{ color: '#5C1E0B' }}><strong>Avbokningen gjordes efter sista avbokningstiden</strong> och räknas därför som en sen avbokning enligt avbokningsreglerna.</p>}
+            <KundKontakt />
+          </DoneCard>
+        </div>
+      );
+      if (view === 'ombokad') {
+        const ns = new Date(result.starts_at).getTime();
+        return (
+          <div className="lh-flow" data-kund-resultat="ombokad">
+            <DoneCard title={multi ? 'Era tider är ombokade' : 'Din tid är ombokad'} sub={'Din gamla tid ' + whenFull(st).replace(/^\w/, c => c.toLowerCase()) + ' är avbokad. Lia har fått besked.'} onDone={onDone} lines={lines(ns)}>
+              {result.late && <p className="lh-done__note" data-sen-registrerad style={{ color: '#5C1E0B' }}><strong>Ombokningen gjordes efter sista avbokningstiden</strong> och räknas därför som en sen ombokning enligt avbokningsreglerna.</p>}
+              {result.confirm_token && <Button variant="secondary" block data-visa-ny onClick={() => { location.hash = 'bekrafta=' + result.confirm_token; }}>Visa din nya bokning</Button>}
+              <KundKontakt />
+            </DoneCard>
+          </div>
+        );
+      }
+
+      // ---------- Boka om: välj ny tid ----------
+      if (view === 'omboka') {
+        const loadBusy = async dd => {
+          setBusyState('loading'); setBusy([]);
+          try {
+            const from = stockholmMs(dd.y, dd.m, dd.d, 0, 0), to = stockholmMs(dd.y, dd.m, dd.d, 23, 59);
+            const { data, error: err } = await sb.rpc('get_busy', { p_from: new Date(from).toISOString(), p_to: new Date(to).toISOString() });
+            if (err) throw err;
+            // Kundens egen nuvarande tid räknas som ledig (den avbokas när den nya sparas)
+            setBusy((data || []).map(b => ({ s: new Date(b.starts_at).getTime(), e: new Date(b.ends_at).getTime() })).filter(b => !own.some(o => o.s === b.s && o.e === b.e)));
+            setBusyState('ok');
+          } catch (e) { console.error(e); setBusyState('error'); }
+        };
+        const pickDay = dd => { setDay(dd); setSlot(null); setActErr(null); loadBusy(dd); };
+        const slots = day && busyState === 'ok' ? daySlots(day, totalDur, busy).filter(x => x !== st) : [];
+        const submit = async () => {
+          setTried(true);
+          if (!slot) return;
+          if (!rulesOk) { setTimeout(() => { const el = document.getElementById('omboka-regler'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 30); return; }
+          const a = await ask({ title: multi ? 'Boka om era tider?' : 'Boka om din tid?',
+            lines: ['Från: ' + whenFull(st), 'Till: ' + whenFull(slot), ...plainLines(slot).slice(1)],
+            note: d.late ? 'Sista avbokningstiden har passerat. Ombokningen räknas som sen ombokning, och enligt avbokningsreglerna kan du få betala hela priset, ' + d.price + ' kr.' : 'Din gamla tid avbokas automatiskt när den nya är sparad.',
+            yes: 'Ja, boka om', no: 'Nej, avbryt', danger: d.late });
+          if (!a) return;
+          setSending(true); setActErr(null);
+          const { data, error } = await Promise.resolve(sb.rpc('kund_omboka', { p_token: token, p_starts_at: new Date(slot).toISOString(), p_rules: RULES_VERSION })).catch(() => ({ error: { message: 'NATVERK' } }));
+          setSending(false);
+          if (error) {
+            const code = kundErrCode(error);
+            setActErr(kundErrText(code));
+            if (['TIDEN_UPPTAGEN', 'KORT_LUCKA', 'OGILTIG_TID', 'UTANFOR_OPPETTID'].includes(code)) { setSlot(null); if (day) loadBusy(day); }
+            return;
+          }
+          setResult(data); setView('ombokad');
+        };
+        return (
+          <div className="lh-flow" data-kund-omboka>
+            {askEl}
+            <div className="lh-steph">
+              <button type="button" className="lh-btn lh-btn--ghost" data-tillbaka onClick={() => { setView('info'); setActErr(null); }}><Icon name="chevronLeft" size={18} />Tillbaka</button>
+              <h2 className="lh-steph__title">Välj en ny tid</h2>
+              <p className="lh-steph__sub"><span>Nuvarande tid: <strong>{whenFull(st)}</strong>. Samma {multi ? 'personer och behandlingar' : 'behandling'}, {totalDur} min{multi ? ' i följd' : ''}. Vill du ändra något annat, kontakta Lia.</span></p>
+            </div>
+            {d.late && <div style={{ marginBottom: '14px' }}><KundSenVarning d={d} what="omboka" /></div>}
+            <div className="lh-label" id="omboka-dag-rubrik">Dag</div>
+            <div className="lh-days" role="group" aria-labelledby="omboka-dag-rubrik" style={{ overflowX: 'auto' }}>
+              {days.map(dd => {
+                const on = day && day.key === dd.key, dt = new Date(dd.noon);
+                return (
+                  <button key={dd.key} type="button" className="lh-day" aria-pressed={on ? 'true' : 'false'} onClick={() => pickDay(dd)}>
+                    <span className="lh-day__wd">{dt.toLocaleDateString('sv-SE', { timeZone: 'UTC', weekday: 'short' }).replace('.', '')}</span>
+                    <span className="lh-day__d">{dd.d}</span>
+                    <span className="lh-day__m">{dt.toLocaleDateString('sv-SE', { timeZone: 'UTC', month: 'short' }).replace('.', '')}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {!day && <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Tryck på en dag ovan, så visas de lediga tiderna här.</p></Card>}
+            {day && busyState === 'loading' && <Card><LoadingState text="Hämtar lediga tider…" /></Card>}
+            {day && busyState === 'error' && <Card><ErrorState text="Lediga tider kunde inte hämtas. Kontrollera internet." onRetry={() => loadBusy(day)} /></Card>}
+            {day && busyState === 'ok' && (
+              <div>
+                <div className="lh-label" data-times-title="true">Välj en tid · {fmtDayLong(d2ms(day))}</div>
+                {slots.length === 0
+                  ? <Card style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px' }}>Inga lediga tider {multi ? `för ${totalDur} min i följd ` : ''}den här dagen. Välj en annan dag.</p></Card>
+                  : <div className="lh-times">
+                      {slots.map(x => {
+                        const on = slot === x;
+                        return <button key={x} type="button" className="lh-time" aria-pressed={on ? 'true' : 'false'} onClick={() => { setSlot(x); setActErr(null); }}>{on && <Icon name="check" size={16} strokeWidth={3} />}{fmtTime(x)}</button>;
+                      })}
+                    </div>}
+              </div>
+            )}
+            {slot && (
+              <>
+                <Card className="lh-sum" style={{ marginTop: '14px' }} data-ny-tid>
+                  {lines(slot)}
+                </Card>
+                <CancelPolicy ids={d.items.flatMap(it => it.service_ids || [])} startMs={slot} />
+                <label className="lh-consent" htmlFor="omboka-regler" style={{ marginTop: '12px' }} data-regler>
+                  <input id="omboka-regler" type="checkbox" checked={rulesOk} onChange={e => setRulesOk(e.target.checked)} aria-invalid={tried && !rulesOk ? 'true' : 'false'} aria-describedby={tried && !rulesOk ? 'omboka-regler-fel' : undefined} />
+                  <span>Jag har läst och godkänner avbokningsreglerna, även att uteblivna besök kan debiteras.</span>
+                </label>
+                {tried && !rulesOk && <div className="lh-err-inline" role="alert" data-err="true" id="omboka-regler-fel"><Icon name="alert" size={16} />Du behöver godkänna avbokningsreglerna för att kunna boka om.</div>}
+              </>
+            )}
+            {actErr && <ErrorBox text={actErr} />}
+            {day && <ActionBar label={sending ? 'Bokar om…' : slot ? `Boka om till ${fmtTime(slot)}` : 'Välj en tid'} enabled={!!slot && !sending} onClick={submit} />}
+          </div>
+        );
+      }
+
+      // ---------- Bokningen ----------
+      const avboka = async () => {
+        const a = await ask({ title: multi ? 'Avboka era tider?' : 'Avboka din tid?', lines: plainLines(st),
+          note: d.late ? 'Sista avbokningstiden har passerat. Avbokningen räknas som sen avbokning, och enligt avbokningsreglerna kan du få betala hela priset, ' + d.price + ' kr.' : 'Avbokningen går inte att ångra. Vill du ha en ny tid bokar du den som vanligt.',
+          yes: 'Ja, avboka', no: 'Nej, behåll tiden', danger: true });
+        if (!a) return;
+        setSending(true); setActErr(null);
+        const { data, error } = await Promise.resolve(sb.rpc('kund_avboka', { p_token: token })).catch(() => ({ error: { message: 'NATVERK' } }));
+        setSending(false);
+        if (error) { setActErr(kundErrText(kundErrCode(error))); return; }
+        setResult(data); setView('avbokad');
+      };
       return (
         <div className="lh-flow" data-bekraftelse={d.already ? 'redan' : 'ok'}>
+          {askEl}
           <DoneCard title={d.already ? (multi ? 'Era tider är redan bekräftade' : 'Din tid är redan bekräftad') : (multi ? 'Tack! Era tider är bekräftade' : 'Tack! Din tid är bekräftad')}
-            sub={d.already ? 'Du bekräftade ' + demoWhen(new Date(d.confirmed_at).getTime()) + '.' : 'Lia ser nu att du har fått ditt sms. Välkommen, ' + String(d.customer_name || '').trim().split(' ')[0] + '!'}
-            onDone={onDone} lines={[
-              <InfoRow icon="calendar"><strong>{fmtDayLong(st)}</strong></InfoRow>,
-              ...d.items.map(it => <InfoRow icon="scissors"><strong>{fmtTime(new Date(it.starts_at).getTime())}–{fmtTime(new Date(it.ends_at).getTime())}</strong> {it.person_name ? it.person_name + ': ' : ''}{it.service_names}</InfoRow>),
-              <InfoRow icon="pin">{CONTACT.address.slice(1).join(', ')}</InfoRow>,
-            ]}>
-            <SvcNotes list={d.items.flatMap(it => String(it.service_names).split(', ').map(svcByName))} named={d.items.length > 1} />
-            <p className="lh-done__note">Behöver du ändra eller avboka? Ring eller sms:a <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>
+            sub={d.already ? 'Du bekräftade ' + demoWhen(new Date(d.confirmed_at).getTime()) + '.' : 'Lia ser nu att du har fått ditt sms. Välkommen, ' + first + '!'}
+            onDone={onDone} lines={[...lines(st), <InfoRow icon="pin">{CONTACT.address.slice(1).join(', ')}</InfoRow>]}>
+            <SvcNotes list={svcList} named={multi} />
+            {d.can_change
+              ? <section data-kund-hantera style={{ display: 'grid', gap: '10px', textAlign: 'left' }}>
+                  <h3 className="lh-cardtitle" style={{ fontSize: '18px', margin: '4px 0 0' }}>Behöver du ändra?</h3>
+                  {d.late
+                    ? <KundSenVarning d={d} />
+                    : <p className="lh-done__note" data-kund-senast>Avboka eller boka om utan avgift senast <strong>{whenFull(new Date(d.deadline).getTime()).replace(/^\w/, c => c.toLowerCase())}</strong> ({d.cancel_hours} timmar före).</p>}
+                  <Button variant="secondary" block icon="calendar" data-kund-omboka disabled={sending} onClick={() => { setActErr(null); setView('omboka'); }}>Boka om – välj ny tid</Button>
+                  <Button variant="secondary" block data-kund-avboka disabled={sending} onClick={avboka} style={{ color: '#8A2E12', borderColor: '#8A2E12' }}>{sending ? 'Avbokar…' : (multi ? 'Avboka tiderna' : 'Avboka tiden')}</Button>
+                  {actErr && <ErrorBox text={actErr} />}
+                  <KundKontakt />
+                </section>
+              : <p className="lh-done__note">Din tid har börjat. Frågor? Ring eller sms:a <a href={'tel:' + CONTACT.tel}><strong>{CONTACT.phone}</strong></a>.</p>}
           </DoneCard>
         </div>
       );
@@ -3652,7 +3914,7 @@
           <Header state={state} dispatch={dispatch} />
           {DEMO && <DemoBanner />}
           <main key={state.nav || 0} style={{ backgroundColor: pageBg, flex: 1, paddingBottom: '24px', ...(REBUILT.includes(state.tab) ? { '--flow-fg': T.color.onPage, '--flow-err': '#5C1A08', '--bar-bg': T.color.brand } : {}) }}>
-            {confirmTok && <ConfirmBooking token={confirmTok} onDone={leaveConfirm} />}
+            {confirmTok && <ConfirmBooking key={confirmTok} token={confirmTok} onDone={leaveConfirm} />}
             {!confirmTok && state.tab === 'home' && <Home dispatch={dispatch} />}
             {!confirmTok && state.tab === 'booking' && <Booking dispatch={dispatch} />}
             {!confirmTok && state.tab === 'courses' && <Courses />}

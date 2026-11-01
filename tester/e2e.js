@@ -30,6 +30,16 @@ function handle(path, body) {
       { ppl: JSON.stringify(p.p_people || null), st: p.p_starts_at, n: p.p_name, ph: p.p_phone, em: p.p_email, ru: p.p_rules || '' });   // 1 nov: godkända avbokningsregler
     return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
   }
+  // 1 nov 2026 (del B): kundens länk – bekräfta, avboka, boka om
+  if (path === 'rpc/confirm_booking' || path === 'rpc/kund_avboka') {
+    const r = sql(t, `select ${path.slice(4)}(:'tok')::text;`, { tok: body.params.p_token || '' });
+    return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
+  }
+  if (path === 'rpc/kund_omboka') {
+    const p = body.params;
+    const r = sql(t, `select kund_omboka(:'tok', :'st'::timestamptz, nullif(:'ru', ''))::text;`, { tok: p.p_token || '', st: p.p_starts_at, ru: p.p_rules || '' });
+    return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
+  }
   if (path === 'rpc/get_busy') {
     const r = sql(t, `select coalesce(json_agg(x), '[]')::text from get_busy(:'f'::timestamptz, :'to'::timestamptz) x;`, { f: body.params.p_from, to: body.params.p_to });
     return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };

@@ -138,7 +138,7 @@ T "85. Avgift kan inte markeras betald om den var gratis" authenticated "$LIA" "
 T "86. 2:a gångens avgift betald" authenticated "$LIA" "select uteblivet_andra((select id from uteblivna where booking_id='$U2'), 'betald')->>'status'" "^betald$"
 T "87. Efter betalning börjar räkningen om: nästa = 1:a gången, ingen avgift" authenticated "$LIA" "select (r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('$U4', 'uteblev')::json r) x" "^1 0$"
 INS 00000000-0000-4000-8000-000000000006 klipp-30 500 "now() + interval '5 hours'"
-INS 00000000-0000-4000-8000-000000000007 klipp-30 500 "now() + interval '5 days'"
+INS 00000000-0000-4000-8000-000000000007 klipp-30 500 "date_trunc('day', now() + interval '5 days') + interval '5 hours'"   # 1 nov: krockfri tid (05:00), annars krockade den ibland med fredagens testbokning
 T "88. Lia avbokar (kunden ringde 5 h före): sen avbokning registreras, 2:a gången = 500 kr" authenticated "$LIA" "with a as (update bookings set status='avbokad' where id='00000000-0000-4000-8000-000000000006' returning id) select (r->>'kind')||' '||(r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('00000000-0000-4000-8000-000000000006', 'sen_avbokning')::json r from a) x" "sen_avbokning 2 500"
 $P -c "update bookings set status='avbokad' where id='00000000-0000-4000-8000-000000000007'" >/dev/null
 T "89. Avbokning 5 dagar före räknas inte som sen" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-000000000007', 'sen_avbokning')" "INTE_SEN_AVBOKNING"
@@ -156,7 +156,7 @@ $P -c "delete from bookings where customer_phone in ('0709990000','0709990001')"
 echo "--- Automatik: uteblivet efter 15 minuter (ny 1 nov) ---"
 $P -c "delete from uteblivna where customer_phone like '070888%'" >/dev/null
 $P -c "delete from bookings where customer_phone like '070888%'" >/dev/null
-INA() { $P -c "insert into bookings (id, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, group_id, rules_version, arrived_at) values ('$1', '{klipp-30}', 'X', 500, $2, $2 + interval '30 minutes', 'Auto Test', '$3', 'a@t.se', 'bokad', null, $4, $5)" >/dev/null; }
+INA() { $P -c "insert into bookings (id, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, group_id, rules_version, arrived_at) values ('$1', '{klipp-30}', 'X', 500, $2, $2 + interval '5 minutes', 'Auto Test', '$3', 'a@t.se', 'bokad', null, $4, $5)" >/dev/null; }
 INA 00000000-0000-4000-8000-0000000000b1 "now() - interval '20 minutes'" 0708880001 "'2026-11-01'" null
 INA 00000000-0000-4000-8000-0000000000b2 "now() - interval '10 minutes'" 0708880002 "'2026-11-01'" null
 INA 00000000-0000-4000-8000-0000000000b3 "now() - interval '40 minutes'" 0708880003 "'2026-11-01'" "now() - interval '35 minutes'"
@@ -189,3 +189,57 @@ T "107. 2:a gången (uteblev, 800 kr): debitering med sista betalningsdag om 7 d
 T "108. Inloggad men INTE admin kan inte skicka" authenticated "$ANNAN" "select uteblivet_skicka((select id from uteblivna limit 1), 'sena ankomst')" "EJ_ADMIN"
 $P -c "delete from uteblivna where customer_phone like '070777%'" >/dev/null
 $P -c "delete from bookings where customer_phone like '070777%'" >/dev/null
+
+echo "--- Kundens länk: bekräfta, boka om, avboka (ny 1 nov, del B) ---"
+$P -c "delete from uteblivna where customer_phone like '070666%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070666%'" >/dev/null
+$P -c "delete from bookings where starts_at between now() - interval '1 hour' and now() + interval '50 hours'" >/dev/null   # fri plats för direktinlagda testrader
+W="(date_trunc('week', now() at time zone 'Europe/Stockholm') + interval '15 days')"   # tisdag om 9–15 dagar (svensk tid 00:00)
+TK1=00000000-0000-4000-8000-0000000000d1; G1=00000000-0000-4000-8000-0000000000e1
+$P -c "insert into bookings (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, rules_version, confirm_token) values
+ ('{klipp-30}', 'Klippning/Herrklippning 30 min', 500, ($W + interval '10 hours') at time zone 'Europe/Stockholm', ($W + interval '10 hours 30 minutes') at time zone 'Europe/Stockholm', 'Kim Kund', '0706660001', 'kim@t.se', 'bokad', 'Kalle', '$G1', '2026-11-01-v2', '$TK1'),
+ ('{bryn}', 'Färg och form av bryn.', 200, ($W + interval '10 hours 30 minutes') at time zone 'Europe/Stockholm', ($W + interval '11 hours') at time zone 'Europe/Stockholm', 'Kim Kund', '0706660001', 'kim@t.se', 'bokad', 'Anna', '$G1', '2026-11-01-v2', '$TK1')" >/dev/null
+NY="(($W + interval '13 hours') at time zone 'Europe/Stockholm')"
+T "109. Trasig länk" anon "" "select confirm_booking('abc')" "OGILTIG_LANK"
+T "110. Okänd länk (giltigt format)" anon "" "select confirm_booking('00000000-0000-4000-8000-00000000ffff')" "OGILTIG_LANK"
+T "111. Kunden öppnar länken: bekräftas, 700 kr, 24 tim, inte sent, kan ändras, 2 personer" anon "" "select (r->>'already')||' '||(r->>'price')||' '||(r->>'cancel_hours')||' '||(r->>'late')||' '||(r->>'can_change')||' '||json_array_length(r->'items') from (select confirm_booking('$TK1') r) x" "^false 700 24 false true 2$"
+T "112. Öppnar igen: redan bekräftad" anon "" "select confirm_booking('$TK1')->>'already'" "^true$"
+T "113. Kund får inte läsa tabellen direkt med token" anon "" "select count(*) from bookings where confirm_token='$TK1'" "permission denied"
+T "114. Boka om utan godkända regler stoppas" anon "" "select kund_omboka('$TK1', $NY)" "REGLER_EJ_GODKANDA"
+T "115. Boka om till samma tid stoppas" anon "" "select kund_omboka('$TK1', ($W + interval '10 hours') at time zone 'Europe/Stockholm', '2026-11-01-v2')" "SAMMA_TID"
+T "116. Boka om till måndag (stängt) stoppas" anon "" "select kund_omboka('$TK1', (($W - interval '1 day' + interval '10 hours') at time zone 'Europe/Stockholm'), '2026-11-01-v2')" "UTANFOR_OPPETTID"
+T "117. Efter misslyckade försök: gamla tiden ligger kvar orörd" authenticated "$LIA" "select count(*) filter (where status='bokad')||' '||count(*) filter (where cancelled_at is not null) from bookings where confirm_token='$TK1'" "^2 0$"
+T "118. Boka om till kl 13:00 samma dag: samma personer och tjänster, inte sent" anon "" "select (r->>'late')||' | '||(r->>'service_names') from (select kund_omboka('$TK1', $NY, '2026-11-01-v2')::json r) x" "^false \| Kalle: Klippning/Herrklippning 30 min; Anna: Färg och form av bryn\.$"
+T "119. Gamla raderna: avbokade av kund, ombokad till 13:00, avbokningstid sparad" authenticated "$LIA" "select string_agg(status||' '||cancelled_by||' '||to_char(ombokad_till at time zone 'Europe/Stockholm','HH24:MI')||' '||(cancelled_at is not null)::text, ', ') from bookings where confirm_token='$TK1'" "^avbokad kund 13:00 true, avbokad kund 13:00 true$"
+T "120. Nya raderna: 13:00–13:30 Kalle, 13:30–14:00 Anna, bekräftade, ny länk" authenticated "$LIA" "select string_agg(person_name||' '||to_char(starts_at at time zone 'Europe/Stockholm','HH24:MI')||'-'||to_char(ends_at at time zone 'Europe/Stockholm','HH24:MI')||' '||(confirmed_at is not null)::text||' '||(confirm_token <> '$TK1')::text, ', ' order by starts_at) from bookings where customer_phone='0706660001' and status='bokad'" "^Kalle 13:00-13:30 true true, Anna 13:30-14:00 true true$"
+T "121. I tid: ingen sen ombokning registrerad" authenticated "$LIA" "select count(*) from uteblivna where customer_phone='0706660001'" "^0$"
+T "122. Gamla länken: bokningen är ombokad" anon "" "select confirm_booking('$TK1')" "BOKNING_OMBOKAD"
+TK1N=$($P -c "select confirm_token from bookings where customer_phone='0706660001' and status='bokad' limit 1")
+T "123. Kunden avbokar den nya tiden i tid" anon "" "select kund_avboka('$TK1N')->>'late'" "^false$"
+T "124. Avbokad av kund, ingen registrering" authenticated "$LIA" "select count(*) filter (where status='avbokad' and cancelled_by='kund')||' '||(select count(*) from uteblivna where customer_phone='0706660001') from bookings where confirm_token='$TK1N'" "^2 0$"
+T "125. Länken efter avbokning" anon "" "select confirm_booking('$TK1N')" "BOKNING_AVBOKAD"
+T "126. Avboka två gånger går inte" anon "" "select kund_avboka('$TK1N')" "BOKNING_AVBOKAD"
+# Sena ändringar (rader läggs in direkt, nära i tid)
+TK2=00000000-0000-4000-8000-0000000000d2; TK3=00000000-0000-4000-8000-0000000000d3; TK4=00000000-0000-4000-8000-0000000000d4; TK5=00000000-0000-4000-8000-0000000000d5; G5=00000000-0000-4000-8000-0000000000e5
+IK() { $P -c "insert into bookings (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, rules_version, confirm_token) values ('{$1}', 'X', $2, date_trunc('minute', $3), date_trunc('minute', $3) + interval '$4 minutes', 'Sen Kund', '0706660002', 'sen@t.se', '${7:-bokad}', ${6:-null}, ${8:-null}, '2026-11-01-v2', '$5')" >/dev/null; }
+IK klipp-30 500 "now() + interval '2 hours'" 30 $TK2
+IK farg-180 2500 "now() + interval '30 hours'" 180 $TK3
+IK klipp-30 500 "now() - interval '10 minutes'" 30 $TK4
+T "127. 2 tim kvar: länken visar sent (24 tim) men kan fortfarande ändras" anon "" "select (r->>'late')||' '||(r->>'can_change')||' '||(r->>'cancel_hours') from (select confirm_booking('$TK2') r) x" "^true true 24$"
+T "128a. Sen avbokning via länken (2 tim kvar)" anon "" "select kund_avboka('$TK2')->>'late'" "^true$"
+T "128b. Registreras automatiskt för Lia: sen avbokning, 1:a gången ingen avgift" authenticated "$LIA" "select kind||' '||nummer||' '||belopp||' '||status from uteblivna where customer_phone='0706660002'" "^sen_avbokning 1 0 ingen_avgift$"
+T "129. Färgbehandling 30 tim kvar: 48-timmarsgränsen gäller, sent" anon "" "select (r->>'late')||' '||(r->>'cancel_hours') from (select confirm_booking('$TK3') r) x" "^true 48$"
+T "130a. Sen ombokning av färgen till onsdag 09:00" anon "" "select (r->>'late')||' '||to_char((r->>'starts_at')::timestamptz at time zone 'Europe/Stockholm','HH24:MI') from (select kund_omboka('$TK3', (($W + interval '1 day 9 hours') at time zone 'Europe/Stockholm'), '2026-11-01-v2')::json r) x" "^true 09:00$"
+T "130b. Registreras: sen ombokning, 2:a gången = hela priset 2500 kr" authenticated "$LIA" "select kind||' '||nummer||' '||belopp||' '||status from uteblivna where customer_phone='0706660002' order by nummer desc limit 1" "^sen_ombokning 2 2500 obetald$"
+T "131. Lia kan häva (efterskänka) debiteringen" authenticated "$LIA" "select uteblivet_andra((select id from uteblivna where customer_phone='0706660002' and kind='sen_ombokning'), 'havd')->>'status'" "^havd$"
+T "132. Tiden har börjat: kunden kan inte avboka via länken" anon "" "select kund_avboka('$TK4')" "TIDEN_HAR_BORJAT"
+T "133. Tiden har börjat: kunden kan inte boka om via länken" anon "" "select kund_omboka('$TK4', $NY, '2026-11-01-v2')" "TIDEN_HAR_BORJAT"
+IK klipp-30 500 "now() + interval '3 hours'" 30 $TK5 "'Kalle'" bokad "'$G5'"
+IK bryn 200 "now() + interval '3 hours 30 minutes'" 30 $TK5 "'Anna'" avbokad "'$G5'"
+T "134a. Grupp där Lia redan avbokat en person: kunden avbokar sent" anon "" "select kund_avboka('$TK5')->>'late'" "^true$"
+T "134b. Beloppet räknar bara kvarvarande person (500 kr, inte 700)" authenticated "$LIA" "select nummer||' '||belopp from uteblivna where coalesce(group_id, booking_id)='$G5'" "^2 500$"
+T "135. Kund kan inte köra interna hjälpfunktioner" anon "" "select kund_timmar('$TK5'::uuid)" "permission denied"
+T "136a. Lia avbokar i adminläget: sparas som avbokad av Lia" authenticated "$LIA" "update bookings set status='avbokad' where confirm_token='$TK4' returning cancelled_by" "^lia"
+T "136b. Lia kan inte ändra vem som avbokade i efterhand" authenticated "$LIA" "update bookings set cancelled_by='kund' where confirm_token='$TK4'" "permission denied"
+$P -c "delete from uteblivna where customer_phone like '070666%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070666%'" >/dev/null

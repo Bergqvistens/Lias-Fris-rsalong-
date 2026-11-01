@@ -70,6 +70,15 @@ alter table public.bookings add constraint cancel_note_langd check (cancel_note 
 alter table public.bookings add column if not exists cancelled_at timestamptz;
 -- Vilken version av avbokningsreglerna kunden godkände vid bokningen (tidpunkt = created_at), 1 nov 2026
 alter table public.bookings add column if not exists rules_version text;
+-- Kundens länk i sms:et (1 nov 2026): samma token för hela bokningen (alla personer). Kunden bekräftar, avbokar eller bokar om med den.
+alter table public.bookings add column if not exists confirm_token uuid;
+alter table public.bookings add column if not exists confirmed_at  timestamptz;
+-- Vem avbokade: 'lia' (adminläget) eller 'kund' (själv via länken). ombokad_till = kundens nya starttid vid ombokning.
+alter table public.bookings add column if not exists cancelled_by  text;
+alter table public.bookings add column if not exists ombokad_till  timestamptz;
+alter table public.bookings drop constraint if exists cancelled_by_varde;
+alter table public.bookings add constraint cancelled_by_varde check (cancelled_by is null or cancelled_by in ('lia', 'kund'));
+create index if not exists bookings_confirm_token on public.bookings (confirm_token);
 create or replace function public.satt_avbokad_tid() returns trigger
 language plpgsql as $$
 begin
@@ -77,10 +86,15 @@ begin
     -- redan avbokad: tid och meddelande låses (bevis om en kund ifrågasätter)
     new.cancelled_at := old.cancelled_at;
     new.cancel_note  := old.cancel_note;
+    new.cancelled_by := old.cancelled_by;
+    new.ombokad_till := old.ombokad_till;
   elsif new.status = 'avbokad' then
     new.cancelled_at := now();
+    new.cancelled_by := coalesce(new.cancelled_by, 'lia');   -- adminläget sätter inget = Lia
   else
     new.cancelled_at := null;
+    new.cancelled_by := null;
+    new.ombokad_till := null;
   end if;
   return new;
 end $$;
@@ -179,6 +193,7 @@ declare
   v_total     integer := 0;
   v_total_dur integer := 0;
   v_group     uuid := gen_random_uuid();
+  v_token     uuid := gen_random_uuid();   -- kundens länk i sms:et (en för hela bokningen)
   v_rows      jsonb := '[]'::jsonb;
   v_local     timestamp;
   v_local_end timestamp;
@@ -279,9 +294,9 @@ begin
       from public.services where id = any(v_ids) and category = v_cat;
     begin
       insert into public.bookings
-        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id, rules_version)
+        (service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, person_name, group_id, rules_version, confirm_token)
       values
-        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group, p_rules)
+        (v_ids, v_names, v_price, v_cursor, v_cursor + make_interval(mins => v_dur), p_name, p_phone, p_email, v_pname, v_group, p_rules, v_token)
       returning id into v_id;
     exception when exclusion_violation then
       raise exception 'TIDEN_UPPTAGEN';
@@ -418,8 +433,12 @@ begin
   if p_kind not in ('uteblev', 'sen_avbokning', 'sen_ombokning', 'sen_ankomst') then raise exception 'OGILTIG_TYP'; end if;
   select * into b from public.bookings where id = p_booking;
   if not found then raise exception 'OGILTIG_BOKNING'; end if;
+  -- Belopp och starttid räknas på de rader som gäller: aktiva rader (uteblev/sen ankomst), eller raderna som
+  -- avbokades i samma ögonblick (sen avbokning/ombokning). En person som Lia avbokat tidigare räknas inte med (rättat 1 nov 2026).
   select min(starts_at), sum(price) into v_start, v_sum from public.bookings
-   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+   where ((b.group_id is not null and group_id = b.group_id) or id = b.id)
+     and (case when p_kind in ('uteblev', 'sen_ankomst') then status = 'bokad'
+               else status = 'avbokad' and cancelled_at = b.cancelled_at end);
   if p_kind = 'uteblev' then
     if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
     if v_start > now() then raise exception 'TIDEN_HAR_INTE_BORJAT'; end if;
@@ -431,8 +450,10 @@ begin
   else
     if b.status <> 'avbokad' or b.cancelled_at is null then raise exception 'OGILTIG_BOKNING'; end if;
     -- 48 timmar för färg och permanent, annars 24 (samma som appens avbokningsregler)
-    select case when exists (select 1 from public.services s
-                              where s.id = any(b.service_ids) and s.category in ('Färgbehandling', 'Permanent'))
+    select case when exists (select 1 from public.bookings x join public.services s on s.id = any(x.service_ids)
+                              where ((b.group_id is not null and x.group_id = b.group_id) or x.id = b.id)
+                                and x.status = 'avbokad' and x.cancelled_at = b.cancelled_at
+                                and s.category in ('Färgbehandling', 'Permanent'))
                 then 48 else 24 end into v_hours;
     if b.cancelled_at < v_start - make_interval(hours => v_hours) then raise exception 'INTE_SEN_AVBOKNING'; end if;
   end if;
@@ -605,3 +626,143 @@ begin
 end $$;
 revoke all on function public.uteblivet_skicka(uuid, text, boolean) from public, anon;
 grant execute on function public.uteblivet_skicka(uuid, text, boolean) to authenticated;
+
+-- =====================================================================
+-- Kundens länk i sms:et: bekräfta, avboka eller boka om (1 nov 2026)
+-- Kunden når sin bokning bara med länkens token (slumpad uuid, en per bokning).
+-- Sen avbokning/ombokning (senare än 24 tim, 48 tim för färg och permanent) registreras
+-- automatiskt för Lia. Lia kan alltid efterskänka den i adminläget.
+-- Kunden kan bara byta tid. Allt annat (tjänster, personer) tar kunden med Lia.
+-- =====================================================================
+create or replace function public.kund_token(p_token text) returns uuid
+language plpgsql immutable as $$
+begin
+  if p_token is null or p_token !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    raise exception 'OGILTIG_LANK';
+  end if;
+  return p_token::uuid;
+end $$;
+revoke all on function public.kund_token(text) from public, anon, authenticated;
+
+-- Avbokningsgräns i timmar för en bokning (aktiva rader): 48 för färg och permanent, annars 24
+create or replace function public.kund_timmar(p_token uuid) returns integer
+language sql stable security definer set search_path = public as $$
+  select case when exists (select 1 from public.bookings x join public.services s on s.id = any(x.service_ids)
+                            where x.confirm_token = p_token and x.status = 'bokad'
+                              and s.category in ('Färgbehandling', 'Permanent'))
+              then 48 else 24 end;
+$$;
+revoke all on function public.kund_timmar(uuid) from public, anon, authenticated;
+
+-- Felkod när länken inte har några aktiva rader
+create or replace function public.kund_kontroll(p_token uuid) returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.bookings where confirm_token = p_token) then raise exception 'OGILTIG_LANK'; end if;
+  if not exists (select 1 from public.bookings where confirm_token = p_token and status = 'bokad') then
+    if exists (select 1 from public.bookings where confirm_token = p_token and ombokad_till is not null) then raise exception 'BOKNING_OMBOKAD'; end if;
+    raise exception 'BOKNING_AVBOKAD';
+  end if;
+end $$;
+revoke all on function public.kund_kontroll(uuid) from public, anon, authenticated;
+
+-- Kunden öppnar länken: tiden bekräftas (en gång) och bokningen visas
+create or replace function public.confirm_booking(p_token text) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tok     uuid := public.kund_token(p_token);
+  v_start   timestamptz;
+  v_end     timestamptz;
+  v_sum     integer;
+  v_conf    timestamptz;
+  v_hours   integer;
+  v_already boolean;
+begin
+  perform public.kund_kontroll(v_tok);
+  select min(starts_at), max(ends_at), sum(price), max(confirmed_at) into v_start, v_end, v_sum, v_conf
+    from public.bookings where confirm_token = v_tok and status = 'bokad';
+  if v_end <= now() then raise exception 'BOKNING_PASSERAD'; end if;
+  v_hours := public.kund_timmar(v_tok);
+  v_already := v_conf is not null;
+  if not v_already then
+    v_conf := now();
+    update public.bookings set confirmed_at = v_conf where confirm_token = v_tok and status = 'bokad';
+  end if;
+  return json_build_object(
+    'starts_at', v_start, 'ends_at', v_end, 'already', v_already, 'confirmed_at', v_conf,
+    'customer_name', (select customer_name from public.bookings where confirm_token = v_tok and status = 'bokad' order by starts_at limit 1),
+    'items', (select json_agg(json_build_object('person_name', person_name, 'service_ids', service_ids, 'service_names', service_names,
+                                                'price', price, 'starts_at', starts_at, 'ends_at', ends_at) order by starts_at)
+                from public.bookings where confirm_token = v_tok and status = 'bokad'),
+    'price', v_sum, 'cancel_hours', v_hours, 'deadline', v_start - make_interval(hours => v_hours),
+    'late', now() >= v_start - make_interval(hours => v_hours), 'can_change', v_start > now());
+end $$;
+
+-- Kunden avbokar själv (hela bokningen, alla personer). Går fram till att tiden börjar.
+create or replace function public.kund_avboka(p_token text) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tok   uuid := public.kund_token(p_token);
+  v_first uuid;
+  v_start timestamptz;
+  v_hours integer;
+  v_late  boolean;
+  v_ute   json;
+begin
+  perform pg_advisory_xact_lock(hashtext('lias_bokning'));
+  perform public.kund_kontroll(v_tok);
+  perform 1 from public.bookings where confirm_token = v_tok and status = 'bokad' for update;
+  select id, starts_at into v_first, v_start from public.bookings
+   where confirm_token = v_tok and status = 'bokad' order by starts_at limit 1;
+  if v_start <= now() then raise exception 'TIDEN_HAR_BORJAT'; end if;
+  v_hours := public.kund_timmar(v_tok);
+  v_late := now() >= v_start - make_interval(hours => v_hours);
+  update public.bookings set status = 'avbokad', cancelled_by = 'kund' where confirm_token = v_tok and status = 'bokad';
+  if v_late then v_ute := public.registrera_uteblivet_kor(v_first, 'sen_avbokning'); end if;
+  return json_build_object('starts_at', v_start, 'late', v_late, 'cancel_hours', v_hours);
+end $$;
+
+-- Kunden bokar om: samma personer och tjänster, ny starttid. Allt eller inget: går den nya tiden
+-- inte att boka ligger den gamla kvar. Den gamla avbokas automatiskt när den nya är sparad.
+create or replace function public.kund_omboka(p_token text, p_starts_at timestamptz, p_rules text default null) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tok    uuid := public.kund_token(p_token);
+  v_first  public.bookings%rowtype;
+  v_start  timestamptz;
+  v_hours  integer;
+  v_late   boolean;
+  v_people jsonb;
+  v_new    json;
+  v_ntok   uuid;
+  v_ute    json;
+begin
+  perform pg_advisory_xact_lock(hashtext('lias_bokning'));
+  perform public.kund_kontroll(v_tok);
+  perform 1 from public.bookings where confirm_token = v_tok and status = 'bokad' for update;
+  select * into v_first from public.bookings where confirm_token = v_tok and status = 'bokad' order by starts_at limit 1;
+  v_start := v_first.starts_at;
+  if v_start <= now() then raise exception 'TIDEN_HAR_BORJAT'; end if;
+  if p_starts_at is not null and p_starts_at = v_start then raise exception 'SAMMA_TID'; end if;
+  v_hours := public.kund_timmar(v_tok);
+  v_late := now() >= v_start - make_interval(hours => v_hours);
+  select jsonb_agg(jsonb_build_object('category', (select s.category from public.services s where s.id = b.service_ids[1]),
+                                      'service_ids', to_jsonb(b.service_ids), 'name', coalesce(b.person_name, ''))
+                   order by b.starts_at)
+    into v_people from public.bookings b where b.confirm_token = v_tok and b.status = 'bokad';
+  update public.bookings set status = 'avbokad', cancelled_by = 'kund', ombokad_till = p_starts_at
+   where confirm_token = v_tok and status = 'bokad';
+  -- Samma kontroller som en vanlig bokning (öppettider, krockar, luckor, regler). Fel = inget sparas.
+  v_new := public.create_booking(v_people, p_starts_at, v_first.customer_name, v_first.customer_phone, v_first.customer_email, p_rules);
+  update public.bookings set confirmed_at = now() where group_id = (v_new->>'group_id')::uuid;   -- kunden valde tiden själv
+  select confirm_token into v_ntok from public.bookings where group_id = (v_new->>'group_id')::uuid limit 1;
+  if v_late then v_ute := public.registrera_uteblivet_kor(v_first.id, 'sen_ombokning'); end if;
+  return (v_new::jsonb || jsonb_build_object('late', v_late, 'old_starts_at', v_start, 'confirm_token', v_ntok, 'cancel_hours', v_hours))::json;
+end $$;
+
+revoke all on function public.confirm_booking(text) from public;
+revoke all on function public.kund_avboka(text) from public;
+revoke all on function public.kund_omboka(text, timestamptz, text) from public;
+grant execute on function public.confirm_booking(text) to anon, authenticated;
+grant execute on function public.kund_avboka(text) to anon, authenticated;
+grant execute on function public.kund_omboka(text, timestamptz, text) to anon, authenticated;
