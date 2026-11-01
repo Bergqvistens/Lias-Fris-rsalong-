@@ -1,0 +1,34 @@
+// 1 nov 2026: kontaktformuläret i RIKTIGT läge sparas i databasen och syns för Lia under fliken Meddelanden.
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { newCtx, admin } = require('/tmp/t/e2e.js');
+let pass = 0, fail = 0;
+const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'OK   ' : 'FEL  ') + l + (x !== undefined ? '  ->  ' + x : '')); };
+(async () => {
+  admin("delete from kontaktmeddelanden; delete from admins; delete from auth.users; insert into auth.users(email) values ('lia@test.se'),('annan@test.se'); insert into admins select id from auth.users where email='lia@test.se';");
+  const browser = await chromium.launch();
+  const k = await newCtx(browser);
+  const txt = async (pg, sel) => pg.$eval(sel, e => e.innerText.replace(/\n+/g, ' | ').replace(/\s/g, ' ')).catch(() => null);
+  await k.click('nav >> text=Kontakt'); await k.waitForTimeout(400);
+  await k.fill('#kontakt-name', 'Rut Riktig'); await k.fill('#kontakt-email', 'rut@t.se'); await k.fill('#kontakt-msg', 'Hej! Säljer ni presentkort?\nMvh Rut');
+  await k.click('button:has-text("Skicka")'); await k.waitForTimeout(1500);
+  const t = await txt(k, 'main');
+  ok(t && t.includes('Tack! Ditt meddelande är skickat.') && t.includes('Lia återkommer så snart hon kan.'), 'Riktigt läge: "Tack! Ditt meddelande är skickat."', t && t.slice(0, 200));
+  const row = admin("select name||' | '||email||' | '||replace(message, chr(10), '/') from kontaktmeddelanden");
+  ok(row === 'Rut Riktig | rut@t.se | Hej! Säljer ni presentkort?/Mvh Rut', 'Sparat i databasen (även radbrytning)', row);
+  const lia = await newCtx(browser);
+  await lia.click('footer >> text=Admin'); await lia.waitForTimeout(400);
+  await lia.fill('input[type=email]', 'lia@test.se'); await lia.fill('input[type=password]', 'hemligt123'); await lia.click('button:has-text("Logga in")'); await lia.waitForTimeout(2000);
+  const tb = await lia.$eval('[data-admintab="meddelanden"]', e => ({ t: e.innerText.trim(), bg: getComputedStyle(e).backgroundColor }));
+  ok(tb.t === '📨 Meddelanden (1 nytt)' && tb.bg === 'rgb(232, 184, 99)', 'Lias admin: fliken gul "(1 nytt)"', JSON.stringify(tb));
+  await lia.click('[data-admintab="meddelanden"]'); await lia.waitForTimeout(400);
+  const r = await txt(lia, '[data-medd]');
+  ok(r && r.includes('Rut Riktig') && r.includes('Hej! Säljer ni presentkort?') && r.includes('Till Lia'), 'Meddelandet syns i listan', r);
+  ok((await txt(lia, '[data-meddelanden] p')).startsWith('Meddelanden från kontaktformuläret. Sms visas här när sms-tjänsten är inkopplad.'), 'Ärlig text om att sms-loggen kommer när sms-tjänsten kopplas in');
+  await lia.click('[data-medd] button[aria-expanded]'); await lia.waitForTimeout(300);
+  ok((await lia.$eval('[data-svara]', a => a.getAttribute('href'))).startsWith('mailto:rut@t.se'), '"Svara via e-post" till kunden');
+  ok((await lia.$eval('[data-admintab="meddelanden"]', e => e.innerText.trim())) === '📨 Meddelanden', 'Öppnat = läst: fliken vanlig igen');
+  ok(k.errs.length === 0 && lia.errs.length === 0, 'Inga fel i konsolen', [...k.errs, ...lia.errs].join(' | '));
+  admin('delete from kontaktmeddelanden');
+  console.log(`\nRESULTAT: ${pass} OK, ${fail} FEL`);
+  await browser.close();
+})();

@@ -548,6 +548,9 @@ language plpgsql security definer set search_path = public as $$
 declare n integer;
 begin
   delete from public.uteblivna where created_at < now() - interval '12 months';
+  if to_regclass('public.kontaktmeddelanden') is not null then
+    execute 'delete from public.kontaktmeddelanden where created_at < now() - interval ''12 months''';
+  end if;
   delete from public.bookings
    where status = 'avbokad'
      and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
@@ -837,3 +840,42 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.sparrade s join public.bookings b on b.customer_phone = s.customer_phone where b.confirm_token = p_token);
 $$;
 revoke all on function public.kund_ar_sparrad(uuid) from public, anon, authenticated;
+
+
+-- =====================================================================
+-- Meddelanden från kontaktformuläret (Tommy 1 nov 2026): sparas här och visas för Lia under
+-- fliken Meddelanden i admin. Sparas i 12 månader (rensas med avbokningarna).
+-- =====================================================================
+create table if not exists public.kontaktmeddelanden (
+  id         uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name       text not null check (char_length(name) between 2 and 100),
+  email      text not null check (char_length(email) <= 200),
+  message    text not null check (char_length(message) between 2 and 2000)
+);
+create index if not exists kontaktmeddelanden_tid on public.kontaktmeddelanden (created_at);
+alter table public.kontaktmeddelanden enable row level security;
+revoke all on public.kontaktmeddelanden from anon, authenticated;
+grant select on public.kontaktmeddelanden to authenticated;
+drop policy if exists "admin_laser_kontakt" on public.kontaktmeddelanden;
+create policy "admin_laser_kontakt" on public.kontaktmeddelanden for select to authenticated using (public.is_admin());
+
+-- Besökaren skickar ett meddelande. Spärr mot massutskick: högst 5 per e-postadress och timme, 100 totalt per dygn.
+create or replace function public.skicka_meddelande(p_name text, p_email text, p_message text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_row public.kontaktmeddelanden%rowtype;
+begin
+  p_name := btrim(coalesce(p_name, '')); p_email := btrim(coalesce(p_email, '')); p_message := btrim(coalesce(p_message, ''));
+  if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
+  if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  if length(p_message) < 2 or length(p_message) > 2000 then raise exception 'OGILTIGT_MEDDELANDE'; end if;
+  perform pg_advisory_xact_lock(hashtext('lias_kontakt'));
+  if (select count(*) from public.kontaktmeddelanden where lower(email) = lower(p_email) and created_at > now() - interval '1 hour') >= 5
+     or (select count(*) from public.kontaktmeddelanden where created_at > now() - interval '1 day') >= 100 then
+    raise exception 'FOR_MANGA_MEDDELANDEN';
+  end if;
+  insert into public.kontaktmeddelanden (name, email, message) values (p_name, p_email, p_message) returning * into v_row;
+  return json_build_object('id', v_row.id, 'created_at', v_row.created_at);
+end $$;
+revoke all on function public.skicka_meddelande(text, text, text) from public;
+grant execute on function public.skicka_meddelande(text, text, text) to anon, authenticated;

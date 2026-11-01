@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (till och med spärr och röd/grön betalruta).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (till och med fliken Meddelanden och kontaktmeddelanden).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict bu8MNZvRKuSOrVhoE5ZSqJ0QNVQNM0PN3Aq8pY8Wtdvj7uMPXAv40bdDuNDIrJH
+\restrict 8OEe9LAaiqTjHfkAp2RsYx20cU0Wl7psalNHGbn8obtJ3qkDGV4gZqRpMFgKKqG
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -598,6 +598,9 @@ CREATE FUNCTION public.rensa_gamla_avbokningar_kor() RETURNS integer
 declare n integer;
 begin
   delete from public.uteblivna where created_at < now() - interval '12 months';
+  if to_regclass('public.kontaktmeddelanden') is not null then
+    execute 'delete from public.kontaktmeddelanden where created_at < now() - interval ''12 months''';
+  end if;
   delete from public.bookings
    where status = 'avbokad'
      and coalesce(cancelled_at, starts_at) < now() - interval '12 months';
@@ -635,6 +638,32 @@ end $$;
 
 
 ALTER FUNCTION public.satt_avbokad_tid() OWNER TO postgres;
+
+--
+-- Name: skicka_meddelande(text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.skicka_meddelande(p_name text, p_email text, p_message text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare v_row public.kontaktmeddelanden%rowtype;
+begin
+  p_name := btrim(coalesce(p_name, '')); p_email := btrim(coalesce(p_email, '')); p_message := btrim(coalesce(p_message, ''));
+  if length(p_name) < 2 or length(p_name) > 100 then raise exception 'OGILTIGT_NAMN'; end if;
+  if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 200 then raise exception 'OGILTIG_EPOST'; end if;
+  if length(p_message) < 2 or length(p_message) > 2000 then raise exception 'OGILTIGT_MEDDELANDE'; end if;
+  perform pg_advisory_xact_lock(hashtext('lias_kontakt'));
+  if (select count(*) from public.kontaktmeddelanden where lower(email) = lower(p_email) and created_at > now() - interval '1 hour') >= 5
+     or (select count(*) from public.kontaktmeddelanden where created_at > now() - interval '1 day') >= 100 then
+    raise exception 'FOR_MANGA_MEDDELANDEN';
+  end if;
+  insert into public.kontaktmeddelanden (name, email, message) values (p_name, p_email, p_message) returning * into v_row;
+  return json_build_object('id', v_row.id, 'created_at', v_row.created_at);
+end $_$;
+
+
+ALTER FUNCTION public.skicka_meddelande(p_name text, p_email text, p_message text) OWNER TO postgres;
 
 --
 -- Name: sparr_text(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -822,6 +851,24 @@ CREATE TABLE public.bookings (
 ALTER TABLE public.bookings OWNER TO postgres;
 
 --
+-- Name: kontaktmeddelanden; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kontaktmeddelanden (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    name text NOT NULL,
+    email text NOT NULL,
+    message text NOT NULL,
+    CONSTRAINT kontaktmeddelanden_email_check CHECK ((char_length(email) <= 200)),
+    CONSTRAINT kontaktmeddelanden_message_check CHECK (((char_length(message) >= 2) AND (char_length(message) <= 2000))),
+    CONSTRAINT kontaktmeddelanden_name_check CHECK (((char_length(name) >= 2) AND (char_length(name) <= 100)))
+);
+
+
+ALTER TABLE public.kontaktmeddelanden OWNER TO postgres;
+
+--
 -- Name: services; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -885,7 +932,8 @@ ALTER TABLE public.uteblivna OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-a67974e2-11e5-4ea5-a18c-884dd3a07962	lia@test.se
+9be27278-3c95-4f4b-85b3-2516cae0b04d	lia@test.se
+84bb8616-1a56-49c3-95b1-9f149a727f0b	annan@test.se
 \.
 
 
@@ -894,7 +942,7 @@ a67974e2-11e5-4ea5-a18c-884dd3a07962	lia@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-a67974e2-11e5-4ea5-a18c-884dd3a07962
+9be27278-3c95-4f4b-85b3-2516cae0b04d
 \.
 
 
@@ -903,6 +951,14 @@ a67974e2-11e5-4ea5-a18c-884dd3a07962
 --
 
 COPY public.bookings (id, created_at, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, person_name, group_id, cancel_note, cancelled_at, rules_version, arrived_at, confirm_token, confirmed_at, cancelled_by, ombokad_till) FROM stdin;
+\.
+
+
+--
+-- Data for Name: kontaktmeddelanden; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kontaktmeddelanden (id, created_at, name, email, message) FROM stdin;
 \.
 
 
@@ -980,6 +1036,14 @@ ALTER TABLE ONLY public.bookings
 
 
 --
+-- Name: kontaktmeddelanden kontaktmeddelanden_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kontaktmeddelanden
+    ADD CONSTRAINT kontaktmeddelanden_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1008,6 +1072,13 @@ ALTER TABLE ONLY public.uteblivna
 --
 
 CREATE INDEX bookings_confirm_token ON public.bookings USING btree (confirm_token);
+
+
+--
+-- Name: kontaktmeddelanden_tid; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kontaktmeddelanden_tid ON public.kontaktmeddelanden USING btree (created_at);
 
 
 --
@@ -1054,6 +1125,13 @@ CREATE POLICY admin_laser_bokningar ON public.bookings FOR SELECT TO authenticat
 
 
 --
+-- Name: kontaktmeddelanden admin_laser_kontakt; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY admin_laser_kontakt ON public.kontaktmeddelanden FOR SELECT TO authenticated USING (public.is_admin());
+
+
+--
 -- Name: sparrade admin_laser_sparrade; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -1085,6 +1163,12 @@ CREATE POLICY alla_laser_tjanster ON public.services FOR SELECT USING (true);
 --
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: kontaktmeddelanden; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.kontaktmeddelanden ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: services; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -1287,6 +1371,15 @@ REVOKE ALL ON FUNCTION public.rensa_gamla_avbokningar_kor() FROM PUBLIC;
 
 
 --
+-- Name: FUNCTION skicka_meddelande(p_name text, p_email text, p_message text); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.skicka_meddelande(p_name text, p_email text, p_message text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.skicka_meddelande(p_name text, p_email text, p_message text) TO anon;
+GRANT ALL ON FUNCTION public.skicka_meddelande(p_name text, p_email text, p_message text) TO authenticated;
+
+
+--
 -- Name: FUNCTION sparra_kund(p_phone text); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -1347,6 +1440,13 @@ GRANT UPDATE(cancel_note) ON TABLE public.bookings TO authenticated;
 
 
 --
+-- Name: TABLE kontaktmeddelanden; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.kontaktmeddelanden TO authenticated;
+
+
+--
 -- Name: TABLE services; Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -1372,5 +1472,5 @@ GRANT SELECT ON TABLE public.uteblivna TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bu8MNZvRKuSOrVhoE5ZSqJ0QNVQNM0PN3Aq8pY8Wtdvj7uMPXAv40bdDuNDIrJH
+\unrestrict 8OEe9LAaiqTjHfkAp2RsYx20cU0Wl7psalNHGbn8obtJ3qkDGV4gZqRpMFgKKqG
 

@@ -63,8 +63,13 @@ const NOW = new Date('2026-11-02T08:00:00+01:00').getTime();
   ok(L[0].medd === 'Meddelande: ”Din frisör Lia är tyvärr sjuk och måste avboka din tid.”', 'Meddelandet som skickades visas', L[0].medd);
   ok(L[1].medd === 'Meddelande: ”Din frisör Lia måste tyvärr boka om din tid.”' && L[1].tid.startsWith('Avbokad av Lia: ') && /2025|2026/.test(L[1].tid), 'Äldre avbokning visar år', L[1].tid);
   // --- 3. Sms-loggen har tid ---
+  // 1 nov: sms-loggen ligger under fliken Meddelanden; openLog fäller upp alla rader, backTo går tillbaka till Bokningar
+  const openLog = async pg => { await pg.click('[data-admintab="meddelanden"]'); await pg.waitForTimeout(300); for (const bt of await pg.$$('[data-medd] button[aria-expanded="false"]')) await bt.click(); await pg.waitForTimeout(200); };
+  const backTo = async pg => { await pg.click('[data-admintab="bokningar"]'); await pg.waitForTimeout(300); };
+  await openLog(p);
   const sms = await p.$$eval('[data-sms]', cs => cs.map(c => ({ kind: c.dataset.sms, at: (c.querySelector('[data-sms-at]') || {}).innerText })));
   ok(sms[0].kind === 'avbokning' && sms[0].at === 'Skickat mån 2 nov 2026 kl ' + hm, 'Sms-loggen: "' + sms[0].at + '" – samma minut som avbokningen');
+  await backTo(p);
   // --- 4. Låst i efterhand (demo följer databasens regel) ---
   const locked = await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('lias_demo_db')); return d.bookings.find(b => b.id === 'b1').cancel_note; });
   ok(!(await p.$('div[data-booking]:has-text("Anna Andersson")')) && locked === 'Din frisör Lia är tyvärr sjuk och måste avboka din tid.', 'Avbokningen kan inte göras om eller ändras från admin');
@@ -77,7 +82,9 @@ const NOW = new Date('2026-11-02T08:00:00+01:00').getTime();
   // --- 6. Händelser har också tid ---
   await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('lias_demo_db')); d.sms.unshift({ id: 'e1', bookingId: 'x', at: '2026-11-02T07:30:00.000Z', from: 'Admin', to: '07', kind: 'order-hamtad', event: true, text: 'LH-1 är utlämnad.' }); localStorage.setItem('lias_demo_db', JSON.stringify(d)); });
   await p.click('button:text-is("Ekonomi")'); await p.waitForTimeout(300); await p.click('button:text-is("Bokningar")'); await p.waitForTimeout(800);
+  await openLog(p);
   ok((await p.$eval('[data-sms="order-hamtad"] [data-sms-at]', e => e.innerText).catch(() => '')) === 'Registrerat mån 2 nov 2026 kl 08:30', 'Händelser i loggen har också tid');
+  await backTo(p);
   // --- 7. Fler än 10 ---
   await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('lias_demo_db')); for (let i = 0; i < 10; i++) d.bookings.push({ id: 'x' + i, service_ids: ['klipp-30'], service_names: 'Klippning/Herrklippning 30 min', price: 500, starts_at: '2026-10-20T10:00:00+02:00', ends_at: '2026-10-20T10:30:00+02:00', customer_name: 'Kund ' + i, customer_phone: '070', customer_email: 'a@b.se', status: 'avbokad', cancelled_at: '2026-10-1' + i % 10 + 'T10:00:00+02:00' }); localStorage.setItem('lias_demo_db', JSON.stringify(d)); });
   await p.reload(); await p.waitForTimeout(4500); if (!(await p.$('[data-rubrik="avbokade"]'))) { await p.click('footer >> text=Admin'); await p.waitForTimeout(1500); }

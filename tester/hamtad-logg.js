@@ -31,7 +31,9 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   await p.evaluate(d => localStorage.setItem('lias_demo_db', JSON.stringify(d)), { bookings: [], sms: [], courseBookings: [], orders: [ord(1001, 'Tommy Bergqvist', '0736344954', 'klar'), ord(1002, 'Anna Andersson', '0701234567', 'betald')], sold: {}, orderSeq: 1002, payments: [], photos: [], receiptSeq: 1000 });
   await p.click('footer >> text=Admin'); await p.waitForTimeout(400);
   await p.fill('input[type=email]', 'lia@demo.se'); await p.fill('input[type=password]', 'demo1234'); await p.click('button:has-text("Logga in")'); await p.waitForTimeout(1500);
-  const logg = () => p.$$eval('[data-sms]', cs => cs.map(c => ({ kind: c.dataset.sms, ev: c.dataset.event === 'true', head: c.querySelector('[data-sms-head]').innerText.trim(), text: c.innerText.trim() })));
+  // 1 nov: loggen ligger under fliken Meddelanden; raderna fälls upp för att se hela rutan
+  const openLog = async () => { await p.click('[data-admintab="meddelanden"]'); await p.waitForTimeout(300); for (const bt of await p.$$('[data-medd] button[aria-expanded="false"]')) await bt.click(); await p.waitForTimeout(200); };
+  const logg = async () => { await openLog(); const r = await p.$$eval('[data-sms]', cs => cs.map(c => ({ kind: c.dataset.sms, ev: c.dataset.event === 'true', head: c.querySelector('[data-sms-head]').innerText.trim(), text: c.innerText.trim() }))); await p.click('[data-admintab="bokningar"]'); await p.waitForTimeout(300); return r; };
   const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('lias_demo_db')));
 
   // 1. Avbryt i frågan -> ingenting händer
@@ -63,11 +65,12 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
   ok(!l2[1].ev && /^Till kund 0701234567\s*Klar att hämta · från LiasSalong$/.test(l2[1].head), 'Vanliga sms har etiketten Till kund (30 okt)', l2[1].head.replace(/\n/g, ' | '));
 
   // 4. Utseende
+  await openLog();
   const st = await p.$eval('[data-event="true"]', c => { const s = getComputedStyle(c), h = getComputedStyle(c.querySelector('[data-sms-head]')); return { bg: s.backgroundColor, fg: s.color, hfg: h.color, bl: s.borderLeftWidth + ' ' + s.borderLeftColor, bt: s.borderTopWidth + ' ' + s.borderTopColor, svg: !!c.querySelector('svg') }; });
   ok(st.bg === 'rgb(244, 237, 224)' && st.bt === '2px rgb(145, 116, 74)', 'Samma tonade ruta och bruna ram som sms-rutorna', st.bg + ' / ' + st.bt);
   ok(st.bl === '6px rgb(71, 100, 82)' && st.svg, 'Grön kant till vänster och bock-ikon skiljer händelsen från sms', st.bl);
   ok(contrast(st.fg, st.bg) >= 4.5 && contrast(st.hfg, st.bg) >= 4.5, 'Text och rubrikrad kontrast ≥ 4,5', contrast(st.fg, st.bg).toFixed(2) + ' / ' + contrast(st.hfg, st.bg).toFixed(2));
-  ok(await p.evaluate(() => [...document.querySelectorAll('p')].some(x => x.innerText.includes('Här syns också när en beställning har hämtats.'))), 'Förklaringen under rubriken nämner hämtade beställningar');
+  ok(await p.evaluate(() => [...document.querySelectorAll('p')].some(x => x.innerText.includes('Alla sms till och från Lia, händelser och meddelanden från kontaktformuläret.'))), 'Förklaringen under rubriken nämner händelser (t.ex. hämtade beställningar)');
   await p.locator('[data-event="true"]').first().scrollIntoViewIfNeeded();
   await p.locator('section:has([data-sms])').screenshot({ path: '/tmp/t/hamtad-logg.png' });
 

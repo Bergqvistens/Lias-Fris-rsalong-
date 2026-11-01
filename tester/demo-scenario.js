@@ -58,7 +58,8 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok((await mainText(lia)).includes('Fel e-post eller lösenord'), 'Fel lösenord stoppas');
   await lia.fill('input[type=password]', 'demo1234'); await lia.click('button:has-text("Logga in")'); await lia.waitForTimeout(1200);
   const lt = await mainText(lia);
-  ok(lt.includes('Inga kommande bokningar') && lt.includes('Inga kommande kursbokningar') && lt.includes('Inga beställningar') && lt.includes('🟢 Live') && lt.includes('Inga sms än'), 'Inloggad: tom lista, live, tom sms-logg');
+  const medd = async (pg, fn) => { await pg.click('[data-admintab="meddelanden"]'); await pg.waitForTimeout(300); const r = await fn(); await pg.click('[data-admintab="bokningar"]'); await pg.waitForTimeout(300); return r; };   // 1 nov: sms-loggen ligger nu under fliken Meddelanden
+  ok(lt.includes('Inga kommande bokningar') && lt.includes('Inga kommande kursbokningar') && lt.includes('Inga beställningar') && lt.includes('🟢 Live') && (await medd(lia, () => mainText(lia))).includes('Inga meddelanden än.'), 'Inloggad: tom lista, live, inga meddelanden');
   await lia.click('text=Slå på larm'); await lia.waitForTimeout(200);
   const ch0 = await lia.evaluate(() => window.__chimes);
 
@@ -78,7 +79,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   ok(lt2.includes('Anna Andersson') && lt2.includes('NY'), 'Bokningen dök upp hos Lia direkt, märkt NY');
   ok((await lia.evaluate(() => window.__chimes)) > ch0, 'Pling spelades');
   ok((await lia.evaluate(() => window.__notifs)).some(n => n.includes('Anna Andersson')), 'Skärmnotis visades');
-  const smsKinds = await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms')));
+  const smsKinds = await medd(lia, () => lia.$$eval('[data-medd-sms]', es => es.map(e => e.getAttribute('data-medd-sms'))));
   ok(smsKinds.join(',') === 'till-lia,bekraftelse', 'Sms-loggen visar sms till Lia och bekräftelse till kunden', smsKinds.join(', '));
   await lia.screenshot({ path: '/tmp/t/d2.png', fullPage: true });
 
@@ -101,7 +102,7 @@ const times = p => p.$$eval('main button', bs => bs.map(b => b.innerText.trim())
   await lia.locator('div[data-booking]', { hasText: 'Anna Andersson' }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(600);
   const lt3 = await mainText(lia);
   ok(!lt3.includes('👤 Anna Andersson') && lt3.includes('Bo Berg'), 'Avbokad bokning försvann, övriga kvar');
-  ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'avbokning', 'Avboknings-sms till kunden syns i loggen');
+  ok((await medd(lia, () => lia.$$eval('[data-medd-sms]', es => es.map(e => e.getAttribute('data-medd-sms')))))[0] === 'avbokning', 'Avboknings-sms till kunden syns i Meddelanden');
   const k5 = await open();
   await k5.click('nav >> text=Boka'); await k5.click('[data-cat="Klippning"]'); await k5.click('[data-service="klipp-45"]'); await k5.click('text=Fortsätt');
   await (await k5.$$('main div[style*="overflow-x"] button'))[1].click(); await k5.waitForTimeout(500);

@@ -42,6 +42,9 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
     await p.fill('input[type=text]', 'Anna Andersson'); await p.fill('input[type=tel]', '070-123 45 67'); await p.fill('input[type=email]', 'anna@test.se');
     await p.check('#boka-regler', { timeout: 1000 }).catch(() => {}); await p.click('button:has-text("Boka ·")'); await p.waitForTimeout(900);
   };
+  // 1 nov: sms-loggen ligger under fliken Meddelanden; openLog fäller upp alla rader, backTo går tillbaka till Bokningar
+  const openLog = async pg => { await pg.click('[data-admintab="meddelanden"]'); await pg.waitForTimeout(300); for (const bt of await pg.$$('[data-medd] button[aria-expanded="false"]')) await bt.click(); await pg.waitForTimeout(200); };
+  const backTo = async pg => { await pg.click('[data-admintab="bokningar"]'); await pg.waitForTimeout(300); };
   const smsLink = p => p.$eval('[data-sms="bekraftelse"] [data-sms-link]', a => ({ href: a.href, text: a.innerText, bubble: a.closest('[data-sms]').innerText })).catch(() => null);
 
   // --- 1. Kunden bokar: sms:et har en länk ---
@@ -70,6 +73,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   await lia.waitForTimeout(800);
   const cf = await conf();
   ok(cf.length === 1 && cf[0] === 'true: Bekräftad av kunden mån 2 nov kl 08:05', 'Admin uppdateras direkt utan omladdning: "Bekräftad av kunden mån 2 nov kl 08:05"', cf.join(' | '));
+  await openLog(lia);
   const ev = await lia.$$eval('[data-sms="kund-bekraftade"]', es => es.map(e => e.innerText.replace(/\n+/g, ' | ')));
   ok(ev.length === 1 && ev[0] === 'Registrerat mån 2 nov 2026 kl 08:05 | Händelse · Kunden bekräftade sin tid | Anna Andersson bekräftade sin tid tis 3 nov kl 10:00. Bekräftat mån 2 nov kl 08:05.', 'Loggen får en händelse med kund, tid och när den bekräftades', ev.join(' || '));
 
@@ -79,6 +83,7 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   const before = await lia.evaluate(() => location.href);
   await lia.click('[data-sms="bekraftelse"] [data-sms-link-text]'); await lia.waitForTimeout(500);
   ok((await lia.evaluate(() => location.href)) === before && !(await lia.$('[data-bekraftelse]')), 'Tryck på länktexten i admin gör ingenting');
+  await backTo(lia);
   // --- 4. Länken igen: redan bekräftad, ingen ny händelse ---
   const c2 = await newPage(l1.href, T0 + 30 * 60000);
   await c2.waitForSelector('[data-bekraftelse]', { timeout: 5000 }).catch(() => {});
@@ -118,8 +123,10 @@ const T0 = new Date('2026-11-02T08:00:00+01:00').getTime();   // måndag 2 nov 0
   await c5.close();
 
   // --- 8. Utseende ---
+  await openLog(lia);
   await lia.locator('[data-sms="kund-bekraftade"]').first().scrollIntoViewIfNeeded();
   await lia.locator('[data-sms="kund-bekraftade"]').first().screenshot({ path: '/tmp/t/bekrafta-logg.png' });
+  await backTo(lia);
   await lia.locator('[data-booking]').nth(1).screenshot({ path: '/tmp/t/bekrafta-admin.png' });
   const c6 = await newPage(l2.href, T0 + 60 * 60000);
   await c6.setViewportSize({ width: 320, height: 640 }); await c6.waitForTimeout(800);

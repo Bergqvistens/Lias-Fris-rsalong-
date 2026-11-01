@@ -671,9 +671,16 @@
       const head = table === 'course_bookings' ? `Din plats på ${r.course_name} hos Lias Hantverkeri (${when}) är avbokad.` : `Din tid hos Lias Hantverkeri ${when} är avbokad.`;
       return n ? `${head} ${n} Ring ${CONTACT.phone} så hittar vi en ny tid.` : head;
     }
+    // Meddelandeloggen sparas i 12 månader (som avbokningarna), högst 1000 st (Tommy 1 nov 2026; tidigare bara 60)
+    function demoTrimSms(db) { const cut = new Date(); cut.setMonth(cut.getMonth() - 12); db.sms = db.sms.filter(m => new Date(m.at) >= cut).slice(0, 1000); }
+    // Händelse i loggen (inget sms skickas), t.ex. avgift betald eller kund spärrad
+    function demoAddEvent(db, kind, refId, text, who) {
+      db.sms.unshift({ id: demoId(), bookingId: refId, at: new Date().toISOString(), from: 'Admin', to: 'Lia', kind, event: true, text, customer_name: who.name, customer_phone: who.phone });
+      demoTrimSms(db);
+    }
     function demoAddSms(db, to, kind, refId, text) {
       db.sms.unshift({ id: demoId(), bookingId: refId, at: new Date().toISOString(), from: 'LiasSalong', to, kind, text });
-      db.sms = db.sms.slice(0, 60);
+      demoTrimSms(db);
     }
     const demoListeners = new Set();
     function demoEmit(table, row, event = 'INSERT') {
@@ -878,7 +885,7 @@
       live.forEach(b => { b.confirmed_at = now; });
       db.sms.unshift({ id: demoId(), bookingId: live[0].id, at: now, from: 'Kunden', to: 'Lia', kind: 'kund-bekraftade', event: true,
         text: `${live[0].customer_name} bekräftade ${live.length > 1 ? 'sina tider (' + live.length + ' personer)' : 'sin tid'} ${demoWhen(start)}. Bekräftat ${demoWhen(Date.now())}.` });
-      db.sms = db.sms.slice(0, 60);
+      demoTrimSms(db);
       demoSave(db);
       live.forEach(b => demoEmit('bookings', b, 'UPDATE'));
       return { data: { ...info, already: false, confirmed_at: now }, error: null };
@@ -1026,6 +1033,9 @@
       const db = demoLoad(), u = db.uteblivna.find(x => x.id === p.p_id);
       if (!u || !['ingen_avgift', 'obetald'].includes(u.status) || (p.p_status === 'betald' && u.status !== 'obetald')) return fail('OGILTIG_STATUS');
       u.status = p.p_status; u.andrad_at = new Date().toISOString();
+      demoAddEvent(db, p.p_status === 'betald' ? 'avgift-betald' : 'avgift-efterskankt', u.booking_id, p.p_status === 'betald'
+        ? `${u.customer_name} har betalat avgiften ${u.belopp} kr (${STRIKE_ORSAK[u.kind]}). Markerad som betald ${demoWhen(Date.now())}.`
+        : `Lia efterskänkte avgiften ${u.belopp} kr för ${u.customer_name} (${STRIKE_ORSAK[u.kind]}). Tillfället räknas ändå.`, { name: u.customer_name, phone: u.customer_phone });
       demoSave(db);
       return { data: u, error: null };
     }
@@ -1047,15 +1057,17 @@
         const when = demoWhen(new Date(r.starts_at).getTime());
         demoAddSms(db, phone, table === 'bookings' ? 'avbokning' : 'kurs-avbokning', r.id, (table === 'bookings' ? `Din tid hos Lias Hantverkeri ${when} är avbokad. ` : `Din plats på ${r.course_name} hos Lias Hantverkeri (${when}) är avbokad. `) + SPARR_TEXT);
       }));
+      demoAddEvent(db, 'kund-sparrad', null, `${last.customer_name} (${phone}) spärrades från onlinebokning. ${avb.length === 1 ? '1 kommande tid avbokades' : avb.length + ' kommande tider avbokades'}.`, { name: last.customer_name, phone });
       demoSave(db);
       avb.forEach(([t, r]) => demoEmit(t, r, 'UPDATE'));
       return { data: { customer_phone: phone, customer_name: last.customer_name, ganger: n, avbokade: avb.length }, error: null };
     }
     function demoHavSparr(p) {
       if (!demoSession()) return fail('EJ_ADMIN');
-      const phone = String(p.p_phone || '').replace(/\D/g, ''), db = demoLoad(), n = db.sparrade.length;
+      const phone = String(p.p_phone || '').replace(/\D/g, ''), db = demoLoad(), n = db.sparrade.length, was = db.sparrade.find(x => x.customer_phone === phone);
       db.sparrade = db.sparrade.filter(x => x.customer_phone !== phone);
       if (db.sparrade.length === n) return fail('INTE_SPARRAD');
+      demoAddEvent(db, 'sparr-havd', null, `Spärren för ${was.customer_name} (${phone}) hävdes. Kunden kan boka på nätet igen.`, { name: was.customer_name, phone });
       demoSave(db);
       return { data: { customer_phone: phone }, error: null };
     }
@@ -1095,7 +1107,7 @@
               if (table === 'orders' && before !== 'hamtad' && r.status === 'hamtad') {
                 db.sms.unshift({ id: demoId(), bookingId: r.id, at: new Date().toISOString(), from: 'Admin', to: r.customer_phone, kind: 'order-hamtad', event: true,
                   text: `${r.number} är utlämnad till ${r.customer_name} (${r.customer_phone}). Hämtad ${demoWhen(Date.now())}.` });
-                db.sms = db.sms.slice(0, 60);
+                demoTrimSms(db);
               }
             });
             demoSave(db);
@@ -1291,10 +1303,11 @@
       );
     }
 
-    const SMS_LABELS = { 'saknad': 'Vi saknade dig', 'varning': 'Varning (ingen avgift)', 'debitering': 'Debitering', 'kom-anda': 'Kunden kom ändå', 'bekraftelse': 'Bekräftelse', 'ombokning': 'Ombokning', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta' };
+    const SMS_LABELS = { 'saknad': 'Vi saknade dig', 'varning': 'Varning (ingen avgift)', 'debitering': 'Debitering', 'kom-anda': 'Kunden kom ändå', 'bekraftelse': 'Bekräftelse', 'ombokning': 'Ombokning', 'avbokning': 'Avbokning', 'kurs-bekraftelse': 'Kursbekräftelse', 'kurs-avbokning': 'Avbokning', 'order-bekraftelse': 'Orderbekräftelse', 'order-hamtklar': 'Klar att hämta', 'kontakt': 'Meddelande från webbplatsen' };
     // linkable=false i Lias sms-logg: länken visas som text men går inte att trycka på (Lia ska inte kunna bekräfta åt kunden, 30 okt)
     function DemoSmsBubble({ sms, linkable = true }) {
-      const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid' };
+      const EVENT_HEAD = { 'order-hamtad': 'Händelse · Beställning hämtad · inget sms skickat', 'kund-bekraftade': 'Händelse · Kunden bekräftade sin tid',
+        'avgift-betald': 'Händelse · Avgift betald', 'avgift-efterskankt': 'Händelse · Avgift efterskänkt', 'kund-sparrad': 'Händelse · Kund spärrad', 'sparr-havd': 'Händelse · Spärr hävd' };
       if (sms.event) return (
         <div data-sms={sms.kind} data-event="true" style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderLeft: `6px solid ${COLORS.rosemary}`, borderRadius: '14px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
           <div data-sms-at style={{ fontSize: '13px', fontWeight: '600', color: T.color.textMuted, marginBottom: '4px' }}>Registrerat {whenFull(new Date(sms.at).getTime())}</div>
@@ -1302,7 +1315,7 @@
           {sms.text}
         </div>
       );
-      const toLia = /till-lia$/.test(sms.kind);   // 30 okt: tydlig etikett så man ser vem sms:et gick till (Tommy)
+      const toLia = /till-lia$/.test(sms.kind) || sms.kind === 'kontakt';   // 30 okt: tydlig etikett så man ser vem sms:et gick till (Tommy)
       return (
         <div data-sms={sms.kind} style={{ backgroundColor: COLORS.sand1, border: `2px solid ${COLORS.sandBrown}`, borderRadius: '14px 14px 14px 4px', padding: '12px 14px', fontSize: '15px', color: COLORS.dark, lineHeight: '1.5', textAlign: 'left' }}>
           <div data-sms-head style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px', fontSize: '13px', fontWeight: '700', color: T.color.textMuted, marginBottom: '6px' }}>
@@ -1326,15 +1339,139 @@
         </div>
       );
     }
-    function DemoSmsLog() {
-      const sms = demoLoad().sms;
+    // ---- Meddelanden i admin (Tommy 1 nov 2026): kategorier, riktning, sök, per dag, kundens historik, nya ----
+    const MSG_CATS = [['alla', 'Alla'], ['bok', 'Bokningar'], ['avb', 'Av- och ombokningar'], ['ute', 'Uteblivet och sent'], ['avg', 'Avgifter'], ['kurs', 'Kurser'], ['shop', 'Shop'], ['ovr', 'Övrigt']];
+    const MSG_ICON = { bok: '📅', avb: '🔁', ute: '⏰', avg: '💳', kurs: '🏺', shop: '🛍️', ovr: '✉️' };
+    const MSG_BG = { bok: '#DDEBE1', avb: '#F3E1C8', ute: '#F6D9D2', avg: '#F2D0CC', kurs: '#E4DDF0', shop: '#D9E8EA', ovr: '#E8E2D6' };
+    function msgCat(m) {
+      const k = m.kind;
+      if (k === 'till-lia') return /^(Ombokning|Avbokning)/.test(m.text) ? 'avb' : 'bok';
+      if (k === 'bekraftelse' || k === 'kund-bekraftade') return 'bok';
+      if (k === 'avbokning' || k === 'ombokning') return 'avb';
+      if (k === 'saknad' || k === 'kom-anda') return 'ute';
+      if (['varning', 'debitering', 'avgift-betald', 'avgift-efterskankt', 'kund-sparrad', 'sparr-havd'].includes(k)) return 'avg';
+      if (/^kurs-/.test(k)) return 'kurs';
+      if (/^order-/.test(k)) return 'shop';
+      return 'ovr';
+    }
+    const MSG_TITLE = { 'kurs-till-lia': 'Ny kursbokning', 'order-till-lia': 'Ny beställning', 'kund-bekraftade': 'Kunden bekräftade sin tid', 'order-hamtad': 'Beställning hämtad (inget sms)',
+      'avgift-betald': 'Avgift betald', 'avgift-efterskankt': 'Avgift efterskänkt', 'kund-sparrad': 'Kund spärrad', 'sparr-havd': 'Spärr hävd' };
+    const msgTitle = m => m.kind === 'till-lia' ? (/^Ombokning/.test(m.text) ? 'Ombokning' : /^Avbokning/.test(m.text) ? 'Avbokning' : 'Ny bokning') : (MSG_TITLE[m.kind] || SMS_LABELS[m.kind] || (m.event ? 'Händelse' : 'Sms'));
+    const msgDir = m => m.event ? 'event' : (m.kind === 'kontakt' || /till-lia$/.test(m.kind)) ? 'lia' : 'kund';
+    const msgIncoming = m => msgDir(m) === 'lia' || m.kind === 'kund-bekraftade';   // det som kommer till Lia (räknas som nytt)
+    // Demo: kunden hämtas från bokningen/beställningen som meddelandet gäller
+    function demoMsgs() {
+      const db = demoLoad();
+      const refs = {}; [...db.bookings, ...db.courseBookings, ...db.orders].forEach(r => { refs[r.id] = r; });
+      db.uteblivna.forEach(u => { if (!refs[u.booking_id]) refs[u.booking_id] = u; });
+      return db.sms.map(m => { const r = refs[m.bookingId] || {};
+        return { ...m, cat: msgCat(m), dir: msgDir(m), name: m.customer_name || r.customer_name || '', phone: m.customer_phone || r.customer_phone || '', email: m.customer_email || r.customer_email || '' }; });
+    }
+    const MSG_READ_KEY = 'lias_medd_last', MSG_OPEN_KEY = 'lias_medd_oppnade';
+    const msgReadLoad = () => { try { return { at: localStorage.getItem(MSG_READ_KEY) || '', opened: JSON.parse(localStorage.getItem(MSG_OPEN_KEY) || '[]') }; } catch (e) { return { at: '', opened: [] }; } };
+    const msgReadSave = r => { try { localStorage.setItem(MSG_READ_KEY, r.at); localStorage.setItem(MSG_OPEN_KEY, JSON.stringify(r.opened.slice(-300))); } catch (e) {} };
+    const msgIsNew = (m, read) => msgIncoming(m) && (!read.at || m.at > read.at) && !read.opened.includes(m.id);
+    function dayHead(ms) {
+      const k = dayKey(ms), today = dayKey(Date.now()), yest = dayKey(Date.now() - 86400000), lab = dayKeyLabel(k).toLowerCase();
+      return k === today ? 'Idag · ' + lab : k === yest ? 'Igår · ' + lab : lab.replace(/^./, c => c.toUpperCase()) + (k.slice(0, 4) !== today.slice(0, 4) ? ' ' + k.slice(0, 4) : '');
+    }
+    function AdminMessages({ msgs, read, onOpen, onMarkAll, strikes, sparrade }) {
+      const [cat, setCat] = useState('alla');
+      const [dir, setDir] = useState('alla');
+      const [q, setQ] = useState('');
+      const [openIds, setOpenIds] = useState([]);   // flera kan vara uppfällda samtidigt
+      const [thread, setThread] = useState(null);   // { key, name, phone, email }
+      const [shown, setShown] = useState(40);
+      useEffect(() => { window.scrollTo(0, 0); }, [thread]);
+      const nNew = msgs.filter(m => msgIsNew(m, read)).length;
+      const keyOf = m => m.phone || (m.email ? m.email.toLowerCase() : '');
+      const fg = { color: 'var(--flow-fg, #F4EDE0)' };
+      const row = (m, inThread) => {
+        const isNew = msgIsNew(m, read), open = openIds.includes(m.id);
+        const badge = m.dir === 'lia' ? ['Till Lia', T.color.forest] : m.dir === 'kund' ? ['Till kund', COLORS.earthBrown] : ['Händelse', COLORS.rosemary];
+        return (
+          <div key={m.id} data-medd={m.id} data-medd-sms={m.kind} data-kat={m.cat} data-riktning={m.dir} data-ny={isNew ? 'true' : 'false'} style={{ borderBottom: '1px solid rgba(107,81,56,.18)' }}>
+            <button type="button" aria-expanded={open ? 'true' : 'false'} onClick={() => { setOpenIds(ids => open ? ids.filter(x => x !== m.id) : [...ids, m.id]); if (!open) onOpen(m.id); }}
+              style={{ display: 'flex', gap: '10px', width: '100%', padding: '12px', background: 'none', border: 0, textAlign: 'left', alignItems: 'flex-start', cursor: 'pointer', font: 'inherit', color: COLORS.dark }}>
+              <span aria-hidden="true" style={{ flex: '0 0 36px', height: '36px', borderRadius: '10px', background: MSG_BG[m.cat], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{MSG_ICON[m.cat]}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: 700 }}>{m.name || (m.dir === 'event' ? 'Händelse' : 'Okänd kund')}{isNew && <span data-ny-prick aria-label="nytt" style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#C0392B', display: 'inline-block' }} />}</span>
+                <span style={{ display: 'block', fontSize: '14px', color: '#5b524a', whiteSpace: open ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{open ? msgTitle(m) : m.text}</span>
+              </span>
+              <span style={{ textAlign: 'right', flexShrink: 0 }}>
+                <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#7A6F62' }}>{inThread ? demoWhen(new Date(m.at).getTime()) : fmtTime(new Date(m.at).getTime())}</span>
+                <span data-riktning-etikett style={{ display: 'inline-block', marginTop: '4px', fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', color: '#fff', background: badge[1] }}>{badge[0]}</span>
+              </span>
+            </button>
+            {open && (
+              <div data-medd-oppen style={{ padding: '0 12px 14px 12px' }}>
+                <DemoSmsBubble sms={m} linkable={false} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                  {!inThread && keyOf(m) && <button type="button" data-visa-historik onClick={() => { setThread({ key: keyOf(m), name: m.name, phone: m.phone, email: m.email }); setOpenIds([]); }} style={{ minHeight: '44px', padding: '8px 12px', borderRadius: '10px', border: `2px solid ${COLORS.rosemary}`, background: 'none', color: COLORS.rosemary, fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>👤 Visa {(m.name || 'kundens').split(' ')[0]}{m.name ? 's' : ''} historik</button>}
+                  {m.phone && <a href={'tel:' + m.phone} style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: '10px', border: `2px solid ${COLORS.rosemary}`, color: COLORS.rosemary, fontWeight: 700, fontSize: '14px', textDecoration: 'none' }}>📞 Ring</a>}
+                  {m.kind === 'kontakt' && m.email && <a href={'mailto:' + m.email + '?subject=' + encodeURIComponent('Svar från Lias Hantverkeri')} data-svara style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: '10px', border: `2px solid ${COLORS.rosemary}`, color: COLORS.rosemary, fontWeight: 700, fontSize: '14px', textDecoration: 'none' }}>✉️ Svara via e-post</a>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+      // ---------- Kundens historik ----------
+      if (thread) {
+        const list = msgs.filter(m => keyOf(m) === thread.key);
+        const cut = new Date(); cut.setMonth(cut.getMonth() - 12);
+        const st = thread.phone ? strikes.filter(u => u.customer_phone === thread.phone) : [];
+        const unpaid = st.filter(u => u.status === 'obetald').reduce((a, u) => a + u.belopp, 0);
+        const times = st.filter(u => UTE_RAKNAS.includes(u.status) && new Date(u.created_at) > cut).length;
+        const sp = thread.phone && sparrade.some(x => x.customer_phone === thread.phone);
+        return (
+          <section data-medd-historik={thread.key}>
+            <button type="button" data-tillbaka-medd onClick={() => setThread(null)} style={{ ...fg, background: 'none', border: 0, fontSize: '16px', fontWeight: 600, padding: '8px 0', cursor: 'pointer', minHeight: '44px' }}>‹ Tillbaka till meddelanden</button>
+            <div style={{ ...BOX, marginTop: '6px' }}>
+              <div style={{ fontFamily: T.font.heading, fontSize: '21px', color: T.color.forest }}>{thread.name || 'Okänd kund'}</div>
+              <div style={{ fontSize: '14px', color: '#5b524a', marginTop: '2px' }}>{thread.phone && <>📞 <a href={'tel:' + thread.phone} style={{ color: COLORS.rosemary }}>{thread.phone}</a></>}{thread.phone && thread.email ? ' · ' : ''}{thread.email}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                {unpaid > 0 && <span data-historik-skuld style={{ padding: '4px 10px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, background: '#FBE3DD', color: '#7A1410', border: '2px solid #B3261E' }}>❌ Ej betalt: {formatPrice(unpaid)}</span>}
+                {thread.phone && <span data-historik-ganger style={{ padding: '4px 10px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, background: '#E8E2D6', color: COLORS.dark }}>{times} {times === 1 ? 'gång' : 'gånger'} senaste 12 mån</span>}
+                {sp && <span style={{ padding: '4px 10px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, background: '#FBE3DD', color: '#7A1410' }}>🚫 Spärrad</span>}
+              </div>
+            </div>
+            <div style={{ ...fg, fontSize: '13px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#D4B98F', margin: '16px 0 6px' }}>Allt med {(thread.name || 'kunden').split(' ')[0]} · senaste först ({list.length})</div>
+            <div style={{ background: COLORS.sand1, borderRadius: '14px', overflow: 'hidden' }}>{list.map(m => row(m, true))}</div>
+          </section>
+        );
+      }
+      // ---------- Översikt ----------
+      const qq = q.trim().toLowerCase(), qd = qq.replace(/\D/g, '');
+      const base = msgs.filter(m => (dir === 'alla' || (dir === 'lia' ? m.dir === 'lia' : m.dir === 'kund'))
+        && (!qq || m.name.toLowerCase().includes(qq) || m.email.toLowerCase().includes(qq) || (qd.length >= 3 && m.phone.includes(qd))));
+      const count = c => c === 'alla' ? base.length : base.filter(m => m.cat === c).length;
+      const list = base.filter(m => cat === 'alla' || m.cat === cat);
+      const days = []; list.slice(0, shown).forEach(m => { const k = dayKey(new Date(m.at).getTime()); let d = days[days.length - 1]; if (!d || d.k !== k) { d = { k, head: dayHead(new Date(m.at).getTime()), items: [] }; days.push(d); } d.items.push(m); });
+      const chip = (on, label, n, onClick, attrs) => <button type="button" aria-pressed={on ? 'true' : 'false'} onClick={onClick} {...attrs}
+        style={{ border: '2px solid ' + (on ? COLORS.sand1 : '#D4B98F'), background: on ? COLORS.sand1 : 'transparent', color: on ? T.color.forest : COLORS.sand1, borderRadius: '999px', padding: '7px 12px', minHeight: '40px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}{n !== undefined && <span style={{ marginLeft: '6px', padding: '0 6px', borderRadius: '999px', fontSize: '12px', background: on ? T.color.forest : 'rgba(244,237,224,.18)', color: COLORS.sand1 }}>{n}</span>}</button>;
       return (
-        <section style={{ marginTop: '24px' }}>
-          <h2 style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '17px', fontFamily: T.font.heading, margin: '0 0 4px 0' }}>Sms-logg (demo)</h2>
-          <p style={{ color: 'var(--flow-fg, #F4EDE0)', fontSize: '14px', margin: '0 0 10px 0' }}>Så här hade sms:en sett ut. Inget av dem har skickats. Här syns också när en beställning har hämtats.</p>
-          {sms.length === 0
-            ? <div style={{ ...BOX, textAlign: 'center', fontSize: '14px' }}>Inga sms än.</div>
-            : <div style={{ display: 'grid', gap: '12px' }}>{sms.slice(0, 20).map(m => <DemoSmsBubble key={m.id} sms={m} linkable={false} />)}</div>}
+        <section data-meddelanden>
+          <h2 style={{ ...fg, fontFamily: T.font.heading, fontSize: '22px', margin: '6px 0 2px' }}>📨 Meddelanden</h2>
+          <p style={{ ...fg, fontSize: '14px', margin: '0 0 8px', opacity: .9 }}>{DEMO ? 'Alla sms till och från Lia, händelser och meddelanden från kontaktformuläret. Demo: inga sms skickas på riktigt.' : 'Meddelanden från kontaktformuläret. Sms visas här när sms-tjänsten är inkopplad.'} Sparas i 12 månader.</p>
+          {nNew > 0 && <div data-nya-rad role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: '#E8B863', color: COLORS.dark, borderRadius: '12px', padding: '10px 12px', fontWeight: 700, fontSize: '15px', margin: '6px 0' }}>
+            {nNew === 1 ? '1 nytt meddelande' : nNew + ' nya meddelanden'}<button type="button" data-markera-lasta onClick={onMarkAll} style={{ background: 'none', border: 0, textDecoration: 'underline', fontWeight: 600, fontSize: '14px', color: COLORS.dark, cursor: 'pointer', minHeight: '44px' }}>Markera som lästa</button></div>}
+          <div role="group" aria-label="Kategori" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '10px 0 4px' }}>
+            {MSG_CATS.map(([id, label]) => chip(cat === id, label, count(id), () => { setCat(id); setShown(40); setOpenIds([]); }, { key: id, 'data-medd-kat': id }))}
+          </div>
+          <div role="group" aria-label="Riktning" style={{ display: 'flex', background: 'rgba(244,237,224,.12)', borderRadius: '12px', padding: '4px', margin: '8px 0 0' }}>
+            {[['alla', 'Alla'], ['lia', 'Till Lia'], ['kund', 'Till kund']].map(([id, label]) => <button key={id} type="button" aria-pressed={dir === id ? 'true' : 'false'} data-medd-riktning={id} onClick={() => { setDir(id); setShown(40); }}
+              style={{ flex: 1, minHeight: '40px', borderRadius: '9px', border: 0, background: dir === id ? COLORS.sand1 : 'transparent', color: dir === id ? T.color.forest : COLORS.sand1, fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>{label}</button>)}
+          </div>
+          <input type="search" value={q} onChange={e => { setQ(e.target.value); setShown(40); }} placeholder="🔍 Sök namn eller telefonnummer" aria-label="Sök namn eller telefonnummer" data-medd-sok className="lh-input" style={{ width: '100%', marginTop: '10px' }} />
+          {list.length === 0
+            ? <div style={{ ...BOX, textAlign: 'center', marginTop: '14px' }} data-medd-tomt>{msgs.length === 0 ? 'Inga meddelanden än.' : 'Inga meddelanden matchar.'}</div>
+            : days.map(d => (
+                <div key={d.k}>
+                  <div data-medd-dag style={{ color: '#D4B98F', fontSize: '13px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', margin: '16px 0 6px' }}>{d.head}</div>
+                  <div style={{ background: COLORS.sand1, borderRadius: '14px', overflow: 'hidden' }}>{d.items.map(m => row(m, false))}</div>
+                </div>))}
+          {list.length > shown && <button type="button" data-medd-fler onClick={() => setShown(n => n + 40)} style={{ marginTop: '12px', width: '100%', minHeight: '44px', borderRadius: '10px', border: 0, background: COLORS.rosemary, color: COLORS.sand1, fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>Visa fler ({list.length - shown} till)</button>}
         </section>
       );
     }
@@ -2579,16 +2716,22 @@
       const [state, setState] = useState('idle');   // idle | sending | sent | mail | error
       const today = new Date(Date.now()).toLocaleDateString('en-GB', { timeZone: TZ, weekday: 'short' });
       const todayDow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(today);
-      const v = { name: form.name.trim().length >= 2, email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim()), msg: form.msg.trim().length >= 2 };
+      const v = { name: form.name.trim().length >= 2 && form.name.trim().length <= 100, email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim()) && form.email.trim().length <= 200, msg: form.msg.trim().length >= 2 && form.msg.trim().length <= 2000 };
+      // 1 nov 2026: meddelandet sparas och visas för Lia under fliken Meddelanden i admin (tidigare öppnades e-postappen)
       const send = async e => {
         e.preventDefault(); setTried(true);
         if (!(v.name && v.email && v.msg) || state === 'sending') return;
         setState('sending');
-        if (DEMO) { await new Promise(r => setTimeout(r, 900)); setState('sent'); return; }
+        if (DEMO) {
+          await new Promise(r => setTimeout(r, 900));
+          const db = demoLoad();
+          db.sms.unshift({ id: demoId(), bookingId: null, at: new Date().toISOString(), from: form.name.trim(), to: 'Lia', kind: 'kontakt', text: form.msg.trim(), customer_name: form.name.trim(), customer_email: form.email.trim() });
+          demoTrimSms(db); demoSave(db); setState('sent'); return;
+        }
         try {
-          const body = `${form.msg.trim()}\n\n${form.name.trim()}\n${form.email.trim()}`;
-          window.location.href = `mailto:${CONTACT.email}?subject=${encodeURIComponent('Meddelande från webbplatsen')}&body=${encodeURIComponent(body)}`;
-          setState('mail');
+          const { error } = await Promise.resolve(sb.rpc('skicka_meddelande', { p_name: form.name.trim(), p_email: form.email.trim(), p_message: form.msg.trim() }));
+          if (error) { setState(/FOR_MANGA_MEDDELANDEN/.test(error.message || '') ? 'manga' : 'error'); return; }
+          setState('sent');
         } catch (err) { setState('error'); }
       };
       const field = (key, label, props, msg) => <FormField id={'kontakt-' + key} label={label} required value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} error={tried && !v[key] ? msg : null} {...props} />;
@@ -2635,15 +2778,16 @@
             {state === 'sent' || state === 'mail'
               ? <div role="status" data-sent="true">
                   <InfoRow icon="check"><strong>{state === 'sent' ? 'Tack! Ditt meddelande är skickat.' : 'Ditt e-postprogram öppnades med meddelandet.'}</strong></InfoRow>
-                  <p style={{ margin: '8px 0 14px', fontSize: '16px', lineHeight: 1.5 }}>{state === 'sent' ? (DEMO ? 'Demo: inget meddelande skickades på riktigt.' : 'Lia återkommer så snart hon kan.') : 'Tryck på Skicka i e-postprogrammet för att skicka det till Lia.'}</p>
+                  <p style={{ margin: '8px 0 14px', fontSize: '16px', lineHeight: 1.5 }}>{state === 'sent' ? (DEMO ? 'Demo: meddelandet syns hos Lia under Meddelanden i admin. Inget skickades på riktigt.' : 'Lia återkommer så snart hon kan.') : 'Tryck på Skicka i e-postprogrammet för att skicka det till Lia.'}</p>
                   <Button variant="secondary" onClick={() => { setForm({ name: '', email: '', msg: '' }); setTried(false); setState('idle'); }}>Skriv ett nytt meddelande</Button>
                 </div>
               : <form noValidate onSubmit={send}>
                   <p style={{ margin: '0 0 12px', fontSize: '15px', color: T.color.textMuted }}>Fält markerade med * måste fyllas i.</p>
                   {field('name', 'Namn', { type: 'text', autoComplete: 'name' }, 'Skriv ditt namn.')}
                   {field('email', 'E-post', { type: 'email', autoComplete: 'email', inputMode: 'email' }, 'Kontrollera e-postadressen.')}
-                  {field('msg', 'Meddelande', { multiline: true, rows: 5, style: { resize: 'vertical' } }, 'Skriv ett meddelande.')}
+                  {field('msg', 'Meddelande', { multiline: true, rows: 5, style: { resize: 'vertical' } }, 'Skriv ett meddelande (högst 2000 tecken).')}
                   {state === 'error' && <ErrorBox text={`Meddelandet kunde inte skickas. Försök igen eller mejla ${CONTACT.email}.`} />}
+                  {state === 'manga' && <ErrorBox text={`Du har skickat många meddelanden på kort tid. Vänta en stund, eller ring Lia på ${CONTACT.phone}.`} />}
                   <Button type="submit" variant="primary" block icon={state === 'sending' ? null : 'send'} disabled={state === 'sending'} aria-busy={state === 'sending' ? 'true' : 'false'}>{state === 'sending' ? 'Skickar…' : 'Skicka meddelande'}</Button>
                 </form>}
           </section>
@@ -3238,6 +3382,17 @@
       const [notifState, setNotifState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'saknas');
       const [newIds, setNewIds] = useState([]);
       const [section, setSection] = useState('bokningar');
+      // Meddelanden (1 nov 2026): demo = sms-loggen; riktigt läge = kontaktformuläret (sms när tjänsten är inkopplad)
+      const [msgs, setMsgs] = useState([]);
+      const [msgRead, setMsgRead] = useState(msgReadLoad);
+      const loadMsgs = async () => {
+        if (DEMO) { const list = demoMsgs(); setMsgs(prev => (prev.length === list.length && (prev[0] || {}).id === (list[0] || {}).id && prev.every((m, i) => m.id === list[i].id)) ? prev : list); return; }
+        const { data, error } = await sb.from('kontaktmeddelanden').select('*').order('created_at', { ascending: false });
+        if (!error) setMsgs((data || []).map(r => ({ id: r.id, at: r.created_at, kind: 'kontakt', from: r.name, to: 'Lia', text: r.message, cat: 'ovr', dir: 'lia', name: r.name, phone: '', email: r.email })));
+      };
+      const msgOpen = id => setMsgRead(r => { if (r.opened.includes(id)) return r; const n = { ...r, opened: [...r.opened, id] }; msgReadSave(n); return n; });
+      const msgMarkAll = () => { const n = { at: new Date().toISOString(), opened: [] }; msgReadSave(n); setMsgRead(n); };
+      const msgNew = msgs.filter(m => msgIsNew(m, msgRead)).length;
       const [askEl, ask] = useAppConfirm();
       const [cancelled, setCancelled] = useState([]);   // avbokade de senaste 12 månaderna (30 okt)
       const [showAllCancelled, setShowAllCancelled] = useState(false);
@@ -3385,7 +3540,7 @@
         });
         loadedOnce.current = true;
         setLists(next); setListState('ok');
-        loadCancelled(); loadStrikes(); loadSparr();
+        loadCancelled(); loadStrikes(); loadSparr(); loadMsgs();
       };
 
       useEffect(() => {
@@ -3413,7 +3568,8 @@
         });
         ch.subscribe(status => setLive(status === 'SUBSCRIBED'));
         const poll = setInterval(load, 60000);   // reserv om liveanslutningen tappas
-        return () => { clearInterval(poll); sb.removeChannel(ch); };
+        const mpoll = DEMO ? setInterval(loadMsgs, 3000) : null;   // demo: nya meddelanden (t.ex. från kontaktformuläret) syns inom några sekunder
+        return () => { clearInterval(poll); if (mpoll) clearInterval(mpoll); sb.removeChannel(ch); };
       }, [isAdmin]);
 
       const login = async e => {
@@ -3511,8 +3667,10 @@
           </div>
 
           <div className="lh-chips lh-admintabs" role="group" aria-label="Admin-delar">
-            {[['bokningar', 'Bokningar'], ['ekonomi', 'Ekonomi'], ['bilder', 'Bilder']].map(([id, label]) => <FilterChip key={id} selected={section === id} data-admintab={id} onClick={() => setSection(id)}>{label}</FilterChip>)}
+            {[['bokningar', 'Bokningar'], ['meddelanden', msgNew ? `📨 Meddelanden (${msgNew} ${msgNew === 1 ? 'nytt' : 'nya'})` : '📨 Meddelanden'], ['ekonomi', 'Ekonomi'], ['bilder', 'Bilder']].map(([id, label]) => <FilterChip key={id} selected={section === id} data-admintab={id} data-nya={id === 'meddelanden' && msgNew ? msgNew : undefined} onClick={() => { setSection(id); if (id === 'meddelanden') loadMsgs(); }}
+              style={id === 'meddelanden' && msgNew ? { background: '#E8B863', color: '#2C2C2C', borderColor: '#B8862B', fontWeight: 700, boxShadow: section === id ? '0 0 0 3px #F4EDE0' : 'none' } : undefined}>{label}</FilterChip>)}
           </div>
+          {section === 'meddelanden' && <AdminMessages msgs={msgs} read={msgRead} onOpen={msgOpen} onMarkAll={msgMarkAll} strikes={strikes} sparrade={sparrade} />}
           {section === 'ekonomi' && (DEMO ? <AdminEconomy /> : <Card><h2 className="lh-cardtitle">Ekonomi</h2><p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kräver att Supabase kopplas in med tabeller för betalningar. Det är inte byggt än.</p></Card>)}
           {section === 'bilder' && (DEMO ? <AdminPhotos /> : <Card><h2 className="lh-cardtitle">Bilder</h2><p style={{ margin: 0, fontSize: '16px', lineHeight: 1.5 }}>Kräver att Supabase kopplas in med lagring för bilder (Storage). Det är inte byggt än.</p></Card>)}
           {section === 'bokningar' && <>
@@ -3743,7 +3901,6 @@
                   </div>
                 ))}
               </div>
-              <DemoSmsLog />
             </>}
           </>}
           </>}

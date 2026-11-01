@@ -63,7 +63,7 @@ const H = 3600000, D = 86400000;
 
   console.log('--- Flikar ---');
   const tabs = await lia.$$eval('[data-admintab]', bs => bs.map(b => b.innerText.trim() + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')));
-  ok(tabs.join('|') === 'Bokningar*|Ekonomi|Bilder', 'Admin har flikarna Bokningar (vald), Ekonomi, Bilder', tabs.join(' | '));
+  ok(tabs.join('|') === 'Bokningar*|📨 Meddelanden|Ekonomi|Bilder', 'Admin har flikarna Bokningar (vald), Meddelanden, Ekonomi, Bilder', tabs.join(' | '));
   ok((await lia.evaluate(() => document.querySelector('main').innerText)).includes('Slå på larm'), 'Bokningsfliken visar samma innehåll som förut');
   await lia.click('text=Slå på larm'); await lia.waitForTimeout(200);
 

@@ -37,6 +37,10 @@ const contrast = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 
     if (zoom > 1) await p.addStyleTag({ content: 'html{font-size:130%!important} body{zoom:1.3}' });
     await p.click('footer >> text=Admin'); await p.waitForTimeout(400);
     await p.fill('input[type=email]', 'lia@demo.se'); await p.fill('input[type=password]', 'demo1234'); await p.click('button:has-text("Logga in")'); await p.waitForTimeout(1500);
+    // 1 nov: sms:en ligger under fliken Meddelanden och fälls upp med ett tryck
+    await p.click('[data-admintab="meddelanden"]'); await p.waitForTimeout(300);
+    for (const bt of await p.$$('[data-medd] button[aria-expanded="false"]')) await bt.click();
+    await p.waitForTimeout(200);
     const b = await p.$$eval('[data-sms]', cs => cs.map(c => { const s = getComputedStyle(c), hd = c.querySelector('[data-sms-head]'), hs = getComputedStyle(hd), r = c.getBoundingClientRect();
       return { bg: s.backgroundColor, bw: s.borderTopWidth, bc: s.borderTopColor, fg: s.color, fs: parseFloat(s.fontSize), hfg: hs.color, hfs: parseFloat(hs.fontSize), top: r.top, bottom: r.bottom, right: r.right, sw: c.scrollWidth, cw: c.clientWidth }; }));
     ok(b.length === 3, 'Tre sms-rutor visas', b.length);

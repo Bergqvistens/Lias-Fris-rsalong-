@@ -277,3 +277,22 @@ T "152. Lia häver spärren" authenticated "$LIA" "select hav_sparr('0704440001'
 T "153. Efter hävd spärr kan kunden boka igen" anon "" "select create_booking('[{\"category\":\"Klippning\",\"service_ids\":[\"klipp-30\"]}]'::jsonb, (($W2 + interval '13 hours') at time zone 'Europe/Stockholm'), 'Sid Spärr', '0704440001', 'sid@t.se', '2026-11-01-v2')->>'service_names'" "^Klippning/Herrklippning 30 min$"
 T "154. Häva en kund som inte är spärrad" authenticated "$LIA" "select hav_sparr('0704440001')" "INTE_SPARRAD"
 $P -c "delete from sparrade; delete from uteblivna where customer_phone like '070444%'; delete from bookings where customer_phone like '070444%'" >/dev/null
+
+echo "--- Kontaktformuläret sparas för Lia (ny 1 nov) ---"
+$P -c "delete from kontaktmeddelanden" >/dev/null
+T "155. Besökare skickar meddelande" anon "" "select (skicka_meddelande('Mia Meddelande', 'mia@t.se', 'Hej! Har ni tid för slingor i december?')->>'id') is not null" "^t$"
+T "156. Namn saknas" anon "" "select skicka_meddelande(' ', 'mia@t.se', 'Hej')" "OGILTIGT_NAMN"
+T "157. Fel e-post" anon "" "select skicka_meddelande('Mia', 'mia.t.se', 'Hej')" "OGILTIG_EPOST"
+T "158. Tomt meddelande" anon "" "select skicka_meddelande('Mia', 'mia@t.se', ' ')" "OGILTIGT_MEDDELANDE"
+T "159. För långt meddelande (2001 tecken)" anon "" "select skicka_meddelande('Mia', 'mia@t.se', repeat('a', 2001))" "OGILTIGT_MEDDELANDE"
+T "160. Besökare kan inte läsa meddelanden" anon "" "select count(*) from kontaktmeddelanden" "permission denied"
+T "161. Besökare kan inte skriva direkt i tabellen" anon "" "insert into kontaktmeddelanden (name, email, message) values ('X Y', 'x@y.se', 'hej')" "permission denied"
+T "162. Inloggad men INTE admin ser inga" authenticated "$ANNAN" "select count(*) from kontaktmeddelanden" "^0$"
+T "163. Lia läser meddelandet" authenticated "$LIA" "select name||' | '||email||' | '||message from kontaktmeddelanden" "^Mia Meddelande \| mia@t.se \| Hej! Har ni tid för slingor i december\?$"
+for m in Två Tre Fyra Fem; do $P -c "set role anon; select skicka_meddelande('Mia', 'MIA@t.se', '$m')" >/dev/null; done
+T "164. Max 5 per e-post och timme: den 6:e stoppas (stora/små bokstäver räknas lika)" anon "" "select skicka_meddelande('Mia', 'mia@t.se', 'Sex')" "FOR_MANGA_MEDDELANDEN"
+T "165. De 5 första sparades, den 6:e inte" authenticated "$LIA" "select count(*) from kontaktmeddelanden" "^5$"
+$P -c "update kontaktmeddelanden set created_at = now() - interval '13 months' where message = 'Två'" >/dev/null
+T "166. Rensningen tar bort meddelanden äldre än 12 månader" authenticated "$LIA" "select rensa_gamla_avbokningar() >= 0" "^t$"
+T "166b. Kvar: 4 meddelanden" authenticated "$LIA" "select count(*) from kontaktmeddelanden" "^4$"
+$P -c "delete from kontaktmeddelanden" >/dev/null

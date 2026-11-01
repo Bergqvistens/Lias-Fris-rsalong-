@@ -35,6 +35,11 @@ function handle(path, body) {
     const r = sql(t, `select ${path.slice(4)}(:'tok')::text;`, { tok: body.params.p_token || '' });
     return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
   }
+  if (path === 'rpc/skicka_meddelande') {
+    const p = body.params;
+    const r = sql(t, `select skicka_meddelande(:'n', :'e', :'m')::text;`, { n: p.p_name || '', e: p.p_email || '', m: p.p_message || '' });
+    return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
+  }
   if (path === 'rpc/kund_omboka') {
     const p = body.params;
     const r = sql(t, `select kund_omboka(:'tok', :'st'::timestamptz, nullif(:'ru', ''))::text;`, { tok: p.p_token || '', st: p.p_starts_at, ru: p.p_rules || '' });
@@ -47,6 +52,12 @@ function handle(path, body) {
   if (path === 'rpc/is_admin') {
     const r = sql(t, `select is_admin();`);
     return r.err ? { data: null, error: { message: r.err } } : { data: r.out === 't', error: null };
+  }
+  if (path === 'table' && ['kontaktmeddelanden', 'uteblivna', 'sparrade'].includes(body.table)) {   // 1 nov 2026: fler tabeller (bara läsning)
+    if (body.op !== 'select') return { data: null, error: { message: 'bara läsning i testservern' } };
+    const oc = { created_at: 1, sparrad_at: 1 }[body.order && body.order[0]] ? body.order[0] : null;
+    const r = sql(t, `select coalesce(json_agg(x ${oc ? `order by ${oc} ${body.order[1] === 'desc' ? 'desc' : 'asc'}` : ''}), '[]')::text from ${body.table} x;`);
+    return r.err ? { data: null, error: { message: r.err } } : { data: JSON.parse(r.out), error: null };
   }
   if (path === 'table') {
     const cols = { status: 1, ends_at: 1, id: 1, starts_at: 1 };

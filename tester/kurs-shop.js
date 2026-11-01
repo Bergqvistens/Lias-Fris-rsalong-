@@ -34,6 +34,7 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
     return p;
   };
   const fill = async (p, name) => { await p.fill('input[type=text]', name); await p.fill('input[type=tel]', '0707654321'); await p.fill('input[type=email]', 'kund@exempel.se'); };
+  const medd = async (pg, fn) => { await pg.click('[data-admintab="meddelanden"]'); await pg.waitForTimeout(300); const r = await fn(); await pg.click('[data-admintab="bokningar"]'); await pg.waitForTimeout(300); return r; };   // 1 nov: sms-loggen ligger nu under fliken Meddelanden
   const openCourse = async (p, id) => { await p.click('nav >> text=Kurser'); await p.waitForTimeout(200); await p.click(`[data-course="${id}"] button`); await p.waitForTimeout(500); };
 
   // Lia loggar in
@@ -105,7 +106,7 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
   await lia.waitForTimeout(500);
   await lia.locator('[data-coursebooking]', { hasText: 'Eva Ek' }).locator('button:has-text("Avboka")').click(); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(500);
   ok(!(await mainText(lia)).includes('Eva Ek') || (await lia.$$('[data-coursebooking]')).length === 1, 'Avbokningen försvann från listan');
-  ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'kurs-avbokning', 'Avboknings-sms till kunden i loggen');
+  ok((await medd(lia, () => lia.$$eval('[data-medd-sms]', es => es.map(e => e.getAttribute('data-medd-sms')))))[0] === 'kurs-avbokning', 'Avboknings-sms till kunden i loggen (Meddelanden)');
   await k2.click('nav >> text=Kurser'); await openCourse(k2, 'c-begin');
   o = await occTexts(k2); ok(o[0].t.includes('2 platser kvar') && !o[0].dis, 'Platserna är lediga igen');
 
@@ -143,7 +144,7 @@ const bar = p => p.evaluate(() => { const d = [...document.querySelectorAll('mai
   ok((await lia.evaluate(() => window.__notifs)).some(n => n.startsWith('Ny beställning LH-1001')), 'Lia fick notis om beställningen');
   await lia.click('button:has-text("Klar att hämta")'); await lia.waitForTimeout(500);
   ok((await lia.$eval('[data-order]', e => e.innerText)).includes('KLAR ATT HÄMTA'), 'Lia markerar klar att hämta');
-  ok((await lia.$$eval('[data-sms]', es => es.map(e => e.getAttribute('data-sms'))))[0] === 'order-hamtklar', 'Hämt-sms till kunden i loggen');
+  ok((await medd(lia, () => lia.$$eval('[data-medd-sms]', es => es.map(e => e.getAttribute('data-medd-sms')))))[0] === 'order-hamtklar', 'Hämt-sms till kunden i loggen (Meddelanden)');
   await lia.click('[data-order] button:has-text("Hämtad")'); await lia.waitForSelector('[data-confirm]'); await lia.click('[data-confirm] [data-svar="ja"]'); /* 30 okt: appens egen fråga-ruta */ await lia.waitForTimeout(500);
   ok((await lia.$$('[data-order]')).length === 0, 'Hämtad beställning försvinner från listan');
   await lia.screenshot({ path: '/tmp/t/s-admin.png', fullPage: true });

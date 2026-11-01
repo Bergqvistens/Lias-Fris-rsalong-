@@ -300,3 +300,15 @@
 - KURSER: spärren gäller kurser i demoläget (kurser och kursplatser avbokas). I riktiga databasen finns inga kurstabeller än – när kursbokning byggs där måste den kontrollera sparrade på samma sätt som create_booking.
 - Test: sqltest 137–154 (+ 87–90, 131, 134b ändrade efter nya regeln; nu 161), betal-test.js (14), sparr-test.js (21), ute-test/deb-test/kund-test uppdaterade. Admin-delen i riktigt läge testas via SQL (e2e.js läser bara tabellen bookings).
 - Hela sviten: 47 sviter, 1391 kontroller, alla gröna. lokal-testdatabas.sql ny dump (återställning provad).
+
+## 1 nov: fliken Meddelanden (Tommy 1 nov, "Kör", efter skiss)
+- Admin har en ny flik "📨 Meddelanden" (mellan Bokningar och Ekonomi). Den gamla sms-loggen längst ner på Bokningar är borttagen.
+- Fliken blir gul med "(N nya)" när något nytt har kommit till Lia (sms till Lia, kunden bekräftade, kontaktformuläret). Sms som går ut till kunder och Lias egna händelser räknas inte som nya. Ett meddelande blir läst när Lia fäller upp det, eller med "Markera som lästa". Läst/oläst sparas i Lias webbläsare (per enhet).
+- Översikten: kategoriknappar med antal (Alla, Bokningar, Av- och ombokningar, Uteblivet och sent, Avgifter, Kurser, Shop, Övrigt), Alla / Till Lia / Till kund, sök (namn, e-post, telefon), rubriker per dag (Idag, Igår, datum, år om annat år), korta rader med ikon, namn, röd prick för nytt, klockslag och Till Lia / Till kund / Händelse. Tryck = hela meddelandet + "Visa X:s historik", "Ring", och för kontaktmeddelanden "Svara via e-post". 40 åt gången, "Visa fler".
+- Kundens historik: kontaktuppgifter, ❌ Ej betalt, antal gånger senaste 12 mån, 🚫 Spärrad, och alla meddelanden till och från kunden.
+- Nya händelser i loggen (demo): avgift betald, avgift efterskänkt, kund spärrad, spärr hävd.
+- Demo-loggen sparas nu i 12 månader (högst 1000), tidigare bara de 60 senaste.
+- Kontaktformuläret (Tommy: ska hamna under Meddelanden): meddelandet sparas och visas i fliken under kategorin Övrigt. RIKTIGT läge: ny tabell kontaktmeddelanden + skicka_meddelande(namn, e-post, meddelande) (2–2000 tecken; högst 5 per e-post och timme, 100 per dygn), bara admin läser, rensas efter 12 månader. Tidigare öppnades besökarens e-postapp – nu får Lia inget mejl, hon ser meddelandet i admin (uppdateras när admin laddas, och varje minut).
+- RIKTIGT läge visar i dag bara kontaktmeddelanden; sms-loggen kommer när sms-tjänsten kopplas in (den behöver då en tabell för sms som skickas).
+- Test: medd-test.js (29, demo), medd-real.js (8, riktiga databasen), sqltest 155–166 (kontaktmeddelanden). Äldre tester som läste sms-loggen öppnar nu fliken Meddelanden (demo-scenario, kurs-shop, sms-ruta, hamtad-logg, bekrafta-test, avbokad-tid-test, s6check). e2e.js kan nu läsa tabellerna kontaktmeddelanden, uteblivna och sparrade.
+- Hela sviten: 49 sviter, 1441 kontroller, alla gröna. lokal-testdatabas.sql ny dump (återställning provad).
