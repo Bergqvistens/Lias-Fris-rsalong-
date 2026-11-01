@@ -122,7 +122,7 @@ INS 00000000-0000-4000-8000-000000000001 klipp-30 500 "now() - interval '10 days
 INS 00000000-0000-4000-8000-000000000002 farg-150 1200 "now() - interval '9 days'"
 INS 00000000-0000-4000-8000-000000000003 klipp-45 600 "now() - interval '8 days'"
 INS 00000000-0000-4000-8000-000000000004 klipp-30 500 "now() - interval '7 days'"
-INS 00000000-0000-4000-8000-000000000005 klipp-30 500 "now() + interval '3 days'"
+INS 00000000-0000-4000-8000-000000000005 klipp-30 500 "date_trunc('day', now() + interval '20 days') + interval '5 hours'"   # 1 nov: tid som inte krockar med andra testbokningar
 U1=00000000-0000-4000-8000-000000000001; U2=00000000-0000-4000-8000-000000000002; U3=00000000-0000-4000-8000-000000000003; U4=00000000-0000-4000-8000-000000000004; U5=00000000-0000-4000-8000-000000000005
 T "75. Kund kan inte registrera uteblivet" anon "" "select registrera_uteblivet('$U1', 'uteblev')" "permission denied"
 T "76. Inloggad men INTE admin kan inte registrera" authenticated "$ANNAN" "select registrera_uteblivet('$U1', 'uteblev')" "EJ_ADMIN"
@@ -170,3 +170,22 @@ T "98. Rätt bokning: den som började för 20 min sedan" authenticated "$LIA" "
 T "99. Inte: 10 min sedan (före 15), kunden kom, regler ej godkända, äldre än ett dygn – körs igen: 0 nya" authenticated "$LIA" "select auto_uteblivna()" "^0$"
 $P -c "delete from uteblivna where customer_phone like '070888%'" >/dev/null
 $P -c "delete from bookings where customer_phone like '070888%'" >/dev/null
+
+echo "--- Sen ankomst och skicka varning/debitering (ny 1 nov) ---"
+$P -c "delete from uteblivna where customer_phone like '070777%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070777%'" >/dev/null
+INB() { $P -c "insert into bookings (id, service_ids, service_names, price, starts_at, ends_at, customer_name, customer_phone, customer_email, status, arrived_at) values ('$1', '{klipp-30}', 'X', $2, $3, $3 + interval '30 minutes', 'Sen Test', '0707770001', 's@t.se', 'bokad', $4)" >/dev/null; }
+INB 00000000-0000-4000-8000-0000000000c1 500 "now() - interval '3 minutes'" "now()"
+INB 00000000-0000-4000-8000-0000000000c2 500 "now() - interval '2 days'" "now() - interval '2 days' + interval '10 minutes'"
+INB 00000000-0000-4000-8000-0000000000c3 800 "now() - interval '1 day'" null
+T "100. Sen ankomst efter bara 3 minuter går inte (gräns 5 min)" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-0000000000c1', 'sen_ankomst')" "INTE_SEN_ANKOMST"
+T "101. Sen ankomst (kom 10 min sent): 1:a gången, ingen avgift" authenticated "$LIA" "select (r->>'kind')||' '||(r->>'nummer')||' '||(r->>'belopp') from (select registrera_uteblivet('00000000-0000-4000-8000-0000000000c2', 'sen_ankomst')::json r) x" "^sen_ankomst 1 0$"
+T "102. \"Kunden kom\" häver inte en sen ankomst" authenticated "$LIA" "select markera_kommit('00000000-0000-4000-8000-0000000000c2') is not null; select status from uteblivna where booking_id='00000000-0000-4000-8000-0000000000c2'" "ingen_avgift$"
+T "103. Okänd orsak stoppas" authenticated "$LIA" "select uteblivet_skicka((select id from uteblivna where booking_id='00000000-0000-4000-8000-0000000000c2'), 'trafik')" "OGILTIG_ORSAK"
+T "104. Kund kan inte skicka" anon "" "select uteblivet_skicka((select id from uteblivna limit 1), 'sena ankomst')" "permission denied"
+T "105. Varning (1:a gången) skickas: tid sparas, ingen förfallodag" authenticated "$LIA" "select (r->>'orsak')||' '||((r->>'skickat_at') is not null)::text||' '||coalesce(r->>'forfaller','ingen') from (select uteblivet_skicka((select id from uteblivna where booking_id='00000000-0000-4000-8000-0000000000c2'), 'sena ankomst')::json r) x" "^sena ankomst true ingen$"
+T "106. Kan inte skickas två gånger" authenticated "$LIA" "select uteblivet_skicka((select id from uteblivna where booking_id='00000000-0000-4000-8000-0000000000c2'), 'sena ankomst')" "REDAN_SKICKAT"
+T "107. 2:a gången (uteblev, 800 kr): debitering med sista betalningsdag om 7 dagar" authenticated "$LIA" "select registrera_uteblivet('00000000-0000-4000-8000-0000000000c3', 'uteblev') is not null; select (r->>'belopp')||' '||((r->>'forfaller')::date = (now() at time zone 'Europe/Stockholm')::date + 7)::text from (select uteblivet_skicka((select id from uteblivna where booking_id='00000000-0000-4000-8000-0000000000c3'), 'uteblivna bokning')::json r) x" "800 true$"
+T "108. Inloggad men INTE admin kan inte skicka" authenticated "$ANNAN" "select uteblivet_skicka((select id from uteblivna limit 1), 'sena ankomst')" "EJ_ADMIN"
+$P -c "delete from uteblivna where customer_phone like '070777%'" >/dev/null
+$P -c "delete from bookings where customer_phone like '070777%'" >/dev/null

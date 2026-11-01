@@ -30,7 +30,7 @@ const T0 = new Date('2026-11-03T10:05:00+01:00').getTime();
     bookings: [bk('anna', 'Anna Andersson', '0701234567', 600, '10:00'), bk('bo', 'Bo Berg', '0702222222', 500, '09:56'), bk('cia', 'Cia Cedar', '0703333333', 500, '09:57'),
       bk('erik', 'Erik Ek', '0705555555', 500, '10:01'), bk('dan', 'Dan Dahl', '0704444444', 500, '09:00', null)],
     sms: [], courseBookings: [], orders: [], sold: {}, orderSeq: 1000, payments: [], photos: [], receiptSeq: 1000,
-    uteblivna: [{ id: 'a1', created_at: new Date(T0 - 30 * 86400000).toISOString(), booking_id: 'gammal', group_id: null, customer_name: 'Anna Andersson', customer_phone: '0701234567', kind: 'uteblev', nummer: 1, belopp: 0, status: 'ingen_avgift', andrad_at: null }] });
+    uteblivna: [{ id: 'a1', created_at: new Date(T0 - 30 * 86400000).toISOString(), booking_id: 'gammal', group_id: null, customer_name: 'Anna Andersson', customer_phone: '0701234567', kind: 'uteblev', nummer: 1, belopp: 0, status: 'ingen_avgift', andrad_at: null, skickat_at: new Date(T0 - 30 * 86400000).toISOString() }] });
   await p.click('footer >> text=Admin'); await p.waitForTimeout(400);
   await p.fill('input[type=email]', 'lia@demo.se'); await p.fill('input[type=password]', 'demo1234'); await p.click('button:has-text("Logga in")'); await p.waitForTimeout(1500);
   const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('lias_demo_db')));
@@ -57,7 +57,7 @@ const T0 = new Date('2026-11-03T10:05:00+01:00').getTime();
   await to('10:12:30');
   let s = await db();
   const uc = s.uteblivna.find(u => u.booking_id === 'cia');
-  ok(uc && uc.nummer === 1 && uc.belopp === 0 && s.sms.some(m => m.kind === 'uteblev-varning' && m.text.startsWith('Hej Cia!')), '10:12: Cia registrerad automatiskt (1:a gången, ingen avgift) och sms skickat');
+  ok(uc && uc.nummer === 1 && uc.belopp === 0 && s.sms.some(m => m.kind === 'saknad' && m.text === 'Hej Cia! Vi saknade dig på din tid tis 3 nov kl 09:57 hos Lias Hantverkeri. Hör gärna av dig på 073-642 30 18.'), '10:12: Cia registrerad automatiskt (1:a gången, ingen avgift) och sms skickat');
   ok((await prompts()).includes('anna'), '10:12: fråga för Anna (började 10:00) visas');
   ok(!(await prompts()).includes('erik'), 'Erik, som redan kom, får ingen fråga');
   // 10:15:30 – Anna har inte svarats på: automatiskt, 2:a gången
@@ -65,15 +65,15 @@ const T0 = new Date('2026-11-03T10:05:00+01:00').getTime();
   s = await db();
   const ua = s.uteblivna.find(u => u.booking_id === 'anna');
   ok(ua && ua.nummer === 2 && ua.belopp === 600 && ua.status === 'obetald', '10:15: Anna (inget svar) registrerad automatiskt – 2:a gången, 600 kr');
-  ok(s.sms.some(m => m.kind === 'uteblev-avgift' && m.text.includes('debiteras 600 kr')), 'Sms till Anna om avgiften');
-  ok((await p.$$('[data-avgift]')).length === 1 && (await prompts()).length === 0, 'Anna i Obetalda avgifter, inga frågor kvar');
+  ok(s.sms.some(m => m.kind === 'saknad' && m.text.startsWith('Hej Anna! Vi saknade dig')) && !s.sms.some(m => m.kind === 'debitering'), 'Sms till Anna: vi saknade dig (ingen avgift i det automatiska sms:et – Lia skickar debiteringen själv)');
+  ok((await p.$$('[data-avgift]')).length === 2 && (await p.$$('[data-att-skicka]')).length === 1 && (await prompts()).length === 0, 'Anna och Cia i "Avgifter och varningar" (att skicka), inga frågor kvar');
   // Dan (bokad före reglerna) rörs aldrig
   await to('10:40:00');
   ok(!(await db()).uteblivna.some(u => u.booking_id === 'dan'), 'Bokning utan godkända regler registreras aldrig automatiskt');
   ok((await db()).uteblivna.length === 3 && !(await db()).uteblivna.some(u => ['bo', 'erik'].includes(u.booking_id)), 'Totalt: Cia och Anna nya, inte Bo eller Erik');
   // Kom ändå efteråt
   await p.locator('[data-booking="anna"] [data-kom-anda]').click(); await p.waitForTimeout(300); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(1600);
-  ok((await db()).uteblivna.find(u => u.booking_id === 'anna').status === 'havd' && (await p.$$('[data-avgift]')).length === 0, 'Kunden kom ändå (sent): avgiften hävs');
+  ok((await db()).uteblivna.find(u => u.booking_id === 'anna').status === 'havd' && !(await p.$$eval('[data-avgift]', es => es.map(e => e.innerText).join(' '))).includes('Anna'), 'Kunden kom ändå (sent): avgiften hävs');
   ok(native === 0, 'Ingen vit webbläsarruta', native);
   ok(errs.length === 0, 'Inga JavaScript-fel', errs.join(' | ').slice(0, 300));
   console.log(`\nRESULTAT: ${pass} OK, ${fail} FEL`);

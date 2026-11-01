@@ -269,3 +269,11 @@
 - Systemet följer fortfarande Lias regel (1:a gången utan kostnad, 12 mån, betald nollställer) – kunden kan få mindre att betala än texten säger, aldrig mer.
 - RULES_VERSION = '2026-11-01-v2' (app + create_booking). Bokningar med v1 behåller sin version; automatiken gäller alla med rules_version.
 - Hela sviten: 42 sviter, 1214 kontroller, alla gröna. Ny dump.
+
+## 1 nov: debitering del A – varning/debitering via knapp, sen ankomst
+- Tommys svar 1 nov: betalningsuppgifter läggs in senare; 1:a gången ingen debitering men Lia kan skicka varning med text "På grund av din [sena ankomst/uteblivna bokning/sena avbokning/sena ombokning] idag så kommer du inte behöva betala för dagens missade tid. Men uppstår detta igen att du inte kommer, avbokar eller ombokar för sent så kommer du att få betala hela kostnaden för din tid." (Lia väljer orsak); sen ankomst = mer än 5 min, Lia avgör med knapp; 7 dagars betaltid; 15-min-sms säger bara "Vi saknade dig".
+- Databas: uteblivna.kind + sen_ombokning, sen_ankomst; kolumner orsak, skickat_at, forfaller. uteblivet_skicka(p_id, p_orsak, p_utan_sms) (en gång; obetald → förfaller om 7 dagar svensk tid; p_utan_sms bara för 1:a gången). markera_kommit häver bara uteblev. sqltest 100–108 (77 flyttad till krockfri tid).
+- App: PAYMENT_INFO = window.LH_PAYMENT_INFO överst i index.html (tomt nu → "Skicka debitering" avstängd med förklaring). Kortet: "⏱ Kunden kom för sent (mer än 5 min)" när kunden kommit och 5 min passerat. "💳 Avgifter och varningar": orsaksval + "Skicka varning (ingen avgift)" / "Skicka debitering (X kr)" / "Skicka ingen varning" / "Efterskänk avgiften"; efter skickad debitering "Betala senast …", "Förfallen" efter sista dag, "Markera som betald". Ruta överst "📨 N att hantera".
+- Debiterings-sms: "Hej X! På grund av din [orsak] [dag] debiteras N kr enligt avbokningsreglerna. Betala senast [dag månad] till [PAYMENT_INFO]. Märk betalningen med LH-XXXXXX. Frågor: 073-642 30 18."
+- Test: deb-test.js (20); ute-test (30) och auto-test (18) uppdaterade.
+- Hela sviten efter del A: 43 sviter, 1246 kontroller, alla gröna. Ny dump.

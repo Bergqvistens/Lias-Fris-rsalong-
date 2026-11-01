@@ -11,7 +11,7 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   const errs = []; let native = 0;
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Stockholm' });
   await ctx.route('**/*', r => { const u = r.request().url().split('#')[0];
-    if (u === 'https://lias.test/') return r.fulfill({ contentType: 'text/html; charset=utf-8', body: page });
+    if (u === 'https://lias.test/') return r.fulfill({ contentType: 'text/html; charset=utf-8', body: page.replace("window.LH_PAYMENT_INFO = '';", "window.LH_PAYMENT_INFO = 'Swish 123 456 78 90';") });   // 1 nov: betalningsuppgifter för testet
     if (u.endsWith('/react-shim.js')) return r.fulfill({ body: shim, contentType: 'application/javascript' });
     if (u.endsWith('/app.js')) return r.fulfill({ body: app, contentType: 'application/javascript' });
     if (u.includes('/bilder/')) return r.fulfill({ path: '/mnt/user-data/outputs/github/bilder/' + decodeURIComponent(u.split('/bilder/')[1]) });
@@ -26,7 +26,7 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   await p.waitForTimeout(150); await p.click('text=Jag förstår och accepterar');
   await p.waitForSelector('.lh-splash', { state: 'detached', timeout: 10000 }).catch(() => {});
   const bk = (id, name, phone, svc, price, startIso, min) => ({ id, created_at: '2026-10-20T10:00:00Z', service_ids: [svc], service_names: svc, price, starts_at: startIso, ends_at: new Date(new Date(startIso).getTime() + min * 60000).toISOString(), customer_name: name, customer_phone: phone, customer_email: 'k@t.se', status: 'bokad', person_name: null, group_id: id, confirm_token: 't' + id, confirmed_at: null });   // utan rules_version: automatiken (del 3) rör dem inte, Lia registrerar själv
-  const prior = (id, name, phone, status, daysAgo, extra = {}) => ({ id, created_at: new Date(NOW - daysAgo * 86400000).toISOString(), booking_id: 'gammal-' + id, group_id: null, customer_name: name, customer_phone: phone, kind: 'uteblev', nummer: 1, belopp: 0, status, andrad_at: null, ...extra });
+  const prior = (id, name, phone, status, daysAgo, extra = {}) => ({ id, created_at: new Date(NOW - daysAgo * 86400000).toISOString(), booking_id: 'gammal-' + id, group_id: null, customer_name: name, customer_phone: phone, kind: 'uteblev', nummer: 1, belopp: 0, status, andrad_at: null, skickat_at: new Date(NOW - daysAgo * 86400000).toISOString(), ...extra });   // tidigare tillfällen: redan hanterade
   await p.evaluate(d => localStorage.setItem('lias_demo_db', JSON.stringify(d)), {
     bookings: [
       bk('anna', 'Anna Andersson', '0701234567', 'klipp-45', 600, '2026-11-03T10:00:00+01:00', 45),
@@ -59,13 +59,13 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   let s = await db();
   const ua = s.uteblivna.find(u => u.booking_id === 'anna');
   ok(ua && ua.nummer === 2 && ua.belopp === 600 && ua.status === 'obetald', 'Sparat: 2:a gången, 600 kr, obetald');
-  ok(s.sms[0].kind === 'uteblev-avgift' && s.sms[0].text === 'Hej Anna! Du kom inte till din tid tis 3 nov kl 10:00 hos Lias Hantverkeri. Enligt avbokningsreglerna debiteras 600 kr. Lia skickar betalningsuppgifter. Frågor: 073-642 30 18.', 'Sms till kunden om avgiften', s.sms[0].text);
+  ok(s.sms[0].kind === 'saknad' && s.sms[0].text === 'Hej Anna! Vi saknade dig på din tid tis 3 nov kl 10:00 hos Lias Hantverkeri. Hör gärna av dig på 073-642 30 18.', 'Sms till kunden: vi saknade dig (avgiften skickar Lia själv med knappen)', s.sms[0].text);
   let dl = await debts();
   ok(dl.length === 1 && dl[0].startsWith('Anna Andersson · 0701234567 Uteblivet besök · 2:a gången'), 'Obetalda avgifter: Anna syns', dl[0] && dl[0].slice(0, 70));
   // 3. Bo kom
   await card('bo').locator('[data-kom]').click(); await p.waitForTimeout(600);
   n = await narv('bo');
-  ok(n && n.k === 'kom' && n.t === 'Kunden kom (registrerat kl 10:20)' && !(await db()).uteblivna.some(u => u.booking_id === 'bo'), 'Bo: "Kunden kom (registrerat kl 10:20)", ingen registrering', n && n.t);
+  ok(n && n.k === 'kom' && n.t.startsWith('Kunden kom (registrerat kl 10:20)') && !(await db()).uteblivna.some(u => u.booking_id === 'bo'), 'Bo: "Kunden kom (registrerat kl 10:20)", ingen registrering', n && n.t);
   // 4. Anna kom ändå
   await card('anna').locator('[data-kom-anda]').click(); await p.waitForTimeout(300);
   ok((await dlg()).title === 'Kunden kom ändå?', 'Kom ändå: kontrollfråga');
@@ -77,6 +77,9 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   await card('erik').locator('[data-uteblev]').click(); await p.waitForTimeout(400); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   dl = await debts();
   ok(dl.length === 1 && dl[0].includes('Erik Ek') && /500,00\s?kr/.test(dl[0].replace(/ /g, ' ')), 'Erik: 2:a gången, 500 kr i obetalda');
+  ok(!(await p.$('[data-avgift] [data-betald]')), 'Betald-knappen kommer först när debiteringen är skickad');
+  await p.click('[data-avgift] [data-skicka]'); await p.waitForTimeout(300); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(900);
+  ok((await db()).sms[0].kind === 'debitering' && (await db()).sms[0].text.includes('debiteras 500 kr') && (await db()).sms[0].text.includes('Swish 123 456 78 90'), 'Debitering skickad med betalningsuppgifter');
   await p.click('[data-avgift] [data-betald]'); await p.waitForTimeout(300);
   ok((await dlg()).title === 'Markera som betald?', 'Betald: kontrollfråga'); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
   ok((await debts()).length === 0 && (await db()).uteblivna.find(u => u.booking_id === 'erik').status === 'betald', 'Markerad som betald, borta ur listan');
@@ -85,12 +88,12 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   d = await dlg();
   ok(d && d.note.startsWith('Det här blir 1:a gången') && d.note.includes('ingen avgift'), 'Efter betald skuld börjar räkningen om: nästa blir 1:a gången, ingen avgift', d && d.note.slice(0, 40));
   await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
-  ok((await db()).sms[0].kind === 'uteblev-varning' && (await db()).sms[0].text.startsWith('Hej Erik! Vi saknade dig på din tid tis 3 nov kl 08:00 hos Lias Hantverkeri. Den här gången kostar det inget'), '1:a gången: sms utan avgift, med varning');
+  ok((await db()).sms[0].kind === 'saknad' && (await db()).sms[0].text.startsWith('Hej Erik! Vi saknade dig på din tid tis 3 nov kl 08:00 hos Lias Hantverkeri.'), '1:a gången: sms utan avgift, med varning');
   // 6. Gustav: efterskänk
   await card('gus').locator('[data-uteblev]').click(); await p.waitForTimeout(400); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
-  await p.click('[data-avgift] [data-efterskank]'); await p.waitForTimeout(300);
+  await p.locator('[data-avgift]', { hasText: 'Gustav Gran' }).locator('[data-efterskank]').click(); await p.waitForTimeout(300);
   ok((await dlg()).title === 'Efterskänka avgiften?', 'Efterskänk: kontrollfråga'); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(700);
-  ok((await debts()).length === 0 && (await db()).uteblivna.find(u => u.booking_id === 'gus').status === 'havd', 'Efterskänkt: borta ur listan, räknas inte');
+  ok(!(await debts()).some(t => t.includes('Gustav Gran')) && (await db()).uteblivna.find(u => u.booking_id === 'gus').status === 'havd', 'Efterskänkt: borta ur listan, räknas inte');
   // 7. Sen avbokning: Cia (imorgon 09:00, mindre än 24 h)
   await card('cia').locator('button:has-text("Avboka")').click(); await p.waitForTimeout(300);
   d = await dlg();
@@ -101,7 +104,10 @@ const NOW = new Date('2026-11-03T10:20:00+01:00').getTime();
   s = await db();
   const uc = s.uteblivna.find(u => u.booking_id === 'cia');
   ok(s.bookings.find(b => b.id === 'cia').status === 'avbokad' && uc && uc.kind === 'sen_avbokning' && uc.nummer === 1 && uc.belopp === 0, 'Kunden avbokade sent: registrerat som sen avbokning, 1:a gången, ingen avgift');
-  ok(s.sms.some(m => m.kind === 'sen-varning' && m.text.startsWith('Hej Cia! Din avbokning av tiden ons 4 nov kl 09:00 kom för sent enligt avbokningsreglerna. Den här gången kostar det inget')), 'Sms om sen avbokning');
+  ok(!s.sms.some(m => m.bookingId === 'cia' && m.kind !== 'avbokning'), 'Ingen varning skickas automatiskt – Lia väljer själv');
+  await p.locator('[data-avgift]', { hasText: 'Cia Cedar' }).locator('[data-orsak-val]').selectOption('sena avbokning');
+  await p.locator('[data-avgift]', { hasText: 'Cia Cedar' }).locator('[data-skicka]').click(); await p.waitForTimeout(300); await p.click('[data-confirm] [data-svar="ja"]'); await p.waitForTimeout(900);
+  ok((await db()).sms[0].kind === 'varning' && (await db()).sms[0].text === 'Hej Cia! På grund av din sena avbokning idag så kommer du inte behöva betala för dagens missade tid. Men uppstår detta igen att du inte kommer, avbokar eller ombokar för sent så kommer du att få betala hela kostnaden för din tid.', 'Varning med Tommys text och vald orsak', (await db()).sms[0].text);
   // 8. Avbokning i god tid: ingen fråga om vem
   await card('dan').locator('button:has-text("Avboka")').click(); await p.waitForTimeout(300);
   ok((await dlg()) && !(await dlg()).vem, 'Avbokning i god tid: ingen fråga om vem');

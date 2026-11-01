@@ -415,7 +415,7 @@ declare
   v_start timestamptz;
   v_row   public.uteblivna%rowtype;
 begin
-  if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
+  if p_kind not in ('uteblev', 'sen_avbokning', 'sen_ombokning', 'sen_ankomst') then raise exception 'OGILTIG_TYP'; end if;
   select * into b from public.bookings where id = p_booking;
   if not found then raise exception 'OGILTIG_BOKNING'; end if;
   select min(starts_at), sum(price) into v_start, v_sum from public.bookings
@@ -424,6 +424,10 @@ begin
     if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
     if v_start > now() then raise exception 'TIDEN_HAR_INTE_BORJAT'; end if;
     if b.arrived_at is not null then raise exception 'KUNDEN_HAR_KOMMIT'; end if;
+  elsif p_kind = 'sen_ankomst' then
+    -- Lia bedömer själv; tiden måste ha börjat för minst 5 minuter sedan (Lia 1 nov 2026)
+    if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+    if v_start > now() - interval '5 minutes' then raise exception 'INTE_SEN_ANKOMST'; end if;
   else
     if b.status <> 'avbokad' or b.cancelled_at is null then raise exception 'OGILTIG_BOKNING'; end if;
     -- 48 timmar för färg och permanent, annars 24 (samma som appens avbokningsregler)
@@ -554,3 +558,50 @@ begin
 exception when others then
   raise notice 'Kunde inte schemalägga (%). Uteblivna besök registreras ändå när Lia har admin öppen.', sqlerrm;
 end $$;
+
+
+-- ---------- Varning eller debitering via knapp (Lia 1 nov 2026) ----------
+-- Fler typer: sen ankomst (mer än 5 min, Lia avgör) och sen ombokning (kunden bokar om efter sista avbokningstid).
+alter table public.uteblivna drop constraint if exists uteblivna_kind_check;
+alter table public.uteblivna add constraint uteblivna_kind_check check (kind in ('uteblev', 'sen_avbokning', 'sen_ombokning', 'sen_ankomst'));
+alter table public.uteblivna add column if not exists orsak text;                 -- det Lia valde i sms:et
+alter table public.uteblivna add column if not exists skickat_at timestamptz;      -- när varning/debitering skickades
+alter table public.uteblivna add column if not exists forfaller date;              -- sista betalningsdag (7 dagar)
+
+-- Kunden kom: häver bara ett registrerat uteblivet besök (inte sen ankomst)
+create or replace function public.markera_kommit(p_booking uuid) returns json
+language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  select * into b from public.bookings where id = p_booking;
+  if not found or b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+  update public.bookings set arrived_at = coalesce(arrived_at, now())
+   where (b.group_id is not null and group_id = b.group_id) or id = b.id;
+  update public.uteblivna set status = 'havd', andrad_at = now()
+   where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id) and kind = 'uteblev' and status in ('ingen_avgift', 'obetald');
+  return json_build_object('arrived_at', (select arrived_at from public.bookings where id = p_booking));
+end $$;
+
+-- Lia trycker "Skicka": 1:a gången varning, annars debitering med 7 dagars betaltid. Kan skickas en gång.
+-- p_utan_sms: Lia markerar en 1:a gång som hanterad utan att skicka varning (räknas fortfarande)
+drop function if exists public.uteblivet_skicka(uuid, text);
+create or replace function public.uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_row public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_orsak not in ('sena ankomst', 'uteblivna bokning', 'sena avbokning', 'sena ombokning') then raise exception 'OGILTIG_ORSAK'; end if;
+  select * into v_row from public.uteblivna where id = p_id;
+  if not found or v_row.status not in ('ingen_avgift', 'obetald') then raise exception 'OGILTIG_STATUS'; end if;
+  if v_row.skickat_at is not null then raise exception 'REDAN_SKICKAT'; end if;
+  if p_utan_sms and v_row.status <> 'ingen_avgift' then raise exception 'OGILTIG_STATUS'; end if;
+  update public.uteblivna
+     set orsak = p_orsak, skickat_at = now(),
+         forfaller = case when status = 'obetald' then (now() at time zone 'Europe/Stockholm')::date + 7 else null end
+   where id = p_id
+  returning * into v_row;
+  return row_to_json(v_row);
+end $$;
+revoke all on function public.uteblivet_skicka(uuid, text, boolean) from public, anon;
+grant execute on function public.uteblivet_skicka(uuid, text, boolean) to authenticated;

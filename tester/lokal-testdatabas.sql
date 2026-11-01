@@ -1,10 +1,10 @@
--- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (regelversion 2026-11-01-v2).
+-- Lokal testdatabas för Lias Hantverkeri (PostgreSQL 16). Skapad med pg_dump 1 nov 2026 (till och med debitering del A).
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$;
 --
 -- PostgreSQL database dump
 --
 
-\restrict xsn3N8y6t8gwbS9hZyS1wBuGmN8uR5HOVi6nyZFPJ24cLcnf0rQq8O6oD2hBuZT
+\restrict aFfVept0XFRLGevwLzGdGsJ1ZyPNCk7bK6NM0kpm1JSrB3Do1EIDYvKS0z4yeCW
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -283,7 +283,7 @@ begin
   update public.bookings set arrived_at = coalesce(arrived_at, now())
    where (b.group_id is not null and group_id = b.group_id) or id = b.id;
   update public.uteblivna set status = 'havd', andrad_at = now()
-   where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id) and status in ('ingen_avgift', 'obetald');
+   where coalesce(group_id, booking_id) = coalesce(b.group_id, b.id) and kind = 'uteblev' and status in ('ingen_avgift', 'obetald');
   return json_build_object('arrived_at', (select arrived_at from public.bookings where id = p_booking));
 end $$;
 
@@ -322,7 +322,7 @@ declare
   v_start timestamptz;
   v_row   public.uteblivna%rowtype;
 begin
-  if p_kind not in ('uteblev', 'sen_avbokning') then raise exception 'OGILTIG_TYP'; end if;
+  if p_kind not in ('uteblev', 'sen_avbokning', 'sen_ombokning', 'sen_ankomst') then raise exception 'OGILTIG_TYP'; end if;
   select * into b from public.bookings where id = p_booking;
   if not found then raise exception 'OGILTIG_BOKNING'; end if;
   select min(starts_at), sum(price) into v_start, v_sum from public.bookings
@@ -331,6 +331,10 @@ begin
     if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
     if v_start > now() then raise exception 'TIDEN_HAR_INTE_BORJAT'; end if;
     if b.arrived_at is not null then raise exception 'KUNDEN_HAR_KOMMIT'; end if;
+  elsif p_kind = 'sen_ankomst' then
+    -- Lia bedömer själv; tiden måste ha börjat för minst 5 minuter sedan (Lia 1 nov 2026)
+    if b.status <> 'bokad' then raise exception 'OGILTIG_BOKNING'; end if;
+    if v_start > now() - interval '5 minutes' then raise exception 'INTE_SEN_ANKOMST'; end if;
   else
     if b.status <> 'avbokad' or b.cancelled_at is null then raise exception 'OGILTIG_BOKNING'; end if;
     -- 48 timmar för färg och permanent, annars 24 (samma som appens avbokningsregler)
@@ -471,6 +475,33 @@ $$;
 
 ALTER FUNCTION public.uteblivet_nasta_nummer(p_phone text) OWNER TO postgres;
 
+--
+-- Name: uteblivet_skicka(uuid, text, boolean); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean DEFAULT false) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare v_row public.uteblivna%rowtype;
+begin
+  if not public.is_admin() then raise exception 'EJ_ADMIN'; end if;
+  if p_orsak not in ('sena ankomst', 'uteblivna bokning', 'sena avbokning', 'sena ombokning') then raise exception 'OGILTIG_ORSAK'; end if;
+  select * into v_row from public.uteblivna where id = p_id;
+  if not found or v_row.status not in ('ingen_avgift', 'obetald') then raise exception 'OGILTIG_STATUS'; end if;
+  if v_row.skickat_at is not null then raise exception 'REDAN_SKICKAT'; end if;
+  if p_utan_sms and v_row.status <> 'ingen_avgift' then raise exception 'OGILTIG_STATUS'; end if;
+  update public.uteblivna
+     set orsak = p_orsak, skickat_at = now(),
+         forfaller = case when status = 'obetald' then (now() at time zone 'Europe/Stockholm')::date + 7 else null end
+   where id = p_id
+  returning * into v_row;
+  return row_to_json(v_row);
+end $$;
+
+
+ALTER FUNCTION public.uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean) OWNER TO postgres;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -562,8 +593,11 @@ CREATE TABLE public.uteblivna (
     belopp integer NOT NULL,
     status text NOT NULL,
     andrad_at timestamp with time zone,
+    orsak text,
+    skickat_at timestamp with time zone,
+    forfaller date,
     CONSTRAINT uteblivna_belopp_check CHECK ((belopp >= 0)),
-    CONSTRAINT uteblivna_kind_check CHECK ((kind = ANY (ARRAY['uteblev'::text, 'sen_avbokning'::text]))),
+    CONSTRAINT uteblivna_kind_check CHECK ((kind = ANY (ARRAY['uteblev'::text, 'sen_avbokning'::text, 'sen_ombokning'::text, 'sen_ankomst'::text]))),
     CONSTRAINT uteblivna_nummer_check CHECK ((nummer >= 1)),
     CONSTRAINT uteblivna_status_check CHECK ((status = ANY (ARRAY['ingen_avgift'::text, 'obetald'::text, 'betald'::text, 'havd'::text])))
 );
@@ -576,7 +610,7 @@ ALTER TABLE public.uteblivna OWNER TO postgres;
 --
 
 COPY auth.users (id, email) FROM stdin;
-f4dcdd1f-f213-4092-92e8-661b72528365	lia@test.se
+24548c5e-c04f-4bb0-9ee9-9190a53b99a7	lia@test.se
 \.
 
 
@@ -585,7 +619,7 @@ f4dcdd1f-f213-4092-92e8-661b72528365	lia@test.se
 --
 
 COPY public.admins (user_id) FROM stdin;
-f4dcdd1f-f213-4092-92e8-661b72528365
+24548c5e-c04f-4bb0-9ee9-9190a53b99a7
 \.
 
 
@@ -626,7 +660,7 @@ frans-bryn	Ögonfransfärgning & brynfärg + formning	30	250	Frans och/eller bry
 -- Data for Name: uteblivna; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.uteblivna (id, created_at, booking_id, group_id, customer_name, customer_phone, kind, nummer, belopp, status, andrad_at) FROM stdin;
+COPY public.uteblivna (id, created_at, booking_id, group_id, customer_name, customer_phone, kind, nummer, belopp, status, andrad_at, orsak, skickat_at, forfaller) FROM stdin;
 \.
 
 
@@ -902,6 +936,14 @@ REVOKE ALL ON FUNCTION public.uteblivet_nasta_nummer(p_phone text) FROM PUBLIC;
 
 
 --
+-- Name: FUNCTION uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.uteblivet_skicka(p_id uuid, p_orsak text, p_utan_sms boolean) TO authenticated;
+
+
+--
 -- Name: TABLE bookings; Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -941,5 +983,5 @@ GRANT SELECT ON TABLE public.uteblivna TO authenticated;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xsn3N8y6t8gwbS9hZyS1wBuGmN8uR5HOVi6nyZFPJ24cLcnf0rQq8O6oD2hBuZT
+\unrestrict aFfVept0XFRLGevwLzGdGsJ1ZyPNCk7bK6NM0kpm1JSrB3Do1EIDYvKS0z4yeCW
 
