@@ -312,3 +312,7 @@
 - RIKTIGT läge visar i dag bara kontaktmeddelanden; sms-loggen kommer när sms-tjänsten kopplas in (den behöver då en tabell för sms som skickas).
 - Test: medd-test.js (29, demo), medd-real.js (8, riktiga databasen), sqltest 155–166 (kontaktmeddelanden). Äldre tester som läste sms-loggen öppnar nu fliken Meddelanden (demo-scenario, kurs-shop, sms-ruta, hamtad-logg, bekrafta-test, avbokad-tid-test, s6check). e2e.js kan nu läsa tabellerna kontaktmeddelanden, uteblivna och sparrade.
 - Hela sviten: 49 sviter, 1441 kontroller, alla gröna. lokal-testdatabas.sql ny dump (återställning provad).
+
+## 2 nov: admin-flikarna 2 i rad
+- Bokningar + Meddelanden på första raden, Ekonomi + Bilder under (CSS .lh-admintabs: rutnät med 2 lika breda kolumner; texten får radbrytas på mycket smala skärmar). Ingen sidledsrullning längre. Gul färg för nya meddelanden som förut.
+- Test: flik-test.js (21: 320, 360, 390, 412 och 768 px). Hela sviten: 50 sviter, 1462 kontroller, alla gröna. Ingen databasändring.

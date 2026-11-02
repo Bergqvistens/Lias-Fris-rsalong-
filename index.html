@@ -277,7 +277,9 @@
     .lh-lightbox .lh-btn--secondary { color: #FFFFFF; border-color: rgba(255,255,255,0.7); }
     .lh-opt[data-pay][aria-pressed="true"] { background: #FFFFFF; }
     /* ===== Steg 6: admin – ekonomi och bilder ===== */
-    .lh-admintabs { margin-top: 4px; }
+    /* Admin-flikarna 2 i rad (Tommy 2 nov 2026). Texten får radbrytas på smala skärmar i stället för att hamna utanför. */
+    .lh-admintabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; overflow: visible; margin: 4px 0 14px; padding: 0; }
+    .lh-admintabs .lh-chip { width: 100%; min-width: 0; justify-content: center; text-align: center; padding: 8px 10px; white-space: normal; line-height: 1.25; }
     .lh-econ__note { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 12px; font: 600 15px/1.45 var(--font-body); color: var(--flow-fg, #F4EDE0); }
     .lh-econ__help { margin: 0 0 10px; font: 15px/1.45 var(--font-body); color: var(--text-muted); }
     /* Bilder på hemsidan (admin) */
